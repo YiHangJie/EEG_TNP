@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+.DS_Store
+checkpoints/
+ad_data/
+.vscode/
+cached_data/
+purified_data/
+
