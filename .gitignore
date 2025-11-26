@@ -10,4 +10,4 @@ ad_data/
 .vscode/
 cached_data/
 purified_data/
-
+nohup.out
