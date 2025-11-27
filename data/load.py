@@ -231,6 +231,7 @@ def load_thubenchmark():
     info = {
         'num_electrodes': dataset.num_channel,
         'chunk_size': 250*6,
+        # 'chunk_size': 250*3,
         'num_classes': num_classes,
         'sampling_rate': 250,
     }

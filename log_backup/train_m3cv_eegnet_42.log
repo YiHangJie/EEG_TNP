@@ -1,0 +1,26 @@
+2025-11-26 16:21:05 | INFO | root | Training m3cv with eegnet
+2025-11-26 16:21:05 | INFO | root | Namespace(dataset='m3cv', model='eegnet', epochs=400, batch_size=128, lr=0.001, weight_decay=0.0001, patience=20, seed=42, gpu_id=0)
+2025-11-26 16:21:05 | INFO | torcheeg | 🔍 | Processing EEG data. Processed EEG data has been cached to [92m./cached_data/m3cv[0m.
+2025-11-26 16:21:05 | INFO | torcheeg | ⏳ | Monitoring the detailed processing of a record for debugging. The processing of other records will only be reported in percentage to keep it clean.
+2025-11-26 16:23:31 | INFO | torcheeg | ✅ | All processed EEG data has been cached to ./cached_data/m3cv.
+2025-11-26 16:23:31 | INFO | torcheeg | 😊 | Please set [92mio_path[0m to [92m./cached_data/m3cv[0m for the next run, to directly read from the cache if you wish to skip the data processing step.
+2025-11-26 16:28:59 | INFO | torcheeg | 🔍 | Processing EEG data. Processed EEG data has been cached to [92m./cached_data/m3cv_EA[0m.
+2025-11-26 16:28:59 | INFO | torcheeg | ⏳ | Monitoring the detailed processing of a record for debugging. The processing of other records will only be reported in percentage to keep it clean.
+2025-11-26 16:31:49 | INFO | torcheeg | ✅ | All processed EEG data has been cached to ./cached_data/m3cv_EA.
+2025-11-26 16:31:49 | INFO | torcheeg | 😊 | Please set [92mio_path[0m to [92m./cached_data/m3cv_EA[0m for the next run, to directly read from the cache if you wish to skip the data processing step.
+2025-11-26 16:32:15 | INFO | root | Dataset: m3cv, Sample_num: 57851, num_classes: 95
+2025-11-26 16:32:15 | INFO | torcheeg | 📊 | Create the split of train and test set.
+2025-11-26 16:32:15 | INFO | torcheeg | 😊 | Please set [92msplit_path[0m to [92m./cached_data/m3cv_split/kfold_split[0m for the next run, if you want to use the same setting for the experiment.
+2025-11-26 16:32:16 | INFO | root | sample num in train set: 46280, sample num in test set: 11571
+2025-11-26 16:32:17 | INFO | root | Model: eegnet, Parameter Num: 49248
+2025-11-26 16:32:17 | INFO | torcheeg | 📊 | Create the split of train and test set.
+2025-11-26 16:32:17 | INFO | torcheeg | 😊 | Please set [92msplit_path[0m to [92m./cached_data/m3cv_split/test_val_split_0[0m for the next run, if you want to use the same setting for the experiment.
+2025-11-26 16:32:18 | INFO | root | sample num in train set: 46280, sample num in val set: 5785, sample num in test set: 5786
+2025-11-26 16:34:22 | INFO | root | Epoch: 1, Train Loss: 3.2137, Val Acc: 0.0437, Val Loss: 4.2418, Test Acc: 0.0486, Test Loss: 4.2417, Learning Rate: 0.001000
+2025-11-26 16:36:10 | INFO | root | Epoch: 2, Train Loss: 1.1779, Val Acc: 0.4754, Val Loss: 1.8567, Test Acc: 0.4800, Test Loss: 1.8715, Learning Rate: 0.001000
+2025-11-26 16:37:54 | INFO | root | Epoch: 3, Train Loss: 0.7422, Val Acc: 0.9163, Val Loss: 0.6967, Test Acc: 0.9051, Test Loss: 0.7153, Learning Rate: 0.001000
+2025-11-26 16:39:42 | INFO | root | Epoch: 4, Train Loss: 0.6158, Val Acc: 0.9504, Val Loss: 0.4902, Test Acc: 0.9461, Test Loss: 0.4934, Learning Rate: 0.001000
+2025-11-26 16:41:27 | INFO | root | Epoch: 5, Train Loss: 0.5809, Val Acc: 0.9495, Val Loss: 0.4807, Test Acc: 0.9433, Test Loss: 0.4847, Learning Rate: 0.001000
+2025-11-26 16:43:18 | INFO | root | Epoch: 6, Train Loss: 0.5784, Val Acc: 0.9551, Val Loss: 0.5124, Test Acc: 0.9509, Test Loss: 0.5124, Learning Rate: 0.001000
+2025-11-26 16:45:08 | INFO | root | Epoch: 7, Train Loss: 0.5802, Val Acc: 0.9597, Val Loss: 0.4755, Test Acc: 0.9507, Test Loss: 0.4815, Learning Rate: 0.001000
+2025-11-26 16:46:50 | INFO | root | Epoch: 8, Train Loss: 0.5953, Val Acc: 0.9587, Val Loss: 0.4804, Test Acc: 0.9552, Test Loss: 0.4808, Learning Rate: 0.001000

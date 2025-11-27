@@ -17,7 +17,7 @@ commands=(
 
     # "python -u train.py --dataset bciciv2a --model conformer"
 
-    "python -u train.py --dataset thubenchmark --model eegnet" 
+    # "python -u train.py --dataset thubenchmark --model eegnet" 
 
     "python -u train.py --dataset thubenchmark --model tsception"
 

@@ -1,5 +1,6 @@
 import argparse
 import copy
+import datetime
 import torch
 import random
 import numpy as np
@@ -26,7 +27,7 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=400, help='number of epochs to train')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size for training')
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
-    parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay')
+    parser.add_argument('--weight_decay', type=float, default=0, help='weight decay')
     parser.add_argument('--patience', type=int, default=20, help='early stopping patience')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--gpu_id', type=int, default=0, help='which gpu to use')
@@ -58,7 +59,8 @@ if __name__ == '__main__':
 
     # set log file
     import logging
-    logfile_directory = f'./log/train_{args.dataset}_{args.model}_{args.seed}.log'
+    timestamp = str(datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+    logfile_directory = f'./log/train_{args.dataset}_{args.model}_{args.seed}_{args.lr}_{args.weight_decay}_{args.batch_size}_{timestamp}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Training {args.dataset} with {args.model}')
     logging.info(args)
@@ -79,6 +81,8 @@ if __name__ == '__main__':
     losses = []
     best_models = []
     for index, (train_dataset, test_dataset) in enumerate(cv.split(dataset)):
+        if index >= 1:
+            break
         logging.info(f"sample num in train set: {len(train_dataset)}, sample num in test set: {len(test_dataset)}")
         # initialize model
         model_dict = {
@@ -99,7 +103,8 @@ if __name__ == '__main__':
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
 
         # init optimizer and scheduler
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=args.patience//2, verbose=True)
 
         best_val_loss = float('inf')
@@ -140,7 +145,7 @@ if __name__ == '__main__':
                 best_val_loss = val_loss
                 no_improve_epochs = 0
                 best_state_dict = copy.deepcopy(model.state_dict())
-                torch.save(best_state_dict, f'./checkpoints/{args.dataset}_{args.model}_{args.seed}_fold{index}_best.pth')  # 仍然保存最佳模型
+                torch.save(best_state_dict, f'./checkpoints/{args.dataset}_{args.model}_{args.seed}_fold{index}_{args.lr}_{args.weight_decay}_best.pth')  # 仍然保存最佳模型
             else:
                 no_improve_epochs += 1
                 if no_improve_epochs >= patience:
@@ -150,7 +155,8 @@ if __name__ == '__main__':
                     )
                     break
         best_model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
-        best_model.load_state_dict(torch.load(f'./checkpoints/{args.dataset}_{args.model}_{args.seed}_fold{index}_best.pth'))
+        # best_model.load_state_dict(torch.load(f'./checkpoints/{args.dataset}_{args.model}_{args.seed}_fold{index}_best.pth'))
+        best_model.load_state_dict(best_state_dict)
         best_model.to(device)
         best_models.append(best_model)
 

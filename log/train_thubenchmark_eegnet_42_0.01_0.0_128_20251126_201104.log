@@ -1,0 +1,61 @@
+2025-11-26 20:11:04 | INFO | root | Training thubenchmark with eegnet
+2025-11-26 20:11:04 | INFO | root | Namespace(dataset='thubenchmark', model='eegnet', epochs=400, batch_size=128, lr=0.01, weight_decay=0.0, patience=20, seed=42, gpu_id=0)
+2025-11-26 20:11:04 | INFO | torcheeg | 🔍 | Detected cached processing results, reading cache from ./cached_data/thubenchmark_EA.
+2025-11-26 20:11:05 | INFO | root | Dataset: thubenchmark, Sample_num: 8400, num_classes: 40
+2025-11-26 20:11:05 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/kfold_split.
+2025-11-26 20:11:05 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2025-11-26 20:11:05 | INFO | root | sample num in train set: 6720, sample num in test set: 1680
+2025-11-26 20:11:06 | INFO | root | Model: eegnet, Parameter Num: 32208
+2025-11-26 20:11:06 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/test_val_split_0.
+2025-11-26 20:11:06 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2025-11-26 20:11:06 | INFO | root | sample num in train set: 6720, sample num in val set: 840, sample num in test set: 840
+2025-11-26 20:11:12 | INFO | root | Epoch: 1, Train Loss: 2.6442, Val Acc: 0.6810, Val Loss: 1.1562, Test Acc: 0.6774, Test Loss: 1.2796, Learning Rate: 0.010000
+2025-11-26 20:11:17 | INFO | root | Epoch: 2, Train Loss: 0.6237, Val Acc: 0.8357, Val Loss: 0.6083, Test Acc: 0.8071, Test Loss: 0.6804, Learning Rate: 0.010000
+2025-11-26 20:11:22 | INFO | root | Epoch: 3, Train Loss: 0.3422, Val Acc: 0.8690, Val Loss: 0.5242, Test Acc: 0.8488, Test Loss: 0.6669, Learning Rate: 0.010000
+2025-11-26 20:11:28 | INFO | root | Epoch: 4, Train Loss: 0.2612, Val Acc: 0.8631, Val Loss: 0.5557, Test Acc: 0.8440, Test Loss: 0.6545, Learning Rate: 0.010000
+2025-11-26 20:11:33 | INFO | root | Epoch: 5, Train Loss: 0.2029, Val Acc: 0.9012, Val Loss: 0.3476, Test Acc: 0.8881, Test Loss: 0.4322, Learning Rate: 0.010000
+2025-11-26 20:11:38 | INFO | root | Epoch: 6, Train Loss: 0.1667, Val Acc: 0.8976, Val Loss: 0.3492, Test Acc: 0.8821, Test Loss: 0.4448, Learning Rate: 0.010000
+2025-11-26 20:11:44 | INFO | root | Epoch: 7, Train Loss: 0.1418, Val Acc: 0.8988, Val Loss: 0.3510, Test Acc: 0.9060, Test Loss: 0.3748, Learning Rate: 0.010000
+2025-11-26 20:11:49 | INFO | root | Epoch: 8, Train Loss: 0.1212, Val Acc: 0.9238, Val Loss: 0.2488, Test Acc: 0.9036, Test Loss: 0.3377, Learning Rate: 0.010000
+2025-11-26 20:11:54 | INFO | root | Epoch: 9, Train Loss: 0.1093, Val Acc: 0.9310, Val Loss: 0.2759, Test Acc: 0.8988, Test Loss: 0.3609, Learning Rate: 0.010000
+2025-11-26 20:12:00 | INFO | root | Epoch: 10, Train Loss: 0.0995, Val Acc: 0.9238, Val Loss: 0.2880, Test Acc: 0.9060, Test Loss: 0.3431, Learning Rate: 0.010000
+2025-11-26 20:12:05 | INFO | root | Epoch: 11, Train Loss: 0.0903, Val Acc: 0.9071, Val Loss: 0.3335, Test Acc: 0.8929, Test Loss: 0.4275, Learning Rate: 0.010000
+2025-11-26 20:12:12 | INFO | root | Epoch: 12, Train Loss: 0.0808, Val Acc: 0.9238, Val Loss: 0.2531, Test Acc: 0.9107, Test Loss: 0.3778, Learning Rate: 0.010000
+2025-11-26 20:12:19 | INFO | root | Epoch: 13, Train Loss: 0.0886, Val Acc: 0.9357, Val Loss: 0.2369, Test Acc: 0.9119, Test Loss: 0.3513, Learning Rate: 0.010000
+2025-11-26 20:12:28 | INFO | root | Epoch: 14, Train Loss: 0.0634, Val Acc: 0.9226, Val Loss: 0.2563, Test Acc: 0.9095, Test Loss: 0.3595, Learning Rate: 0.010000
+2025-11-26 20:12:35 | INFO | root | Epoch: 15, Train Loss: 0.0696, Val Acc: 0.9238, Val Loss: 0.2683, Test Acc: 0.9083, Test Loss: 0.3667, Learning Rate: 0.010000
+2025-11-26 20:12:44 | INFO | root | Epoch: 16, Train Loss: 0.0661, Val Acc: 0.9429, Val Loss: 0.2371, Test Acc: 0.9036, Test Loss: 0.3392, Learning Rate: 0.010000
+2025-11-26 20:12:52 | INFO | root | Epoch: 17, Train Loss: 0.0588, Val Acc: 0.9333, Val Loss: 0.2584, Test Acc: 0.9167, Test Loss: 0.3739, Learning Rate: 0.010000
+2025-11-26 20:13:00 | INFO | root | Epoch: 18, Train Loss: 0.0617, Val Acc: 0.9167, Val Loss: 0.2577, Test Acc: 0.9000, Test Loss: 0.3772, Learning Rate: 0.010000
+2025-11-26 20:13:07 | INFO | root | Epoch: 19, Train Loss: 0.0563, Val Acc: 0.9321, Val Loss: 0.2441, Test Acc: 0.9214, Test Loss: 0.3572, Learning Rate: 0.010000
+2025-11-26 20:13:17 | INFO | root | Epoch: 20, Train Loss: 0.0600, Val Acc: 0.9298, Val Loss: 0.2706, Test Acc: 0.9167, Test Loss: 0.3842, Learning Rate: 0.010000
+2025-11-26 20:13:28 | INFO | root | Epoch: 21, Train Loss: 0.0584, Val Acc: 0.9381, Val Loss: 0.2482, Test Acc: 0.9119, Test Loss: 0.3626, Learning Rate: 0.010000
+2025-11-26 20:13:38 | INFO | root | Epoch: 22, Train Loss: 0.0495, Val Acc: 0.9333, Val Loss: 0.2466, Test Acc: 0.9190, Test Loss: 0.3855, Learning Rate: 0.010000
+2025-11-26 20:13:50 | INFO | root | Epoch: 23, Train Loss: 0.0560, Val Acc: 0.9357, Val Loss: 0.2466, Test Acc: 0.9143, Test Loss: 0.3449, Learning Rate: 0.010000
+2025-11-26 20:14:00 | INFO | root | Epoch: 24, Train Loss: 0.0477, Val Acc: 0.9393, Val Loss: 0.2570, Test Acc: 0.9155, Test Loss: 0.3770, Learning Rate: 0.005000
+2025-11-26 20:14:10 | INFO | root | Epoch: 25, Train Loss: 0.0375, Val Acc: 0.9381, Val Loss: 0.2362, Test Acc: 0.9143, Test Loss: 0.3212, Learning Rate: 0.005000
+2025-11-26 20:14:20 | INFO | root | Epoch: 26, Train Loss: 0.0256, Val Acc: 0.9500, Val Loss: 0.2318, Test Acc: 0.9262, Test Loss: 0.3277, Learning Rate: 0.005000
+2025-11-26 20:14:31 | INFO | root | Epoch: 27, Train Loss: 0.0276, Val Acc: 0.9524, Val Loss: 0.2165, Test Acc: 0.9190, Test Loss: 0.3239, Learning Rate: 0.005000
+2025-11-26 20:14:41 | INFO | root | Epoch: 28, Train Loss: 0.0237, Val Acc: 0.9405, Val Loss: 0.2353, Test Acc: 0.9226, Test Loss: 0.3562, Learning Rate: 0.005000
+2025-11-26 20:14:52 | INFO | root | Epoch: 29, Train Loss: 0.0272, Val Acc: 0.9381, Val Loss: 0.2397, Test Acc: 0.9167, Test Loss: 0.3187, Learning Rate: 0.005000
+2025-11-26 20:15:02 | INFO | root | Epoch: 30, Train Loss: 0.0216, Val Acc: 0.9369, Val Loss: 0.2527, Test Acc: 0.9119, Test Loss: 0.3442, Learning Rate: 0.005000
+2025-11-26 20:15:12 | INFO | root | Epoch: 31, Train Loss: 0.0251, Val Acc: 0.9381, Val Loss: 0.2573, Test Acc: 0.9107, Test Loss: 0.3437, Learning Rate: 0.005000
+2025-11-26 20:15:23 | INFO | root | Epoch: 32, Train Loss: 0.0217, Val Acc: 0.9333, Val Loss: 0.2572, Test Acc: 0.9179, Test Loss: 0.3231, Learning Rate: 0.005000
+2025-11-26 20:15:32 | INFO | root | Epoch: 33, Train Loss: 0.0256, Val Acc: 0.9488, Val Loss: 0.2310, Test Acc: 0.9238, Test Loss: 0.3156, Learning Rate: 0.005000
+2025-11-26 20:15:44 | INFO | root | Epoch: 34, Train Loss: 0.0240, Val Acc: 0.9393, Val Loss: 0.2462, Test Acc: 0.9250, Test Loss: 0.3065, Learning Rate: 0.005000
+2025-11-26 20:15:54 | INFO | root | Epoch: 35, Train Loss: 0.0230, Val Acc: 0.9381, Val Loss: 0.2396, Test Acc: 0.9155, Test Loss: 0.3246, Learning Rate: 0.005000
+2025-11-26 20:16:04 | INFO | root | Epoch: 36, Train Loss: 0.0213, Val Acc: 0.9357, Val Loss: 0.2573, Test Acc: 0.9190, Test Loss: 0.3484, Learning Rate: 0.005000
+2025-11-26 20:16:14 | INFO | root | Epoch: 37, Train Loss: 0.0197, Val Acc: 0.9345, Val Loss: 0.2508, Test Acc: 0.9143, Test Loss: 0.3328, Learning Rate: 0.005000
+2025-11-26 20:16:24 | INFO | root | Epoch: 38, Train Loss: 0.0189, Val Acc: 0.9286, Val Loss: 0.2627, Test Acc: 0.9238, Test Loss: 0.3774, Learning Rate: 0.002500
+2025-11-26 20:16:34 | INFO | root | Epoch: 39, Train Loss: 0.0187, Val Acc: 0.9393, Val Loss: 0.2349, Test Acc: 0.9321, Test Loss: 0.3367, Learning Rate: 0.002500
+2025-11-26 20:16:44 | INFO | root | Epoch: 40, Train Loss: 0.0171, Val Acc: 0.9405, Val Loss: 0.2392, Test Acc: 0.9262, Test Loss: 0.3303, Learning Rate: 0.002500
+2025-11-26 20:16:54 | INFO | root | Epoch: 41, Train Loss: 0.0144, Val Acc: 0.9452, Val Loss: 0.2242, Test Acc: 0.9238, Test Loss: 0.3284, Learning Rate: 0.002500
+2025-11-26 20:17:04 | INFO | root | Epoch: 42, Train Loss: 0.0127, Val Acc: 0.9452, Val Loss: 0.2267, Test Acc: 0.9298, Test Loss: 0.3150, Learning Rate: 0.002500
+2025-11-26 20:17:14 | INFO | root | Epoch: 43, Train Loss: 0.0118, Val Acc: 0.9429, Val Loss: 0.2247, Test Acc: 0.9214, Test Loss: 0.3340, Learning Rate: 0.002500
+2025-11-26 20:17:24 | INFO | root | Epoch: 44, Train Loss: 0.0115, Val Acc: 0.9452, Val Loss: 0.2232, Test Acc: 0.9262, Test Loss: 0.3258, Learning Rate: 0.002500
+2025-11-26 20:17:34 | INFO | root | Epoch: 45, Train Loss: 0.0123, Val Acc: 0.9440, Val Loss: 0.2373, Test Acc: 0.9226, Test Loss: 0.3388, Learning Rate: 0.002500
+2025-11-26 20:17:44 | INFO | root | Epoch: 46, Train Loss: 0.0137, Val Acc: 0.9440, Val Loss: 0.2233, Test Acc: 0.9190, Test Loss: 0.3522, Learning Rate: 0.002500
+2025-11-26 20:17:54 | INFO | root | Epoch: 47, Train Loss: 0.0108, Val Acc: 0.9417, Val Loss: 0.2320, Test Acc: 0.9250, Test Loss: 0.3355, Learning Rate: 0.002500
+2025-11-26 20:17:54 | INFO | root | Early stopping at epoch 47 (no improvement in 20 epochs). Best Val Loss: 0.2165
+2025-11-26 20:17:55 | INFO | root | Test Acc: 0.9190, Test Loss: 0.3239
+2025-11-26 20:17:55 | INFO | root | Acc: 0.9190±0.0000, Loss: 0.3239±0.0000
