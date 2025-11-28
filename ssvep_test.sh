@@ -14,7 +14,7 @@ commands=(
     # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.0001 --weight_decay 0"
     # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.1"
     # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.01"
-    # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.001"
+    "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.001"
     # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.0001"
     # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.00001"
 
@@ -36,14 +36,14 @@ commands=(
     # "python -u train.py --dataset thubenchmark --model conformer --lr 0.001 --weight_decay 0.0001"
     # "python -u train.py --dataset thubenchmark --model conformer --lr 0.001 --weight_decay 0.00001"
 
-    "python -u train.py --dataset thubenchmark --model atcnet --lr 0.01 --weight_decay 0"
-    "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0"
-    "python -u train.py --dataset thubenchmark --model atcnet --lr 0.0001 --weight_decay 0"
-    "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0.1"
-    "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0.01"
-    "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0.001"
-    "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0.0001"
-    "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0.00001"
+    # "python -u train.py --dataset thubenchmark --model atcnet --lr 0.01 --weight_decay 0"
+    # "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0"
+    # "python -u train.py --dataset thubenchmark --model atcnet --lr 0.0001 --weight_decay 0"
+    # "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0.1"
+    # "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0.01"
+    # "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0.001"
+    # "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0.0001"
+    # "python -u train.py --dataset thubenchmark --model atcnet --lr 0.001 --weight_decay 0.00001"
 )
 
 # Run each command in the array in the background, with at most max_jobs concurrent jobs

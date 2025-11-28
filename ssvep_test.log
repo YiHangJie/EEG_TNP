@@ -15,21 +15,10 @@ No action taken.
 
 CondaError: Run 'conda init' before 'conda activate'
 
-[2025-11-27 12:55:02] INFO (torcheeg/MainThread) 🔍 | Detected cached processing results, reading cache from ./cached_data/thubenchmark_EA.
-[2025-11-27 12:55:03] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/kfold_split.
-[2025-11-27 12:55:03] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
-/home/yhj/miniconda3/envs/torch/lib/python3.11/site-packages/torch/nn/modules/conv.py:454: UserWarning: Using padding='same' with even kernel lengths and odd dilation may require a zero-padded copy of the input be created (Triggered internally at /opt/conda/conda-bld/pytorch_1724789121465/work/aten/src/ATen/native/Convolution.cpp:1031.)
-  return F.conv2d(input, weight, bias, self.stride,
-[2025-11-27 12:55:03] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/test_val_split_0.
-[2025-11-27 12:55:03] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
-/home/yhj/miniconda3/envs/torch/lib/python3.11/site-packages/torch/optim/lr_scheduler.py:60: UserWarning: The verbose parameter is deprecated. Please use get_last_lr() to access the learning rate.
-  warnings.warn(
-[2025-11-27 13:35:02] INFO (torcheeg/MainThread) 🔍 | Detected cached processing results, reading cache from ./cached_data/thubenchmark_EA.
-[2025-11-27 13:35:03] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/kfold_split.
-[2025-11-27 13:35:03] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
-/home/yhj/miniconda3/envs/torch/lib/python3.11/site-packages/torch/nn/modules/conv.py:454: UserWarning: Using padding='same' with even kernel lengths and odd dilation may require a zero-padded copy of the input be created (Triggered internally at /opt/conda/conda-bld/pytorch_1724789121465/work/aten/src/ATen/native/Convolution.cpp:1031.)
-  return F.conv2d(input, weight, bias, self.stride,
-[2025-11-27 13:35:03] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/test_val_split_0.
-[2025-11-27 13:35:03] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+[2025-11-27 14:19:14] INFO (torcheeg/MainThread) 🔍 | Detected cached processing results, reading cache from ./cached_data/thubenchmark_EA.
+[2025-11-27 14:19:15] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/kfold_split.
+[2025-11-27 14:19:15] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+[2025-11-27 14:19:16] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/test_val_split_0.
+[2025-11-27 14:19:16] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
 /home/yhj/miniconda3/envs/torch/lib/python3.11/site-packages/torch/optim/lr_scheduler.py:60: UserWarning: The verbose parameter is deprecated. Please use get_last_lr() to access the learning rate.
   warnings.warn(
