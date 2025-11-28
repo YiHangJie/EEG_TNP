@@ -11,9 +11,9 @@ def get_model_args(name, dataset, info):
                 "sampling_rate": info['sampling_rate'],
                 "num_electrodes": info['num_electrodes'],
                 "num_classes": info['num_classes'],
-                # "num_T": 30,
-                # "num_S": 30,
-                # "hid_channels": 64,
+                "num_T": 30,
+                "num_S": 30,
+                "hid_channels": 64,
             }
         else:
             args = {
