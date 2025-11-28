@@ -28,6 +28,7 @@ def parse_args():
     parser.add_argument('--model', type=str, default='eegnet', choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
     parser.add_argument('--fold', type=int, default=0, help='which fold to use')
     parser.add_argument('--attack', type=str, default='fgsm', choices=['fgsm', 'pgd', 'cw', 'autoattack'], help='choose attack')
+    parser.add_argument('--eps', type=float, default=0.0313, help='attack budget, default is 8/255')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--gpu_id', type=int, default=0, help='which gpu to use')
@@ -59,7 +60,7 @@ if __name__ == '__main__':
 
     # set log file
     import logging
-    logfile_directory = f'./log/attack_{args.dataset}_{args.model}_{args.attack}_{args.seed}.log'
+    logfile_directory = f'./log/attack_{args.dataset}_{args.model}_{args.attack}_{args.eps}_{args.seed}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Attacking {args.attack} on {args.dataset} with {args.model}')
     logging.info(args)
@@ -87,7 +88,7 @@ if __name__ == '__main__':
             'atcnet': ATCNet,
             'conformer': Conformer
         }
-        model = model_dict[args.model](**get_model_args(args.model, info))
+        model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
         model.to(device)
         checkpoint = torch.load(f'./checkpoints/{args.dataset}_{args.model}_{args.seed}_fold{args.fold}_best.pth', map_location=device)
         model.load_state_dict(checkpoint)
@@ -100,7 +101,7 @@ if __name__ == '__main__':
             'cw': CW,
             'autoattack': AutoAttack
         }
-        attack = attack_dict[args.attack](model, device=device, n_classes=info['num_classes'])
+        attack = attack_dict[args.attack](model, eps=args.eps, device=device, n_classes=info['num_classes'])
         
         val_dataset, test_dataset = train_test_split(test_dataset, shuffle=True, test_size=0.5, random_state=args.seed, split_path=f'./cached_data/{args.dataset}_split/test_val_split_{index}')
         logging.info(f"Sample num in test set: {len(test_dataset)}")

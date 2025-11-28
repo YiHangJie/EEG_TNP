@@ -9,55 +9,20 @@ conda init
 conda activate torch
 
 commands=(
-    # bciciv2a autoattack
-    "python purify.py --config PTR_8_2048_rank10.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-    "python purify.py --config PTR_8_2048_rank12.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-    "python purify.py --config PTR_8_2048_rank14.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-    "python purify.py --config PTR_8_2048_rank16.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-    "python purify.py --config PTR_8_2048_rank18.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-    "python purify.py --config PTR_8_2048_rank20.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-    "python purify.py --config PTR_8_2048_rank22.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-    "python purify.py --config PTR_8_2048_rank24.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-    "python purify.py --config PTR_8_2048_rank26.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-    "python purify.py --config PTR_8_2048_rank28.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-    "python purify.py --config PTR_8_2048_rank30.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank40.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank50.yaml --sample_num 512 --dataset bciciv2a --attack autoattack"
-
-    # # thubenchmark autoattack
+    # thubenchmark autoattack
     # "python purify.py --config PTR_8_2048_rank10.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank20.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank30.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank40.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank50.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
-
-    # # seediv autoattack
-    # "python purify.py --config PTR_8_2048_rank10.yaml --sample_num 512 --dataset seediv --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank20.yaml --sample_num 512 --dataset seediv --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank30.yaml --sample_num 512 --dataset seediv --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank40.yaml --sample_num 512 --dataset seediv --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank50.yaml --sample_num 512 --dataset seediv --attack autoattack"
-
-    # # m3cv autoattack
-    # "python purify.py --config PTR_8_2048_rank10.yaml --sample_num 512 --dataset m3cv --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank20.yaml --sample_num 512 --dataset m3cv --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank30.yaml --sample_num 512 --dataset m3cv --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank40.yaml --sample_num 512 --dataset m3cv --attack autoattack"
-
-    # "python purify.py --config PTR_8_2048_rank50.yaml --sample_num 512 --dataset m3cv --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank12.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank14.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank16.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank18.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank20.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank22.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank24.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank26.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank28.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank30.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank40.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
+    "python purify.py --config PTR_8_2048_rank50.yaml --sample_num 512 --dataset thubenchmark --attack autoattack"
 )
 
 # Run each command in the array in the background, with at most max_jobs concurrent jobs

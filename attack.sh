@@ -9,17 +9,6 @@ conda init
 conda activate torch
 
 commands=(
-    "python -u attack.py --dataset bciciv2a --model eegnet --fold 0 --attack fgsm"
-    "python -u attack.py --dataset bciciv2a --model eegnet --fold 0 --attack pgd"
-    "python -u attack.py --dataset bciciv2a --model eegnet --fold 0 --attack cw"
-    "python -u attack.py --dataset bciciv2a --model eegnet --fold 0 --attack autoattack"
-
-    # "python -u attack.py --dataset bciciv2a --model tsception --lr 0.0001"
-
-    # "python -u attack.py --dataset bciciv2a --model atcnet --lr 0.0001"
-
-    # "python -u attack.py --dataset bciciv2a --model conformer"
-
     "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack fgsm" 
     "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack pgd" 
     "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack cw" 
@@ -31,21 +20,10 @@ commands=(
 
     # "python -u attack.py --dataset thubenchmark --model conformer"
 
-    "python -u attack.py --dataset seediv --model eegnet --fold 0 --attack fgsm" 
-    "python -u attack.py --dataset seediv --model eegnet --fold 0 --attack pgd" 
-    "python -u attack.py --dataset seediv --model eegnet --fold 0 --attack cw" 
-    "python -u attack.py --dataset seediv --model eegnet --fold 0 --attack autoattack"
-
-    # "python -u attack.py --dataset seediv --model tsception --lr 0.0001"
-
-    # "python -u attack.py --dataset seediv --model atcnet --lr 0.0001"
-
-    # "python -u attack.py --dataset seediv --model conformer"
-
-    "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack fgsm" 
-    "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack pgd" 
-    "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack cw" 
-    "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack autoattack"
+    # "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack fgsm" 
+    # "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack pgd" 
+    # "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack cw" 
+    # "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack autoattack"
 
     # "python -u attack.py --dataset m3cv --model tsception --lr 0.0001"
 

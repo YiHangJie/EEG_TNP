@@ -4,7 +4,7 @@ import torchattacks
 from attack.attack import Attack
 
 class PGD(Attack):
-    def __init__(self, model, device="cuda", eps=8/255, alpha=1/255, steps=100, n_classes=10):
+    def __init__(self, model, device="cuda", eps=8/255, alpha=2/255, steps=200, n_classes=10):
         super().__init__(model, device)
         self.eps = eps
         self.alpha = alpha

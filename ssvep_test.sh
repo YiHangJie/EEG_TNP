@@ -10,7 +10,7 @@ commands=(
     # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.0001 --weight_decay 0"
     # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.1"
     # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.01"
-    # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.001"
+    "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.001"
     # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.0001"
     # "python -u train.py --dataset thubenchmark --model eegnet --lr 0.001 --weight_decay 0.00001"
 

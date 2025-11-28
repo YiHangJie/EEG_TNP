@@ -4,12 +4,12 @@ import torchattacks
 from attack.attack import Attack
 
 class CW(Attack):
-    def __init__(self, model, device="cuda", lr=0.1, steps=100, n_classes=10):
+    def __init__(self, model, device="cuda", lr=0.1, steps=200, n_classes=10, eps=None):
         super(CW, self).__init__(model, device)
         self.lr = lr
         self.steps = steps
-        self.c = 10
-        self.kappa = 0
+        self.c = 100
+        self.kappa = 1
     
     def forward(self, images, labels):
         images = images.clone().detach().to(self.device)
