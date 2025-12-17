@@ -33,10 +33,10 @@ class BaseTNModel(torch.nn.Module):
         
         # print(f'payload: {self.payload}, grid_size: {self.grid_size}, device: {self.device}')
 
-        downscale_factor = int(self.target.shape[0] / self.current_reso)
+        # downscale_factor = int(self.target.shape[0] / self.current_reso)
         
-        self.downsampled_target = self.downsample_target(factor=downscale_factor, grayscale=self.grayscale, dim=self.dimensions, device=self.device, masked_avg_pooling = self.masked_avg_pooling)
-        self.downsampled_target_non_noise = self.downsample_target(factor=downscale_factor, grayscale=self.grayscale, dim=self.dimensions, device=self.device, use_non_noisy_target=True)
+        # self.downsampled_target = self.downsample_target(factor=downscale_factor, grayscale=self.grayscale, dim=self.dimensions, device=self.device, masked_avg_pooling = self.masked_avg_pooling)
+        # self.downsampled_target_non_noise = self.downsample_target(factor=downscale_factor, grayscale=self.grayscale, dim=self.dimensions, device=self.device, use_non_noisy_target=True)
 
         
         self.dtype = torch.float32 if dtype == 'float32' else torch.float64
@@ -89,6 +89,7 @@ class BaseTNModel(torch.nn.Module):
         fn_loss = {
             'L1': torch.nn.L1Loss(),
             'L2': torch.nn.MSELoss(),
+            'TV': torch.nn.MSELoss(),
         }[loss_fn_str]
         return fn_loss
     

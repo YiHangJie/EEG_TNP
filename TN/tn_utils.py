@@ -33,27 +33,27 @@ def get_qtt_shape(dim_grid, dim=2):
     # print(f"Function get_qtt_shape executed. Returns: {shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source}")
     return shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source
 
-# def get_qtt_shape_eeg(C, T, dim=2):
-#     """ 
-#     C: number of channels
-#     T: number of time points
-#     dim: dimension of the grid (default 2d)
-#     """
-#     C_log2 = int(np.log2(C))
-#     T_factor = T // C * 2
-#     num_factors = dim*C_log2
-#     shape_source = [C, T]
-#     shape_target = [2*T_factor]*C_log2
-#     shape_factors = [2, T_factor]*(num_factors//2)
-#     factor_ids = torch.arange(num_factors)
-
-#     factor_source_to_target = factor_ids.reshape(dim, C_log2).T.reshape(-1).tolist()
-#     factor_target_to_source = factor_ids.reshape(C_log2, dim).T.reshape(-1).tolist()
-
-#     # print(f"Function get_qtt_shape executed. Returns: {shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source}")
-#     return shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source
-
 def get_qtt_shape_eeg(C, T, dim=2):
+    """ 
+    C: number of channels
+    T: number of time points
+    dim: dimension of the grid (default 2d)
+    """
+    C_log2 = int(np.log2(C))
+    T_factor = 2
+    num_factors = dim*C_log2
+    shape_source = [C, T]
+    shape_target = [2*T_factor]*C_log2
+    shape_factors = [2, T_factor]*(num_factors//2)
+    factor_ids = torch.arange(num_factors)
+
+    factor_source_to_target = factor_ids.reshape(dim, C_log2).T.reshape(-1).tolist()
+    factor_target_to_source = factor_ids.reshape(C_log2, dim).T.reshape(-1).tolist()
+
+    # print(f"Function get_qtt_shape executed. Returns: {shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source}")
+    return shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source
+
+def get_qtt_shape_eeg(C , T, dim=2):
     """ 
     C: number of channels
     T: number of time points
@@ -410,20 +410,31 @@ def get_rr_template_qtr(dim_grid, start_grid, max_rank = 256, dim=2, payload_dim
 def get_rr_template_qtr_eeg(C, T, stage, max_rank = 256, dim=2, sigma_init = None, device = None):
     shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source = get_qtt_shape_eeg(C, T, dim=dim)
     ranks = [max_rank] * int(np.log2(C) + 1)
+    # ranks = [max(max_rank, T // C // 10)] * 2 + [max_rank] * int(np.log2(C) - 1)
+    # ranks = [T // C // 10] * 2 + [max_rank] * int(np.log2(C) - 1)
 
     tt_core_shapes = [
             (max_rank, T // C , max_rank)
         ] + [
             (max_rank, 2*2, max_rank)
         ] * int(np.log2(C))
-    # print(tt_core_shapes)
+    # tt_core_shapes = [
+    #         (ranks[0], T // C , ranks[1])
+    #     ] + [
+    #         (ranks[1], 2*2, max_rank)
+    #     ] + [
+    #         (max_rank, 2*2, max_rank)
+    #     ] * int(np.log2(C) - 2) + [
+    #         (max_rank, 2*2, ranks[0])
+    #     ]
     # tt_core_shapes = [
     #         (max_rank, 2*2, max_rank)
     #     ] * int(np.log2(C)) + [
     #         (max_rank, T // C , max_rank)
     #     ]
         
-    start_i = len(ranks) - stage
+    # start_i = len(ranks) - stage
+    start_i = len(ranks) - stage + 1
     # start_i = len(ranks) - stage - 1
 
     if sigma_init is None or sigma_init == 0:
@@ -454,6 +465,159 @@ def get_rr_template_qtr_eeg(C, T, stage, max_rank = 256, dim=2, sigma_init = Non
     # print(f"Number of parameters: {num_params}")
 
     return tt, shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source
+
+def get_rr_template_qtr_eeg_1(C, T, stage, max_rank = 256, dim=2, sigma_init = None, device = None):
+    shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source = get_qtt_shape_eeg(C, T, dim=dim)
+    ranks = [max_rank] * int(np.log2(C) + 1)
+    # ranks = [max(max_rank, T // C // 10)] * 2 + [max_rank] * int(np.log2(C) - 1)
+
+    tt_core_shapes = [
+            (max_rank, T // C , max_rank)
+        ] + [
+            (max_rank, 2*2, max_rank)
+        ] * int(np.log2(C))
+    # tt_core_shapes = [
+    #         (ranks[0], T // C , ranks[1])
+    #     ] + [
+    #         (ranks[1], 2*2, max_rank)
+    #     ] + [
+    #         (max_rank, 2*2, max_rank)
+    #     ] * int(np.log2(C) - 2) + [
+    #         (max_rank, 2*2, ranks[0])
+    #     ]
+    # tt_core_shapes = [
+    #         (max_rank, 2*2, max_rank)
+    #     ] * int(np.log2(C)) + [
+    #         (max_rank, T // C , max_rank)
+    #     ]
+        
+    # start_i = len(ranks) - stage
+    start_i = len(ranks) - stage + 1
+    # start_i = len(ranks) - stage - 1
+
+    if sigma_init is None or sigma_init == 0:
+        sigma_init = (-torch.tensor(ranks).double().log().sum() / (2. * len(ranks))).exp().item()
+    # print("sigma_init", sigma_init)
+
+    cores = []
+    # for first start i core, randomly initialize
+    # for other cores, initialize with identity
+    for i, shape in enumerate(tt_core_shapes):
+        if i < start_i:
+            core = torch.randn(shape, dtype=torch.float) * sigma_init
+            core = core.to(device)
+            cores.append(core)
+        elif i == start_i:
+            core = torch.stack([torch.eye(shape[0], shape[2])] * shape[1], dim=1)
+            core = core.to(device)
+            cores.append(core)
+        elif i > start_i:
+            core = torch.stack([torch.eye(shape[0], shape[2])] * shape[1], dim=1)
+            core = core.to(device)
+            cores.append(core)
+    tt = cores
+    # caluculate the number of parameters
+    num_params = 0
+    for core in tt:
+        num_params += core.numel()
+    # print(f"Number of parameters: {num_params}")
+
+    return tt, shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source
+
+def get_rr_template_qtr_eeg_3d(C1, C2, T, stage, max_rank = 256, dim=2, sigma_init = None, device = None):
+    # shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source = get_qtt_shape_eeg(C, T, dim=dim)
+    time_core_num = int(np.log2(T))
+    ranks = [C1, max(C1, C2), C2] + [max_rank] * (time_core_num - 1)
+
+    tt_core_shapes = [
+            (ranks[0], C1, ranks[1])
+        ] + [
+            (ranks[1], C2, ranks[2])
+        ] + [
+            (ranks[2], 2, max_rank)
+        ] + [
+            (max_rank, 2, max_rank)
+        ] * int(time_core_num-2) + [
+            (max_rank, 2, ranks[0])
+        ]
+        
+    start_i = len(ranks) - stage + 1
+
+    if sigma_init is None or sigma_init == 0:
+        sigma_init = (-torch.tensor(ranks).double().log().sum() / (2. * len(ranks))).exp().item()
+    # print("sigma_init", sigma_init)
+
+    cores = []
+    # for first start i core, randomly initialize
+    # for other cores, initialize with identity
+    for i, shape in enumerate(tt_core_shapes):
+        if i < start_i:
+            core = torch.randn(shape, dtype=torch.float) * sigma_init
+            core = core.to(device)
+            cores.append(core)
+        elif i == start_i:
+            core = torch.stack([torch.eye(shape[0], shape[2])] * shape[1], dim=1)
+            core = core.to(device)
+            cores.append(core)
+        elif i > start_i:
+            core = torch.stack([torch.eye(shape[0], shape[2])] * shape[1], dim=1)
+            core = core.to(device)
+            cores.append(core)
+    tt = cores
+    # caluculate the number of parameters
+    num_params = 0
+    for core in tt:
+        num_params += core.numel()
+    # print(f"Number of parameters: {num_params}")
+
+    return tt
+
+def get_rr_template_qtr_eeg_tfs(C, F, T, stage, max_rank = 256, dim=3, sigma_init = None, device = None):
+    # shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source = get_qtt_shape_eeg(C, T, dim=dim)
+    core_num = int(np.log2(T))
+    # ranks = [2, 2] + [max_rank] * (core_num - 1)
+    ranks = [max_rank, max_rank] + [max_rank] * (core_num - 1)
+
+    tt_core_shapes = [
+            (ranks[0], 2, ranks[1])
+        ] + [
+            (ranks[1], 8, max_rank)
+        ] + [
+            (max_rank, 8, max_rank)
+        ] * (core_num - 2) + [
+            (max_rank, 8, ranks[0])
+        ]
+        
+    start_i = len(ranks) - stage + 1
+
+    if sigma_init is None or sigma_init == 0:
+        sigma_init = (-torch.tensor(ranks).double().log().sum() / (2. * len(ranks))).exp().item()
+    # print("sigma_init", sigma_init)
+
+    cores = []
+    # for first start i core, randomly initialize
+    # for other cores, initialize with identity
+    for i, shape in enumerate(tt_core_shapes):
+        if i < start_i:
+            core = torch.randn(shape, dtype=torch.float) * sigma_init
+            core = core.to(device)
+            cores.append(core)
+        elif i == start_i:
+            core = torch.stack([torch.eye(shape[0], shape[2])] * shape[1], dim=1)
+            core = core.to(device)
+            cores.append(core)
+        elif i > start_i:
+            core = torch.stack([torch.eye(shape[0], shape[2])] * shape[1], dim=1)
+            core = core.to(device)
+            cores.append(core)
+    tt = cores
+    # caluculate the number of parameters
+    num_params = 0
+    for core in tt:
+        num_params += core.numel()
+    # print(f"Number of parameters: {num_params}")
+
+    return tt
 
 def get_batched_qtr(dim_grid, start_grid, max_rank = 256, dim=2, batch_size=1, payload_dim = 0, payload_position= "first_core", scale_ranks_by_payload = True, canonization = "None", compression_alg = "compress_all", sigma_init = None, device = None):
     assert payload_position in ["first_core"], "Only first_core is supported for complete QTT" and batch_size > 1

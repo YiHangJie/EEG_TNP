@@ -63,16 +63,16 @@ class Config:
         self.save_learned_recon = 0
         self.save_dir = 'saved_images'
 
+        self.ds_method = 'avg_pool' # 'avg_pool, dwt'
+        self.c = 0 # "coefficient for the resize"
+        self.strategy = 'interpolate'  # "interpolate, fft, none"
         self.payload = 0  # "payload is 3 for RGB images,1 for grayscale images and X for X num features"
         self.payload_position = 'grayscale'  # "first_core, last_core, or grayscale"
         self.compute_reconstruction = 1  # "compute reconstruction or not - 0 if object is too big to fit in memory"
         self.loss_fn_str = 'L2'
         self.dataset = None  # "dataset name"
         self.img_TV = 0  # "use TV regularization on image or not"
-        self.add_gaussian_noise = 0  # "add gaussian noise mode, default is 0"
-        self.gaussian_noise_std = 0.0  # "std of gaussian noise to add to the target"
         self.noise_batch_size = 1  # "batch size for adding noise"
-        self.push = False # "push the image away from the target or not"
         self.sample_with_replacement = 1
         self.sample_weights_converge_steps = 40
         self.activation = 'None'

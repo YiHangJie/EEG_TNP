@@ -1,0 +1,34 @@
+model: PTR_3d
+strategy: 3d # interpolate, fft, 3d
+lr: 0.008
+c: 1
+
+num_iterations: 2048
+max_batch_size: 262144 # 256^2
+
+seed: 42
+
+stage: 4
+payload_position: first_core
+iterations_for_upsampling: 
+  # - 64
+  # - 128
+  - 256
+  - 512
+  - 1024
+
+  # - 128
+  # - 256
+  # - 512
+  # - 1024
+  # - 1536
+  
+  
+max_rank: 30
+
+lr_decay_factor: 0.9
+lr_decay_factor_until_next_upsampling: 0.1
+warmup_steps: 50
+
+loss_fn_str: L2
+regularization_weight: 0.03

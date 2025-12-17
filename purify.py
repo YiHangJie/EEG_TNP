@@ -8,21 +8,24 @@ from torcheeg.models import EEGNet, TSCeption, ATCNet, Conformer
 from torcheeg.model_selection import KFold, train_test_split
 from torcheeg.datasets.constants import SEED_IV_CHANNEL_LOCATION_DICT, M3CV_CHANNEL_LOCATION_DICT
 from torcheeg.datasets.constants.motor_imagery import BCICIV2A_LOCATION_DICT
-from torcheeg.datasets.constants.ssvep import TSUBENCHMARK_LOCATION_LIST
+from torcheeg.datasets.constants.ssvep import TSUBENCHMARK_CHANNEL_LOCATION_DICT
 from torcheeg.transforms import ToGrid, ToInterpolatedGrid
 
 dataset_channel_location_dicts = {
    'seediv': SEED_IV_CHANNEL_LOCATION_DICT,
    'm3cv': M3CV_CHANNEL_LOCATION_DICT,
    'bciciv2a': BCICIV2A_LOCATION_DICT,
-   'thubenchmark': TSUBENCHMARK_LOCATION_LIST
+   'thubenchmark': TSUBENCHMARK_CHANNEL_LOCATION_DICT
 }
 
 from models.model_args import get_model_args
 from data.load import load_seediv, load_m3cv, load_bciciv2a, load_thubenchmark
 from TN.PTR import PTR
+from TN.PTR_3d import PTR_3d
+from TN.PTR_tfs import PTR_tfs
 from TN.opt import *
 from TN.utils import get_TN_args
+from visualize import plot_eeg
 
 def seed_everything(seed=42):
     torch.manual_seed(seed)
@@ -37,13 +40,16 @@ def parse_args():
     parser.add_argument('--dataset', type=str, default='seediv', choices=['seediv','m3cv', 'bciciv2a', 'thubenchmark'], help='choose dataset')
     parser.add_argument('--model', type=str, default='eegnet', choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
     parser.add_argument('--fold', type=int, default=0, help='which fold to use')
-    parser.add_argument('--attack', type=str, default='fgsm', choices=['fgsm', 'pgd', 'cw', 'autoattack'], help='choose attack')
+    parser.add_argument('--attack', type=str, default='fgsm', choices=['fgsm', 'pgd', 'cw', 'autoattack', 'clean'], help='choose attack')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--gpu_id', type=int, default=0, help='which gpu to use')
 
     parser.add_argument('--config', type=str, help='path to purify config file')
     parser.add_argument('--sample_num', type=int, default=512, help='number of samples to purify')
+
+    parser.add_argument('--visualize', action='store_true', help='whether to visualize the purification process')
+
     args = parser.parse_args()
     return args
 
@@ -65,7 +71,34 @@ def evaluate(model, loader):
         loss /= len(loader.dataset)
     return accuracy, loss
 
-def interpolate(args, data, sampling_rate, strategy):
+def fft_resample(x: torch.Tensor, target_len: int) -> torch.Tensor:
+    """
+    使用 FFT 对一维信号进行重采样（最后一个维度视为时间维）
+
+    :param x: (..., N) 形式的输入信号
+    :param target_len: 目标重采样长度
+    :return: (..., target_len) 形式的重采样结果
+    """
+    orig_len = x.size(-1)
+    Xf = torch.fft.rfft(x, dim=-1)  # (..., N_freq)
+    num_freqs_out = target_len // 2 + 1
+    num_freqs_in = Xf.size(-1)
+
+    if target_len > orig_len:
+        # zero-pad FFT (upsampling)
+        pad_size = num_freqs_out - num_freqs_in
+        pad = torch.zeros(*Xf.shape[:-1], pad_size, dtype=Xf.dtype, device=Xf.device)
+        Xf_resampled = torch.cat([Xf, pad], dim=-1)
+    else:
+        # truncate FFT (downsampling)
+        Xf_resampled = Xf[..., :num_freqs_out]
+
+    # IFFT to get time domain signal
+    y = torch.fft.irfft(Xf_resampled, n=target_len, dim=-1)
+    return y
+
+def interpolate(args, data, sampling_rate):
+    data = data.clone()
     config_path = f'./configs/{args.dataset}/{args.config}'
     # init TN
     with open(config_path, "r", encoding="utf-8") as file:
@@ -78,36 +111,79 @@ def interpolate(args, data, sampling_rate, strategy):
 
     data = data.permute(1, 2, 0)
     h, w, _ = data.shape
-    if strategy == '2d':
+    if config.strategy == 'interpolate':
         new_h = round(2**np.ceil(np.log2(h)))
-        eeg_t_seg = round(w / sampling_rate * 10)   # 10 segments per second
-        k = np.ceil(w / (2 ** (config.stage - 1)) / eeg_t_seg)
-        new_w = int(k * eeg_t_seg * (2 ** (config.stage - 1)))
+        # eeg_t_seg = round(w / sampling_rate * 10)   # 10 segments per second
+        # k = np.ceil(w / (2 ** (config.stage - 1)) / eeg_t_seg)
+        # new_w = int(k * eeg_t_seg * (2 ** (config.stage - 1)))
+        new_w = round(2**np.ceil(np.log2(w)+config.c))
         pre_data = torch.nn.functional.interpolate(data.permute(2, 0, 1).unsqueeze(0).cpu(), size=(new_h, new_w), mode='bilinear', align_corners=False).squeeze(0).permute(1, 2, 0)
-    elif strategy == '3d':
+    elif config.strategy == 'fft':
+        new_h = round(2**np.ceil(np.log2(h)))
+        pre_data = torch.nn.functional.interpolate(data.permute(2, 0, 1).unsqueeze(0).cpu(), size=(new_h, w), mode='bilinear', align_corners=False).squeeze(0).permute(1, 2, 0)
+        # eeg_t_seg = round(w / sampling_rate * 10)   # 10 segments per second
+        # k = np.ceil(w / (2 ** (config.stage - 1)) / eeg_t_seg)
+        # new_w = int(k * eeg_t_seg * (2 ** (config.stage - 1)))
+        new_w = round(2**np.ceil(np.log2(w)+config.c))
+        pre_data = fft_resample(data.permute(2, 0, 1), target_len=new_w).permute(1, 2, 0)
+    elif config.strategy == '3d':
         dataset_channel_location_dict = dataset_channel_location_dicts[args.dataset]
         t = ToGrid(dataset_channel_location_dict)
         # t = ToInterpolatedGrid(dataset_channel_location_dict)
-        pre_data = torch.from_numpy(t(eeg=data.squeeze().numpy())['eeg']).permute(1, 2, 0)
-        
+        pre_data = torch.from_numpy(t(eeg=data.squeeze().numpy())['eeg']).permute(1, 2, 0).float()
+        new_w = round(2**np.ceil(np.log2(w)+config.c))
+        pre_data = fft_resample(pre_data, target_len=new_w)
+    elif config.strategy == 'tfs':
+        new_h = round(2**np.ceil(np.log2(h)))
+        data = torch.nn.functional.interpolate(data.permute(2, 0, 1).unsqueeze(0).cpu(), size=(new_h, w), mode='bilinear', align_corners=False).squeeze(0).permute(1, 2, 0)
+        new_w = round(2**np.ceil(np.log2(w)+config.c))
+        hop_length = new_w // new_h
+        new_w -= hop_length
+        data = fft_resample(data.squeeze(), target_len=new_w)
+        pre_data = torch.stft(data, new_h*2-2, hop_length=hop_length, return_complex=False, onesided=True, normalized=True).float().permute(3, 0, 1, 2)
+
     return pre_data
 
-def inv_interpolate(pre_data, original_shape, strategy):
-    if strategy == '2d':
+def inv_interpolate(args, pre_data, original_shape, strategy):
+    config_path = f'./configs/{args.dataset}/{args.config}'
+    # init TN
+    with open(config_path, "r", encoding="utf-8") as file:
+        config = yaml.safe_load(file)
+    config['device_type'] = "gpu" if torch.cuda.is_available() else "cpu"
+    config_tmp = Config()
+    for key, item in config.items():
+        setattr(config_tmp, key, item)
+    config = config_tmp
+
+    pre_data = pre_data.clone()
+    h, w = original_shape
+    if strategy == 'interpolate':
         data = torch.nn.functional.interpolate(pre_data.permute(2, 0, 1).unsqueeze(0), size=original_shape, mode='bilinear', align_corners=False).squeeze(0)
+    elif strategy == 'fft':
+        # data = torch.nn.functional.interpolate(pre_data.permute(2, 0, 1).unsqueeze(0), size=(original_shape[0], pre_data.shape[1]), mode='bilinear', align_corners=False).squeeze(0)
+        data = fft_resample(pre_data.permute(2, 0, 1), target_len=original_shape[-1])
     elif strategy == '3d':
+        pre_data = fft_resample(pre_data, target_len=original_shape[-1])
         dataset_channel_location_dict = dataset_channel_location_dicts[args.dataset]
         t = ToGrid(dataset_channel_location_dict)
         # t = ToInterpolatedGrid(dataset_channel_location_dict)
-        data = torch.from_numpy(t.reverse(eeg=pre_data.permute(2, 0, 1).numpy())['eeg'])
+        data = torch.from_numpy(t.reverse(eeg=pre_data.permute(2, 0, 1).cpu().numpy())['eeg']).unsqueeze(0).float()
+    elif strategy == 'tfs':
+        pre_data = pre_data.permute(1, 2, 3, 0)
+        new_h = round(2**np.ceil(np.log2(h)))
+        new_w = round(2**np.ceil(np.log2(w)+config.c))
+        hop_length = new_w // new_h
+        pre_data = torch.istft(torch.view_as_complex(pre_data.contiguous()), new_h*2-2, hop_length=hop_length, return_complex=False, onesided=True, normalized=True)
+        data = fft_resample(pre_data, target_len=original_shape[-1]).unsqueeze(0).float()
+        data = torch.nn.functional.interpolate(data.unsqueeze(0), size=original_shape, mode='bilinear', align_corners=False).squeeze(0)
     return data
-
 
 
 def purify(args, index, data, sampling_rate, device, logging):
     config_path = f'./configs/{args.dataset}/{args.config}'
-    dataset = args.dataset
-
+    # resize
+    pre_data = interpolate(args, data, sampling_rate)
+    logging.info(f"original data shape: {data.shape}, Resized data shape: {pre_data.shape}")
     # init TN
     with open(config_path, "r", encoding="utf-8") as file:
         config = yaml.safe_load(file)
@@ -116,34 +192,34 @@ def purify(args, index, data, sampling_rate, device, logging):
     for key, item in config.items():
         setattr(config_tmp, key, item)
     config = config_tmp
+    TN_args = get_TN_args(config, pre_data.clone(), sampling_rate, None, config.device_type)
+    TN_dict = {
+        'PTR': PTR,
+        'PTR_3d': PTR_3d,
+        'PTR_tfs': PTR_tfs,
+    }
+    TN = TN_dict[config.model]
+    tn = TN(**TN_args)
+    # purify
+    purified_data_resized, t, mse_history = tn.train(pre_data.clone().to(device), config, index, logging=logging)
+    # purified_data_resized = pre_data
+    # inverse resize
+    purified_data = inv_interpolate(args, purified_data_resized, data.shape[-2:], config.strategy)
+    # logging
+    mse = torch.nn.functional.mse_loss(purified_data.cpu(), data).item()
+    logging.info(f"Purified data {index}, shape: {purified_data.shape}, mse:{mse}, compression rate: {tn.count_parameters()/data.numel()}, {data.numel()/tn.count_parameters()}x")
+    logging.info('')
 
-    # preprocess data to fit TN input
-    # resize data to power of 2
-    data = data.permute(1, 2, 0)
-    h, w, _ = data.shape
-    new_h = round(2**np.ceil(np.log2(h)))
-    # new_w = round(new_h * np.ceil(w // new_h))
-    eeg_t_seg = round(w / sampling_rate * 10)   # 10 segments per second
-    k = np.ceil(w / (2 ** (config.stage - 1)) / eeg_t_seg)
-    new_w = int(k * eeg_t_seg * (2 ** (config.stage - 1)))
-    pre_data = torch.nn.functional.interpolate(data.permute(2, 0, 1).unsqueeze(0).cpu(), size=(new_h, new_w), mode='bilinear', align_corners=False).squeeze(0).permute(1, 2, 0)
-    logging.info(f"Purifying data {index}, original shape: {data.shape}, new shape: {pre_data.shape}")
+    # visualization
+    if args.visualize:
+        plot_eeg(data.cpu().squeeze().numpy(), title=f'Original data {index}', save_path=f'visualization/{args.dataset}_original_data_{index}.png')
+        plot_eeg(purified_data.cpu().squeeze().numpy(), title=f'Purified data {index}', save_path=f'visualization/{args.dataset}_purified_data_{index}.png')
+        plot_eeg(pre_data[0].cpu().squeeze().numpy(), title=f'Resized data {index}', save_path=f'visualization/{args.dataset}_resized_data_{index}.png')
+        plot_eeg(purified_data_resized[0].cpu().squeeze().numpy(), title=f'Purified resized data {index}', save_path=f'visualization/{args.dataset}_purified_resized_data_{index}.png')
+        for i, t in enumerate(tn.targets):
+            plot_eeg(t[0].cpu().squeeze().numpy(), title=f'Target {i} of data {index}', save_path=f'visualization/{args.dataset}_target_{i}_{index}.png')
 
-    # init TN
-    with open(config_path, "r", encoding="utf-8") as file:
-        config = yaml.safe_load(file)
-    config['device_type'] = "gpu" if torch.cuda.is_available() else "cpu"
-    config_tmp = Config()
-    for key, item in config.items():
-        setattr(config_tmp, key, item)
-    config = config_tmp
-    TN_args = get_TN_args(config, pre_data, sampling_rate, None, config.device_type)
-    ptr = PTR(**TN_args)
-    purified_data, t, mse_history = ptr.train(pre_data.to(device), config, index, logging=logging)
-    logging.info("")
-
-    purified_data = torch.nn.functional.interpolate(purified_data.permute(2, 0, 1).unsqueeze(0), size=(h, w), mode='bilinear', align_corners=False).squeeze(0)
-    return purified_data
+    return purified_data, mse
     
 
 if __name__ == '__main__':
@@ -153,7 +229,7 @@ if __name__ == '__main__':
 
     # set log file
     import logging
-    logfile_directory = f'./log/purify_{args.dataset}_{args.model}_{args.attack}_{args.seed}_{args.config}.log'
+    logfile_directory = f'./log_purify/purify_{args.dataset}_{args.model}_{args.attack}_{args.seed}_{args.config}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Purifying {args.attack} on {args.dataset} with {args.model}')
     logging.info(args)
@@ -184,6 +260,7 @@ if __name__ == '__main__':
     clean_data = clean_data[:args.sample_num]
     labels = labels[:args.sample_num]
     logging.info(f"Adversarial and clean data loaded, ad_data shape: {ad_data.shape}, clean_data shape: {clean_data.shape}")
+    logging.info('')
 
     # load model
     model_dict = {
@@ -208,33 +285,41 @@ if __name__ == '__main__':
     clean_accuracy, clean_loss = evaluate(model, clean_data_dataloader)
     logging.info(f'Clean data accuracy: {clean_accuracy}, loss: {clean_loss}')
 
-    # purify
-    purified_ad_data = []
-    for i in range(args.sample_num):
-        tmp_purified_ad_data = purify(args, i, ad_data[i], info['sampling_rate'], device, logging)
-        purified_ad_data.append(tmp_purified_ad_data)
-    logging.info('')
-    logging.info('')
+    if args.attack != 'clean':
+        # purify
+        purified_ad_data = []
+        mses_ad = []
+        for i in range(args.sample_num):
+            tmp_purified_ad_data, mse = purify(args, i, ad_data[i], info['sampling_rate'], device, logging)
+            purified_ad_data.append(tmp_purified_ad_data)
+            mses_ad.append(mse)
+        logging.info('')
+        logging.info('')
     
     purified_clean_data = []
+    mses_clean = []
     for i in range(args.sample_num):
-        tmp_purified_clean_data = purify(args, i, clean_data[i], info['sampling_rate'], device, logging)
+        tmp_purified_clean_data, mse = purify(args, i, clean_data[i], info['sampling_rate'], device, logging)
         purified_clean_data.append(tmp_purified_clean_data)
-    
+        mses_clean.append(mse)
     logging.info('')
     logging.info('')
 
-    purified_ad_data = torch.stack(purified_ad_data, dim=0)
-    purified_ad_data_dataset = torch.utils.data.TensorDataset(purified_ad_data, labels)
-    purified_ad_data_dataloader = torch.utils.data.DataLoader(purified_ad_data_dataset, batch_size=args.batch_size, shuffle=False)
-    purified_ad_accuracy, purified_ad_loss = evaluate(model, purified_ad_data_dataloader)
-    logging.info(f'Purified adversarial data accuracy: {purified_ad_accuracy}, loss: {purified_ad_loss}')
+    if args.attack != 'clean':
+        purified_ad_data = torch.stack(purified_ad_data, dim=0)
+        purified_ad_data_dataset = torch.utils.data.TensorDataset(purified_ad_data, labels)
+        purified_ad_data_dataloader = torch.utils.data.DataLoader(purified_ad_data_dataset, batch_size=args.batch_size, shuffle=False)
+        purified_ad_accuracy, purified_ad_loss = evaluate(model, purified_ad_data_dataloader)
+        logging.info(f'Purified adversarial data accuracy: {purified_ad_accuracy}, loss: {purified_ad_loss}')
     purified_clean_data = torch.stack(purified_clean_data, dim=0)
     purified_clean_data_dataset = torch.utils.data.TensorDataset(purified_clean_data, labels)
     purified_clean_data_dataloader = torch.utils.data.DataLoader(purified_clean_data_dataset, batch_size=args.batch_size, shuffle=False)
     purified_clean_accuracy, purified_clean_loss = evaluate(model, purified_clean_data_dataloader)
     logging.info(f'Purified clean data accuracy: {purified_clean_accuracy}, loss: {purified_clean_loss}')
+    logging.info(f'Mean mse of purified adversarial data: {np.mean(mses_ad)}')
+    logging.info(f'Mean mse of purified clean data: {np.mean(mses_clean)}')
 
     # save purified data
-    torch.save((purified_ad_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_{args.seed}_fold{args.fold}_{args.config}_ad.pth')
+    if args.attack != 'clean':
+        torch.save((purified_ad_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_{args.seed}_fold{args.fold}_{args.config}_ad.pth')
     torch.save((purified_clean_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_{args.seed}_fold{args.fold}_{args.config}_clean.pth')

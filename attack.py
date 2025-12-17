@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     # set log file
     import logging
-    logfile_directory = f'./log/attack_{args.dataset}_{args.model}_{args.attack}_{args.eps}_{args.seed}.log'
+    logfile_directory = f'./log_attack/attack_{args.dataset}_{args.model}_{args.attack}_{args.eps}_{args.seed}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Attacking {args.attack} on {args.dataset} with {args.model}')
     logging.info(args)

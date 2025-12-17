@@ -60,7 +60,7 @@ if __name__ == '__main__':
     # set log file
     import logging
     timestamp = str(datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
-    logfile_directory = f'./log/train_{args.dataset}_{args.model}_{args.seed}_{args.lr}_{args.weight_decay}_{args.batch_size}_{timestamp}.log'
+    logfile_directory = f'./log_train/train_{args.dataset}_{args.model}_{args.seed}_{args.lr}_{args.weight_decay}_{args.batch_size}_{timestamp}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Training {args.dataset} with {args.model}')
     logging.info(args)

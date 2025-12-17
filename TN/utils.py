@@ -725,6 +725,7 @@ def get_TN_args(args, target, sampling_rate, noisy_target, device_type):
         model_args = {
             "target": target,
             "stage": args.stage,
+            "ds_method": args.ds_method,
             'max_rank': args.max_rank,
             'dtype': args.dtype,
             'loss_fn_str': args.loss_fn_str, 
@@ -741,7 +742,46 @@ def get_TN_args(args, target, sampling_rate, noisy_target, device_type):
             "num_iterations": args.num_iterations,
             "iterations_for_upsampling": args.iterations_for_upsampling,
         }
-    
+    elif args.model == "PTR_3d":
+        model_args = {
+            "target": target,
+            "stage": args.stage,
+            'max_rank': args.max_rank,
+            'dtype': args.dtype,
+            'loss_fn_str': args.loss_fn_str, 
+            'use_TTNF_sampling': args.use_TTNF_sampling,
+            'payload': args.payload,
+            'payload_position': args.payload_position, 
+            'regularization_type': args.regularization_type,
+            'dimensions': args.dimensions,
+            'regularization_weight': args.regularization_weight,
+            "noisy_target": noisy_target,
+            "device": device_type,
+            'masked_avg_pooling': args.masked_avg_pooling,
+            "sigma_init": args.sigma_init,
+            "num_iterations": args.num_iterations,
+            "iterations_for_upsampling": args.iterations_for_upsampling,
+        }
+    elif args.model == "PTR_tfs":
+         model_args = {
+            "target": target,
+            "stage": args.stage,
+            'max_rank': args.max_rank,
+            'dtype': args.dtype,
+            'loss_fn_str': args.loss_fn_str, 
+            'use_TTNF_sampling': args.use_TTNF_sampling,
+            'payload': args.payload,
+            'payload_position': args.payload_position, 
+            'regularization_type': args.regularization_type,
+            'dimensions': args.dimensions,
+            'regularization_weight': args.regularization_weight,
+            "noisy_target": noisy_target,
+            "device": device_type,
+            'masked_avg_pooling': args.masked_avg_pooling,
+            "sigma_init": args.sigma_init,
+            "num_iterations": args.num_iterations,
+            "iterations_for_upsampling": args.iterations_for_upsampling,
+        }
     return model_args
 
 

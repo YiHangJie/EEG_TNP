@@ -1,0 +1,1045 @@
+2025-12-08 13:49:32 | INFO | root | Purifying autoattack on thubenchmark with eegnet
+2025-12-08 13:49:32 | INFO | root | Namespace(dataset='thubenchmark', model='eegnet', fold=0, attack='autoattack', batch_size=32, seed=42, gpu_id=0, config='PTRtfs_8_2048_rank40_test.yaml', sample_num=64)
+2025-12-08 13:49:32 | INFO | torcheeg | 🔍 | Detected cached processing results, reading cache from ./cached_data/thubenchmark_EA.
+2025-12-08 13:49:33 | INFO | root | Dataset: thubenchmark
+2025-12-08 13:49:33 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/kfold_split.
+2025-12-08 13:49:33 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2025-12-08 13:49:33 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/test_val_split_0.
+2025-12-08 13:49:33 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2025-12-08 13:49:34 | INFO | root | Adversarial and clean data loaded, ad_data shape: torch.Size([64, 1, 64, 1500]), clean_data shape: torch.Size([64, 1, 64, 1500])
+2025-12-08 13:49:34 | INFO | root | 
+2025-12-08 13:49:34 | INFO | root | Model: eegnet, fold: 0
+2025-12-08 13:49:34 | INFO | root | Adversarial data accuracy: 0.28125, loss: 4.070849299430847
+2025-12-08 13:49:34 | INFO | root | Clean data accuracy: 0.90625, loss: 0.26086681336164474
+2025-12-08 13:49:34 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:34 | INFO | root | End purification for resolution 8*8, loss=6.817870598752052e-06
+2025-12-08 13:49:34 | INFO | root | End purification for resolution 16*16, loss=2.788036726997234e-05
+2025-12-08 13:49:35 | INFO | root | End purification for resolution 32*32, loss=0.00262559880502522
+2025-12-08 13:49:35 | INFO | root | End purification for resolution 64*64, loss=0.08171926438808441
+2025-12-08 13:49:35 | INFO | root | Training time: 1.564159870147705, loss: 0.08171926438808441, params_num: 52488
+2025-12-08 13:49:35 | INFO | root | Purified data 0, shape: torch.Size([1, 64, 1500]), mse:0.2345638871192932
+2025-12-08 13:49:35 | INFO | root | 
+2025-12-08 13:49:35 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:36 | INFO | root | End purification for resolution 8*8, loss=4.4222178985364735e-05
+2025-12-08 13:49:36 | INFO | root | End purification for resolution 16*16, loss=5.728987162001431e-05
+2025-12-08 13:49:36 | INFO | root | End purification for resolution 32*32, loss=0.0023673311807215214
+2025-12-08 13:49:37 | INFO | root | End purification for resolution 64*64, loss=0.07286954671144485
+2025-12-08 13:49:37 | INFO | root | Training time: 1.4657683372497559, loss: 0.07286954671144485, params_num: 52488
+2025-12-08 13:49:37 | INFO | root | Purified data 1, shape: torch.Size([1, 64, 1500]), mse:0.20604278147220612
+2025-12-08 13:49:37 | INFO | root | 
+2025-12-08 13:49:37 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:37 | INFO | root | End purification for resolution 8*8, loss=4.185064426565077e-06
+2025-12-08 13:49:37 | INFO | root | End purification for resolution 16*16, loss=1.8213226212537847e-05
+2025-12-08 13:49:38 | INFO | root | End purification for resolution 32*32, loss=0.0031418008729815483
+2025-12-08 13:49:38 | INFO | root | End purification for resolution 64*64, loss=0.09535664319992065
+2025-12-08 13:49:38 | INFO | root | Training time: 1.4598660469055176, loss: 0.09535664319992065, params_num: 52488
+2025-12-08 13:49:38 | INFO | root | Purified data 2, shape: torch.Size([1, 64, 1500]), mse:0.2755574882030487
+2025-12-08 13:49:38 | INFO | root | 
+2025-12-08 13:49:38 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:39 | INFO | root | End purification for resolution 8*8, loss=2.2259317120187916e-05
+2025-12-08 13:49:39 | INFO | root | End purification for resolution 16*16, loss=3.3673306461423635e-05
+2025-12-08 13:49:39 | INFO | root | End purification for resolution 32*32, loss=0.0022399164736270905
+2025-12-08 13:49:40 | INFO | root | End purification for resolution 64*64, loss=0.06820707768201828
+2025-12-08 13:49:40 | INFO | root | Training time: 1.6362991333007812, loss: 0.06820707768201828, params_num: 52488
+2025-12-08 13:49:40 | INFO | root | Purified data 3, shape: torch.Size([1, 64, 1500]), mse:0.1952107697725296
+2025-12-08 13:49:40 | INFO | root | 
+2025-12-08 13:49:40 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:40 | INFO | root | End purification for resolution 8*8, loss=1.260994940821547e-05
+2025-12-08 13:49:40 | INFO | root | End purification for resolution 16*16, loss=2.520002999517601e-05
+2025-12-08 13:49:41 | INFO | root | End purification for resolution 32*32, loss=0.003056121524423361
+2025-12-08 13:49:42 | INFO | root | End purification for resolution 64*64, loss=0.08290329575538635
+2025-12-08 13:49:42 | INFO | root | Training time: 1.6264915466308594, loss: 0.08290329575538635, params_num: 52488
+2025-12-08 13:49:42 | INFO | root | Purified data 4, shape: torch.Size([1, 64, 1500]), mse:0.2372196912765503
+2025-12-08 13:49:42 | INFO | root | 
+2025-12-08 13:49:42 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:42 | INFO | root | End purification for resolution 8*8, loss=9.285405212722253e-06
+2025-12-08 13:49:42 | INFO | root | End purification for resolution 16*16, loss=2.9727494620601647e-05
+2025-12-08 13:49:42 | INFO | root | End purification for resolution 32*32, loss=0.002889047609642148
+2025-12-08 13:49:43 | INFO | root | End purification for resolution 64*64, loss=0.08132164925336838
+2025-12-08 13:49:43 | INFO | root | Training time: 1.5482261180877686, loss: 0.08132164925336838, params_num: 52488
+2025-12-08 13:49:43 | INFO | root | Purified data 5, shape: torch.Size([1, 64, 1500]), mse:0.23281867802143097
+2025-12-08 13:49:43 | INFO | root | 
+2025-12-08 13:49:43 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:43 | INFO | root | End purification for resolution 8*8, loss=3.421527253522072e-06
+2025-12-08 13:49:44 | INFO | root | End purification for resolution 16*16, loss=2.6678517315303907e-05
+2025-12-08 13:49:44 | INFO | root | End purification for resolution 32*32, loss=0.0026908970903605223
+2025-12-08 13:49:45 | INFO | root | End purification for resolution 64*64, loss=0.07739292085170746
+2025-12-08 13:49:45 | INFO | root | Training time: 1.6024210453033447, loss: 0.07739292085170746, params_num: 52488
+2025-12-08 13:49:45 | INFO | root | Purified data 6, shape: torch.Size([1, 64, 1500]), mse:0.21936751902103424
+2025-12-08 13:49:45 | INFO | root | 
+2025-12-08 13:49:45 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:45 | INFO | root | End purification for resolution 8*8, loss=5.110189704282675e-06
+2025-12-08 13:49:45 | INFO | root | End purification for resolution 16*16, loss=2.4994076738948934e-05
+2025-12-08 13:49:46 | INFO | root | End purification for resolution 32*32, loss=0.002870419528335333
+2025-12-08 13:49:46 | INFO | root | End purification for resolution 64*64, loss=0.07969731092453003
+2025-12-08 13:49:46 | INFO | root | Training time: 1.6243009567260742, loss: 0.07969731092453003, params_num: 52488
+2025-12-08 13:49:46 | INFO | root | Purified data 7, shape: torch.Size([1, 64, 1500]), mse:0.22657546401023865
+2025-12-08 13:49:46 | INFO | root | 
+2025-12-08 13:49:46 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:47 | INFO | root | End purification for resolution 8*8, loss=1.1577796612982638e-05
+2025-12-08 13:49:47 | INFO | root | End purification for resolution 16*16, loss=4.784707198268734e-05
+2025-12-08 13:49:47 | INFO | root | End purification for resolution 32*32, loss=0.0024329987354576588
+2025-12-08 13:49:48 | INFO | root | End purification for resolution 64*64, loss=0.0788232833147049
+2025-12-08 13:49:48 | INFO | root | Training time: 1.6156010627746582, loss: 0.0788232833147049, params_num: 52488
+2025-12-08 13:49:48 | INFO | root | Purified data 8, shape: torch.Size([1, 64, 1500]), mse:0.2260904610157013
+2025-12-08 13:49:48 | INFO | root | 
+2025-12-08 13:49:48 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:48 | INFO | root | End purification for resolution 8*8, loss=8.539581176592037e-05
+2025-12-08 13:49:48 | INFO | root | End purification for resolution 16*16, loss=2.2183507098816335e-05
+2025-12-08 13:49:49 | INFO | root | End purification for resolution 32*32, loss=0.0022321816068142653
+2025-12-08 13:49:50 | INFO | root | End purification for resolution 64*64, loss=0.0908353328704834
+2025-12-08 13:49:50 | INFO | root | Training time: 1.631650447845459, loss: 0.0908353328704834, params_num: 52488
+2025-12-08 13:49:50 | INFO | root | Purified data 9, shape: torch.Size([1, 64, 1500]), mse:0.2618447244167328
+2025-12-08 13:49:50 | INFO | root | 
+2025-12-08 13:49:50 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:50 | INFO | root | End purification for resolution 8*8, loss=6.079753438825719e-05
+2025-12-08 13:49:50 | INFO | root | End purification for resolution 16*16, loss=2.4654400476720184e-05
+2025-12-08 13:49:50 | INFO | root | End purification for resolution 32*32, loss=0.0022242157720029354
+2025-12-08 13:49:51 | INFO | root | End purification for resolution 64*64, loss=0.08065585792064667
+2025-12-08 13:49:51 | INFO | root | Training time: 1.5604426860809326, loss: 0.08065585792064667, params_num: 52488
+2025-12-08 13:49:51 | INFO | root | Purified data 10, shape: torch.Size([1, 64, 1500]), mse:0.23017051815986633
+2025-12-08 13:49:51 | INFO | root | 
+2025-12-08 13:49:51 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:51 | INFO | root | End purification for resolution 8*8, loss=0.00031635878258384764
+2025-12-08 13:49:52 | INFO | root | End purification for resolution 16*16, loss=2.2363790776580572e-05
+2025-12-08 13:49:52 | INFO | root | End purification for resolution 32*32, loss=0.0022990936413407326
+2025-12-08 13:49:53 | INFO | root | End purification for resolution 64*64, loss=0.08224702626466751
+2025-12-08 13:49:53 | INFO | root | Training time: 1.4719080924987793, loss: 0.08224702626466751, params_num: 52488
+2025-12-08 13:49:53 | INFO | root | Purified data 11, shape: torch.Size([1, 64, 1500]), mse:0.23683728277683258
+2025-12-08 13:49:53 | INFO | root | 
+2025-12-08 13:49:53 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:53 | INFO | root | End purification for resolution 8*8, loss=6.429300992749631e-05
+2025-12-08 13:49:53 | INFO | root | End purification for resolution 16*16, loss=2.456754373270087e-05
+2025-12-08 13:49:53 | INFO | root | End purification for resolution 32*32, loss=0.0025447681546211243
+2025-12-08 13:49:54 | INFO | root | End purification for resolution 64*64, loss=0.08695493638515472
+2025-12-08 13:49:54 | INFO | root | Training time: 1.4704701900482178, loss: 0.08695493638515472, params_num: 52488
+2025-12-08 13:49:54 | INFO | root | Purified data 12, shape: torch.Size([1, 64, 1500]), mse:0.25117823481559753
+2025-12-08 13:49:54 | INFO | root | 
+2025-12-08 13:49:54 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:54 | INFO | root | End purification for resolution 8*8, loss=0.0002041205734713003
+2025-12-08 13:49:55 | INFO | root | End purification for resolution 16*16, loss=3.021233897015918e-05
+2025-12-08 13:49:55 | INFO | root | End purification for resolution 32*32, loss=0.002641467610374093
+2025-12-08 13:49:56 | INFO | root | End purification for resolution 64*64, loss=0.0871051475405693
+2025-12-08 13:49:56 | INFO | root | Training time: 1.4988291263580322, loss: 0.0871051475405693, params_num: 52488
+2025-12-08 13:49:56 | INFO | root | Purified data 13, shape: torch.Size([1, 64, 1500]), mse:0.250774085521698
+2025-12-08 13:49:56 | INFO | root | 
+2025-12-08 13:49:56 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:56 | INFO | root | End purification for resolution 8*8, loss=3.4279881219845265e-05
+2025-12-08 13:49:56 | INFO | root | End purification for resolution 16*16, loss=4.3262713006697595e-05
+2025-12-08 13:49:57 | INFO | root | End purification for resolution 32*32, loss=0.0024399631656706333
+2025-12-08 13:49:57 | INFO | root | End purification for resolution 64*64, loss=0.08414962887763977
+2025-12-08 13:49:57 | INFO | root | Training time: 1.6439850330352783, loss: 0.08414962887763977, params_num: 52488
+2025-12-08 13:49:57 | INFO | root | Purified data 14, shape: torch.Size([1, 64, 1500]), mse:0.2437460571527481
+2025-12-08 13:49:57 | INFO | root | 
+2025-12-08 13:49:57 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:58 | INFO | root | End purification for resolution 8*8, loss=2.9086677386658266e-05
+2025-12-08 13:49:58 | INFO | root | End purification for resolution 16*16, loss=1.5374251233879477e-05
+2025-12-08 13:49:58 | INFO | root | End purification for resolution 32*32, loss=0.0029939895030111074
+2025-12-08 13:49:59 | INFO | root | End purification for resolution 64*64, loss=0.09362450987100601
+2025-12-08 13:49:59 | INFO | root | Training time: 1.6403450965881348, loss: 0.09362450987100601, params_num: 52488
+2025-12-08 13:49:59 | INFO | root | Purified data 15, shape: torch.Size([1, 64, 1500]), mse:0.2699953615665436
+2025-12-08 13:49:59 | INFO | root | 
+2025-12-08 13:49:59 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:49:59 | INFO | root | End purification for resolution 8*8, loss=2.1872808702028124e-06
+2025-12-08 13:49:59 | INFO | root | End purification for resolution 16*16, loss=2.1019855921622366e-05
+2025-12-08 13:50:00 | INFO | root | End purification for resolution 32*32, loss=0.002361217513680458
+2025-12-08 13:50:01 | INFO | root | End purification for resolution 64*64, loss=0.08935648202896118
+2025-12-08 13:50:01 | INFO | root | Training time: 1.6445469856262207, loss: 0.08935648202896118, params_num: 52488
+2025-12-08 13:50:01 | INFO | root | Purified data 16, shape: torch.Size([1, 64, 1500]), mse:0.25843527913093567
+2025-12-08 13:50:01 | INFO | root | 
+2025-12-08 13:50:01 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:01 | INFO | root | End purification for resolution 8*8, loss=6.902317636559019e-06
+2025-12-08 13:50:01 | INFO | root | End purification for resolution 16*16, loss=2.1562485926551744e-05
+2025-12-08 13:50:01 | INFO | root | End purification for resolution 32*32, loss=0.003406969364732504
+2025-12-08 13:50:02 | INFO | root | End purification for resolution 64*64, loss=0.086148202419281
+2025-12-08 13:50:02 | INFO | root | Training time: 1.5490307807922363, loss: 0.086148202419281, params_num: 52488
+2025-12-08 13:50:02 | INFO | root | Purified data 17, shape: torch.Size([1, 64, 1500]), mse:0.24939972162246704
+2025-12-08 13:50:02 | INFO | root | 
+2025-12-08 13:50:02 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:02 | INFO | root | End purification for resolution 8*8, loss=0.0003098667657468468
+2025-12-08 13:50:03 | INFO | root | End purification for resolution 16*16, loss=2.5075216399272904e-05
+2025-12-08 13:50:03 | INFO | root | End purification for resolution 32*32, loss=0.002984477672725916
+2025-12-08 13:50:04 | INFO | root | End purification for resolution 64*64, loss=0.0723898857831955
+2025-12-08 13:50:04 | INFO | root | Training time: 1.4933397769927979, loss: 0.0723898857831955, params_num: 52488
+2025-12-08 13:50:04 | INFO | root | Purified data 18, shape: torch.Size([1, 64, 1500]), mse:0.2036769986152649
+2025-12-08 13:50:04 | INFO | root | 
+2025-12-08 13:50:04 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:04 | INFO | root | End purification for resolution 8*8, loss=3.7577065086225048e-06
+2025-12-08 13:50:04 | INFO | root | End purification for resolution 16*16, loss=1.8658029148355126e-05
+2025-12-08 13:50:04 | INFO | root | End purification for resolution 32*32, loss=0.0032649983186274767
+2025-12-08 13:50:05 | INFO | root | End purification for resolution 64*64, loss=0.08417962491512299
+2025-12-08 13:50:05 | INFO | root | Training time: 1.4993939399719238, loss: 0.08417962491512299, params_num: 52488
+2025-12-08 13:50:05 | INFO | root | Purified data 19, shape: torch.Size([1, 64, 1500]), mse:0.24378642439842224
+2025-12-08 13:50:05 | INFO | root | 
+2025-12-08 13:50:05 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:05 | INFO | root | End purification for resolution 8*8, loss=1.5426719983224757e-05
+2025-12-08 13:50:06 | INFO | root | End purification for resolution 16*16, loss=3.858894342556596e-05
+2025-12-08 13:50:06 | INFO | root | End purification for resolution 32*32, loss=0.0027186465449631214
+2025-12-08 13:50:07 | INFO | root | End purification for resolution 64*64, loss=0.06761515140533447
+2025-12-08 13:50:07 | INFO | root | Training time: 1.4869663715362549, loss: 0.06761515140533447, params_num: 52488
+2025-12-08 13:50:07 | INFO | root | Purified data 20, shape: torch.Size([1, 64, 1500]), mse:0.19371242821216583
+2025-12-08 13:50:07 | INFO | root | 
+2025-12-08 13:50:07 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:07 | INFO | root | End purification for resolution 8*8, loss=7.087856829457451e-06
+2025-12-08 13:50:07 | INFO | root | End purification for resolution 16*16, loss=1.9650829926831648e-05
+2025-12-08 13:50:07 | INFO | root | End purification for resolution 32*32, loss=0.0029202699661254883
+2025-12-08 13:50:08 | INFO | root | End purification for resolution 64*64, loss=0.0791814848780632
+2025-12-08 13:50:08 | INFO | root | Training time: 1.4727058410644531, loss: 0.0791814848780632, params_num: 52488
+2025-12-08 13:50:08 | INFO | root | Purified data 21, shape: torch.Size([1, 64, 1500]), mse:0.22692358493804932
+2025-12-08 13:50:08 | INFO | root | 
+2025-12-08 13:50:08 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:08 | INFO | root | End purification for resolution 8*8, loss=3.08396338368766e-05
+2025-12-08 13:50:09 | INFO | root | End purification for resolution 16*16, loss=2.735598900471814e-05
+2025-12-08 13:50:09 | INFO | root | End purification for resolution 32*32, loss=0.0022184052504599094
+2025-12-08 13:50:10 | INFO | root | End purification for resolution 64*64, loss=0.07940096408128738
+2025-12-08 13:50:10 | INFO | root | Training time: 1.4779865741729736, loss: 0.07940096408128738, params_num: 52488
+2025-12-08 13:50:10 | INFO | root | Purified data 22, shape: torch.Size([1, 64, 1500]), mse:0.22470538318157196
+2025-12-08 13:50:10 | INFO | root | 
+2025-12-08 13:50:10 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:10 | INFO | root | End purification for resolution 8*8, loss=0.00017777227913029492
+2025-12-08 13:50:10 | INFO | root | End purification for resolution 16*16, loss=3.283136538811959e-05
+2025-12-08 13:50:10 | INFO | root | End purification for resolution 32*32, loss=0.00222305441275239
+2025-12-08 13:50:11 | INFO | root | End purification for resolution 64*64, loss=0.07349977642297745
+2025-12-08 13:50:11 | INFO | root | Training time: 1.5171706676483154, loss: 0.07349977642297745, params_num: 52488
+2025-12-08 13:50:11 | INFO | root | Purified data 23, shape: torch.Size([1, 64, 1500]), mse:0.20732775330543518
+2025-12-08 13:50:11 | INFO | root | 
+2025-12-08 13:50:11 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:11 | INFO | root | End purification for resolution 8*8, loss=7.926885155029595e-05
+2025-12-08 13:50:12 | INFO | root | End purification for resolution 16*16, loss=1.5360426914412528e-05
+2025-12-08 13:50:12 | INFO | root | End purification for resolution 32*32, loss=0.0032433350570499897
+2025-12-08 13:50:13 | INFO | root | End purification for resolution 64*64, loss=0.08476437628269196
+2025-12-08 13:50:13 | INFO | root | Training time: 1.4904193878173828, loss: 0.08476437628269196, params_num: 52488
+2025-12-08 13:50:13 | INFO | root | Purified data 24, shape: torch.Size([1, 64, 1500]), mse:0.24285286664962769
+2025-12-08 13:50:13 | INFO | root | 
+2025-12-08 13:50:13 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:13 | INFO | root | End purification for resolution 8*8, loss=2.1541824025916867e-05
+2025-12-08 13:50:13 | INFO | root | End purification for resolution 16*16, loss=2.8896967705804855e-05
+2025-12-08 13:50:13 | INFO | root | End purification for resolution 32*32, loss=0.0029329382814466953
+2025-12-08 13:50:14 | INFO | root | End purification for resolution 64*64, loss=0.08110345155000687
+2025-12-08 13:50:14 | INFO | root | Training time: 1.4949376583099365, loss: 0.08110345155000687, params_num: 52488
+2025-12-08 13:50:14 | INFO | root | Purified data 25, shape: torch.Size([1, 64, 1500]), mse:0.23075398802757263
+2025-12-08 13:50:14 | INFO | root | 
+2025-12-08 13:50:14 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:14 | INFO | root | End purification for resolution 8*8, loss=0.0001967305870493874
+2025-12-08 13:50:15 | INFO | root | End purification for resolution 16*16, loss=3.4377975680399686e-05
+2025-12-08 13:50:15 | INFO | root | End purification for resolution 32*32, loss=0.002609655726701021
+2025-12-08 13:50:16 | INFO | root | End purification for resolution 64*64, loss=0.0864429622888565
+2025-12-08 13:50:16 | INFO | root | Training time: 1.4993433952331543, loss: 0.0864429622888565, params_num: 52488
+2025-12-08 13:50:16 | INFO | root | Purified data 26, shape: torch.Size([1, 64, 1500]), mse:0.24856697022914886
+2025-12-08 13:50:16 | INFO | root | 
+2025-12-08 13:50:16 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:16 | INFO | root | End purification for resolution 8*8, loss=0.000663773447740823
+2025-12-08 13:50:16 | INFO | root | End purification for resolution 16*16, loss=7.630390609847382e-05
+2025-12-08 13:50:16 | INFO | root | End purification for resolution 32*32, loss=0.0023904689587652683
+2025-12-08 13:50:17 | INFO | root | End purification for resolution 64*64, loss=0.07705746591091156
+2025-12-08 13:50:17 | INFO | root | Training time: 1.4962685108184814, loss: 0.07705746591091156, params_num: 52488
+2025-12-08 13:50:17 | INFO | root | Purified data 27, shape: torch.Size([1, 64, 1500]), mse:0.22210223972797394
+2025-12-08 13:50:17 | INFO | root | 
+2025-12-08 13:50:17 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:17 | INFO | root | End purification for resolution 8*8, loss=1.0190615284955129e-05
+2025-12-08 13:50:18 | INFO | root | End purification for resolution 16*16, loss=1.938212153618224e-05
+2025-12-08 13:50:18 | INFO | root | End purification for resolution 32*32, loss=0.002377887722104788
+2025-12-08 13:50:19 | INFO | root | End purification for resolution 64*64, loss=0.09059291332960129
+2025-12-08 13:50:19 | INFO | root | Training time: 1.4857509136199951, loss: 0.09059291332960129, params_num: 52488
+2025-12-08 13:50:19 | INFO | root | Purified data 28, shape: torch.Size([1, 64, 1500]), mse:0.25995951890945435
+2025-12-08 13:50:19 | INFO | root | 
+2025-12-08 13:50:19 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:19 | INFO | root | End purification for resolution 8*8, loss=0.00014949351316317916
+2025-12-08 13:50:19 | INFO | root | End purification for resolution 16*16, loss=2.6310779503546655e-05
+2025-12-08 13:50:19 | INFO | root | End purification for resolution 32*32, loss=0.002020631218329072
+2025-12-08 13:50:20 | INFO | root | End purification for resolution 64*64, loss=0.08818626403808594
+2025-12-08 13:50:20 | INFO | root | Training time: 1.4865143299102783, loss: 0.08818626403808594, params_num: 52488
+2025-12-08 13:50:20 | INFO | root | Purified data 29, shape: torch.Size([1, 64, 1500]), mse:0.2568087577819824
+2025-12-08 13:50:20 | INFO | root | 
+2025-12-08 13:50:20 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:20 | INFO | root | End purification for resolution 8*8, loss=8.174050162779167e-05
+2025-12-08 13:50:21 | INFO | root | End purification for resolution 16*16, loss=2.4610944819869474e-05
+2025-12-08 13:50:21 | INFO | root | End purification for resolution 32*32, loss=0.002430885098874569
+2025-12-08 13:50:22 | INFO | root | End purification for resolution 64*64, loss=0.08803030848503113
+2025-12-08 13:50:22 | INFO | root | Training time: 1.5108392238616943, loss: 0.08803030848503113, params_num: 52488
+2025-12-08 13:50:22 | INFO | root | Purified data 30, shape: torch.Size([1, 64, 1500]), mse:0.2520214915275574
+2025-12-08 13:50:22 | INFO | root | 
+2025-12-08 13:50:22 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:22 | INFO | root | End purification for resolution 8*8, loss=4.250557140039746e-06
+2025-12-08 13:50:22 | INFO | root | End purification for resolution 16*16, loss=2.0147295799688436e-05
+2025-12-08 13:50:22 | INFO | root | End purification for resolution 32*32, loss=0.0032218038104474545
+2025-12-08 13:50:23 | INFO | root | End purification for resolution 64*64, loss=0.0862792357802391
+2025-12-08 13:50:23 | INFO | root | Training time: 1.483567714691162, loss: 0.0862792357802391, params_num: 52488
+2025-12-08 13:50:23 | INFO | root | Purified data 31, shape: torch.Size([1, 64, 1500]), mse:0.24522869288921356
+2025-12-08 13:50:23 | INFO | root | 
+2025-12-08 13:50:23 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:23 | INFO | root | End purification for resolution 8*8, loss=3.600039053708315e-05
+2025-12-08 13:50:24 | INFO | root | End purification for resolution 16*16, loss=2.51372348429868e-05
+2025-12-08 13:50:24 | INFO | root | End purification for resolution 32*32, loss=0.003253065748140216
+2025-12-08 13:50:25 | INFO | root | End purification for resolution 64*64, loss=0.09334346652030945
+2025-12-08 13:50:25 | INFO | root | Training time: 1.6335909366607666, loss: 0.09334346652030945, params_num: 52488
+2025-12-08 13:50:25 | INFO | root | Purified data 32, shape: torch.Size([1, 64, 1500]), mse:0.27128008008003235
+2025-12-08 13:50:25 | INFO | root | 
+2025-12-08 13:50:25 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:25 | INFO | root | End purification for resolution 8*8, loss=0.00015864396118558943
+2025-12-08 13:50:25 | INFO | root | End purification for resolution 16*16, loss=3.40600818162784e-05
+2025-12-08 13:50:26 | INFO | root | End purification for resolution 32*32, loss=0.0020813941955566406
+2025-12-08 13:50:27 | INFO | root | End purification for resolution 64*64, loss=0.06792519241571426
+2025-12-08 13:50:27 | INFO | root | Training time: 1.634509801864624, loss: 0.06792519241571426, params_num: 52488
+2025-12-08 13:50:27 | INFO | root | Purified data 33, shape: torch.Size([1, 64, 1500]), mse:0.19158434867858887
+2025-12-08 13:50:27 | INFO | root | 
+2025-12-08 13:50:27 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:27 | INFO | root | End purification for resolution 8*8, loss=3.5313863918418065e-05
+2025-12-08 13:50:27 | INFO | root | End purification for resolution 16*16, loss=3.2129119063029066e-05
+2025-12-08 13:50:27 | INFO | root | End purification for resolution 32*32, loss=0.002251206198707223
+2025-12-08 13:50:28 | INFO | root | End purification for resolution 64*64, loss=0.07812164723873138
+2025-12-08 13:50:28 | INFO | root | Training time: 1.63826584815979, loss: 0.07812164723873138, params_num: 52488
+2025-12-08 13:50:28 | INFO | root | Purified data 34, shape: torch.Size([1, 64, 1500]), mse:0.22648808360099792
+2025-12-08 13:50:28 | INFO | root | 
+2025-12-08 13:50:28 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:28 | INFO | root | End purification for resolution 8*8, loss=6.207879050634801e-05
+2025-12-08 13:50:29 | INFO | root | End purification for resolution 16*16, loss=3.2345727959182113e-05
+2025-12-08 13:50:29 | INFO | root | End purification for resolution 32*32, loss=0.002447275910526514
+2025-12-08 13:50:30 | INFO | root | End purification for resolution 64*64, loss=0.07423999905586243
+2025-12-08 13:50:30 | INFO | root | Training time: 1.5174574851989746, loss: 0.07423999905586243, params_num: 52488
+2025-12-08 13:50:30 | INFO | root | Purified data 35, shape: torch.Size([1, 64, 1500]), mse:0.21044185757637024
+2025-12-08 13:50:30 | INFO | root | 
+2025-12-08 13:50:30 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:30 | INFO | root | End purification for resolution 8*8, loss=6.235026376089081e-06
+2025-12-08 13:50:30 | INFO | root | End purification for resolution 16*16, loss=2.0072136976523325e-05
+2025-12-08 13:50:30 | INFO | root | End purification for resolution 32*32, loss=0.002296104561537504
+2025-12-08 13:50:31 | INFO | root | End purification for resolution 64*64, loss=0.0761229395866394
+2025-12-08 13:50:31 | INFO | root | Training time: 1.524425983428955, loss: 0.0761229395866394, params_num: 52488
+2025-12-08 13:50:31 | INFO | root | Purified data 36, shape: torch.Size([1, 64, 1500]), mse:0.2170342653989792
+2025-12-08 13:50:31 | INFO | root | 
+2025-12-08 13:50:31 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:31 | INFO | root | End purification for resolution 8*8, loss=1.4746567103429697e-05
+2025-12-08 13:50:32 | INFO | root | End purification for resolution 16*16, loss=1.9787714336416684e-05
+2025-12-08 13:50:32 | INFO | root | End purification for resolution 32*32, loss=0.002485626609995961
+2025-12-08 13:50:33 | INFO | root | End purification for resolution 64*64, loss=0.09211769700050354
+2025-12-08 13:50:33 | INFO | root | Training time: 1.4800219535827637, loss: 0.09211769700050354, params_num: 52488
+2025-12-08 13:50:33 | INFO | root | Purified data 37, shape: torch.Size([1, 64, 1500]), mse:0.248689204454422
+2025-12-08 13:50:33 | INFO | root | 
+2025-12-08 13:50:33 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:33 | INFO | root | End purification for resolution 8*8, loss=9.870636858977377e-05
+2025-12-08 13:50:33 | INFO | root | End purification for resolution 16*16, loss=2.667279841261916e-05
+2025-12-08 13:50:33 | INFO | root | End purification for resolution 32*32, loss=0.002555942628532648
+2025-12-08 13:50:34 | INFO | root | End purification for resolution 64*64, loss=0.09137772768735886
+2025-12-08 13:50:34 | INFO | root | Training time: 1.4822700023651123, loss: 0.09137772768735886, params_num: 52488
+2025-12-08 13:50:34 | INFO | root | Purified data 38, shape: torch.Size([1, 64, 1500]), mse:0.2643711268901825
+2025-12-08 13:50:34 | INFO | root | 
+2025-12-08 13:50:34 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:34 | INFO | root | End purification for resolution 8*8, loss=2.9911001547588967e-05
+2025-12-08 13:50:35 | INFO | root | End purification for resolution 16*16, loss=1.9781728042289615e-05
+2025-12-08 13:50:35 | INFO | root | End purification for resolution 32*32, loss=0.0024240438360720873
+2025-12-08 13:50:36 | INFO | root | End purification for resolution 64*64, loss=0.09308090806007385
+2025-12-08 13:50:36 | INFO | root | Training time: 1.602703332901001, loss: 0.09308090806007385, params_num: 52488
+2025-12-08 13:50:36 | INFO | root | Purified data 39, shape: torch.Size([1, 64, 1500]), mse:0.2690677046775818
+2025-12-08 13:50:36 | INFO | root | 
+2025-12-08 13:50:36 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:36 | INFO | root | End purification for resolution 8*8, loss=8.749419976084027e-06
+2025-12-08 13:50:36 | INFO | root | End purification for resolution 16*16, loss=2.4216955353040248e-05
+2025-12-08 13:50:37 | INFO | root | End purification for resolution 32*32, loss=0.002364903688430786
+2025-12-08 13:50:37 | INFO | root | End purification for resolution 64*64, loss=0.08025068044662476
+2025-12-08 13:50:37 | INFO | root | Training time: 1.6330435276031494, loss: 0.08025068044662476, params_num: 52488
+2025-12-08 13:50:37 | INFO | root | Purified data 40, shape: torch.Size([1, 64, 1500]), mse:0.2304980307817459
+2025-12-08 13:50:37 | INFO | root | 
+2025-12-08 13:50:37 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:38 | INFO | root | End purification for resolution 8*8, loss=2.2067448298912495e-05
+2025-12-08 13:50:38 | INFO | root | End purification for resolution 16*16, loss=3.017808558070101e-05
+2025-12-08 13:50:38 | INFO | root | End purification for resolution 32*32, loss=0.002193185966461897
+2025-12-08 13:50:39 | INFO | root | End purification for resolution 64*64, loss=0.08114279806613922
+2025-12-08 13:50:39 | INFO | root | Training time: 1.6322479248046875, loss: 0.08114279806613922, params_num: 52488
+2025-12-08 13:50:39 | INFO | root | Purified data 41, shape: torch.Size([1, 64, 1500]), mse:0.2346329391002655
+2025-12-08 13:50:39 | INFO | root | 
+2025-12-08 13:50:39 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:39 | INFO | root | End purification for resolution 8*8, loss=9.781555854715407e-05
+2025-12-08 13:50:39 | INFO | root | End purification for resolution 16*16, loss=2.8415741326170973e-05
+2025-12-08 13:50:40 | INFO | root | End purification for resolution 32*32, loss=0.002196802757680416
+2025-12-08 13:50:41 | INFO | root | End purification for resolution 64*64, loss=0.07300795614719391
+2025-12-08 13:50:41 | INFO | root | Training time: 1.6146647930145264, loss: 0.07300795614719391, params_num: 52488
+2025-12-08 13:50:41 | INFO | root | Purified data 42, shape: torch.Size([1, 64, 1500]), mse:0.20810431241989136
+2025-12-08 13:50:41 | INFO | root | 
+2025-12-08 13:50:41 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:41 | INFO | root | End purification for resolution 8*8, loss=1.0457694770593662e-05
+2025-12-08 13:50:41 | INFO | root | End purification for resolution 16*16, loss=2.8988008125452325e-05
+2025-12-08 13:50:42 | INFO | root | End purification for resolution 32*32, loss=0.002177918329834938
+2025-12-08 13:50:42 | INFO | root | End purification for resolution 64*64, loss=0.07816712558269501
+2025-12-08 13:50:42 | INFO | root | Training time: 1.6209635734558105, loss: 0.07816712558269501, params_num: 52488
+2025-12-08 13:50:42 | INFO | root | Purified data 43, shape: torch.Size([1, 64, 1500]), mse:0.22033719718456268
+2025-12-08 13:50:42 | INFO | root | 
+2025-12-08 13:50:42 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:43 | INFO | root | End purification for resolution 8*8, loss=3.558742901077494e-05
+2025-12-08 13:50:43 | INFO | root | End purification for resolution 16*16, loss=3.8468533603008837e-05
+2025-12-08 13:50:43 | INFO | root | End purification for resolution 32*32, loss=0.002602620515972376
+2025-12-08 13:50:44 | INFO | root | End purification for resolution 64*64, loss=0.08689242601394653
+2025-12-08 13:50:44 | INFO | root | Training time: 1.5817244052886963, loss: 0.08689242601394653, params_num: 52488
+2025-12-08 13:50:44 | INFO | root | Purified data 44, shape: torch.Size([1, 64, 1500]), mse:0.25034505128860474
+2025-12-08 13:50:44 | INFO | root | 
+2025-12-08 13:50:44 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:44 | INFO | root | End purification for resolution 8*8, loss=0.0005235847784206271
+2025-12-08 13:50:44 | INFO | root | End purification for resolution 16*16, loss=2.544099697843194e-05
+2025-12-08 13:50:45 | INFO | root | End purification for resolution 32*32, loss=0.002189659746363759
+2025-12-08 13:50:45 | INFO | root | End purification for resolution 64*64, loss=0.0834982842206955
+2025-12-08 13:50:45 | INFO | root | Training time: 1.481844425201416, loss: 0.0834982842206955, params_num: 52488
+2025-12-08 13:50:45 | INFO | root | Purified data 45, shape: torch.Size([1, 64, 1500]), mse:0.23939363658428192
+2025-12-08 13:50:45 | INFO | root | 
+2025-12-08 13:50:45 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:46 | INFO | root | End purification for resolution 8*8, loss=5.801024235552177e-05
+2025-12-08 13:50:46 | INFO | root | End purification for resolution 16*16, loss=3.617710171965882e-05
+2025-12-08 13:50:46 | INFO | root | End purification for resolution 32*32, loss=0.002772836945950985
+2025-12-08 13:50:47 | INFO | root | End purification for resolution 64*64, loss=0.07565464079380035
+2025-12-08 13:50:47 | INFO | root | Training time: 1.4838788509368896, loss: 0.07565464079380035, params_num: 52488
+2025-12-08 13:50:47 | INFO | root | Purified data 46, shape: torch.Size([1, 64, 1500]), mse:0.21810384094715118
+2025-12-08 13:50:47 | INFO | root | 
+2025-12-08 13:50:47 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:47 | INFO | root | End purification for resolution 8*8, loss=5.3318099162424915e-06
+2025-12-08 13:50:47 | INFO | root | End purification for resolution 16*16, loss=2.9631846700794995e-05
+2025-12-08 13:50:48 | INFO | root | End purification for resolution 32*32, loss=0.0025985348038375378
+2025-12-08 13:50:48 | INFO | root | End purification for resolution 64*64, loss=0.08868798613548279
+2025-12-08 13:50:48 | INFO | root | Training time: 1.4823708534240723, loss: 0.08868798613548279, params_num: 52488
+2025-12-08 13:50:48 | INFO | root | Purified data 47, shape: torch.Size([1, 64, 1500]), mse:0.25517332553863525
+2025-12-08 13:50:48 | INFO | root | 
+2025-12-08 13:50:48 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:49 | INFO | root | End purification for resolution 8*8, loss=9.407832112628967e-05
+2025-12-08 13:50:49 | INFO | root | End purification for resolution 16*16, loss=3.472511161817238e-05
+2025-12-08 13:50:49 | INFO | root | End purification for resolution 32*32, loss=0.003022611141204834
+2025-12-08 13:50:50 | INFO | root | End purification for resolution 64*64, loss=0.09266404807567596
+2025-12-08 13:50:50 | INFO | root | Training time: 1.483107328414917, loss: 0.09266404807567596, params_num: 52488
+2025-12-08 13:50:50 | INFO | root | Purified data 48, shape: torch.Size([1, 64, 1500]), mse:0.2685931324958801
+2025-12-08 13:50:50 | INFO | root | 
+2025-12-08 13:50:50 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:50 | INFO | root | End purification for resolution 8*8, loss=0.00011258348968112841
+2025-12-08 13:50:50 | INFO | root | End purification for resolution 16*16, loss=2.602975655463524e-05
+2025-12-08 13:50:51 | INFO | root | End purification for resolution 32*32, loss=0.002358395140618086
+2025-12-08 13:50:51 | INFO | root | End purification for resolution 64*64, loss=0.088358074426651
+2025-12-08 13:50:51 | INFO | root | Training time: 1.496788740158081, loss: 0.088358074426651, params_num: 52488
+2025-12-08 13:50:51 | INFO | root | Purified data 49, shape: torch.Size([1, 64, 1500]), mse:0.2541827857494354
+2025-12-08 13:50:51 | INFO | root | 
+2025-12-08 13:50:51 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:52 | INFO | root | End purification for resolution 8*8, loss=2.046588997473009e-05
+2025-12-08 13:50:52 | INFO | root | End purification for resolution 16*16, loss=3.067880606977269e-05
+2025-12-08 13:50:52 | INFO | root | End purification for resolution 32*32, loss=0.0022110044956207275
+2025-12-08 13:50:53 | INFO | root | End purification for resolution 64*64, loss=0.07357005774974823
+2025-12-08 13:50:53 | INFO | root | Training time: 1.5047473907470703, loss: 0.07357005774974823, params_num: 52488
+2025-12-08 13:50:53 | INFO | root | Purified data 50, shape: torch.Size([1, 64, 1500]), mse:0.2102949619293213
+2025-12-08 13:50:53 | INFO | root | 
+2025-12-08 13:50:53 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:53 | INFO | root | End purification for resolution 8*8, loss=7.462806934199762e-06
+2025-12-08 13:50:53 | INFO | root | End purification for resolution 16*16, loss=2.430883250781335e-05
+2025-12-08 13:50:54 | INFO | root | End purification for resolution 32*32, loss=0.00233778590336442
+2025-12-08 13:50:54 | INFO | root | End purification for resolution 64*64, loss=0.08942079544067383
+2025-12-08 13:50:54 | INFO | root | Training time: 1.4919180870056152, loss: 0.08942079544067383, params_num: 52488
+2025-12-08 13:50:54 | INFO | root | Purified data 51, shape: torch.Size([1, 64, 1500]), mse:0.25719377398490906
+2025-12-08 13:50:54 | INFO | root | 
+2025-12-08 13:50:54 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:55 | INFO | root | End purification for resolution 8*8, loss=0.0002944495645351708
+2025-12-08 13:50:55 | INFO | root | End purification for resolution 16*16, loss=2.8010194000671618e-05
+2025-12-08 13:50:55 | INFO | root | End purification for resolution 32*32, loss=0.0026072626933455467
+2025-12-08 13:50:56 | INFO | root | End purification for resolution 64*64, loss=0.09355742484331131
+2025-12-08 13:50:56 | INFO | root | Training time: 1.480100393295288, loss: 0.09355742484331131, params_num: 52488
+2025-12-08 13:50:56 | INFO | root | Purified data 52, shape: torch.Size([1, 64, 1500]), mse:0.2697485685348511
+2025-12-08 13:50:56 | INFO | root | 
+2025-12-08 13:50:56 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:56 | INFO | root | End purification for resolution 8*8, loss=0.00050037179607898
+2025-12-08 13:50:56 | INFO | root | End purification for resolution 16*16, loss=4.813711348106153e-05
+2025-12-08 13:50:57 | INFO | root | End purification for resolution 32*32, loss=0.0017276713624596596
+2025-12-08 13:50:57 | INFO | root | End purification for resolution 64*64, loss=0.05811993405222893
+2025-12-08 13:50:57 | INFO | root | Training time: 1.487210750579834, loss: 0.05811993405222893, params_num: 52488
+2025-12-08 13:50:57 | INFO | root | Purified data 53, shape: torch.Size([1, 64, 1500]), mse:0.16491550207138062
+2025-12-08 13:50:57 | INFO | root | 
+2025-12-08 13:50:57 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:58 | INFO | root | End purification for resolution 8*8, loss=5.641018105961848e-06
+2025-12-08 13:50:58 | INFO | root | End purification for resolution 16*16, loss=2.8442760594771244e-05
+2025-12-08 13:50:58 | INFO | root | End purification for resolution 32*32, loss=0.0026345294900238514
+2025-12-08 13:50:59 | INFO | root | End purification for resolution 64*64, loss=0.0852573812007904
+2025-12-08 13:50:59 | INFO | root | Training time: 1.4943814277648926, loss: 0.0852573812007904, params_num: 52488
+2025-12-08 13:50:59 | INFO | root | Purified data 54, shape: torch.Size([1, 64, 1500]), mse:0.24672120809555054
+2025-12-08 13:50:59 | INFO | root | 
+2025-12-08 13:50:59 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:50:59 | INFO | root | End purification for resolution 8*8, loss=8.575698302593082e-06
+2025-12-08 13:50:59 | INFO | root | End purification for resolution 16*16, loss=3.789117181440815e-05
+2025-12-08 13:51:00 | INFO | root | End purification for resolution 32*32, loss=0.0029933778569102287
+2025-12-08 13:51:00 | INFO | root | End purification for resolution 64*64, loss=0.08820415288209915
+2025-12-08 13:51:00 | INFO | root | Training time: 1.4946742057800293, loss: 0.08820415288209915, params_num: 52488
+2025-12-08 13:51:00 | INFO | root | Purified data 55, shape: torch.Size([1, 64, 1500]), mse:0.2557922899723053
+2025-12-08 13:51:00 | INFO | root | 
+2025-12-08 13:51:00 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:01 | INFO | root | End purification for resolution 8*8, loss=6.48617060505785e-05
+2025-12-08 13:51:01 | INFO | root | End purification for resolution 16*16, loss=2.5267654564231634e-05
+2025-12-08 13:51:01 | INFO | root | End purification for resolution 32*32, loss=0.0033378624357283115
+2025-12-08 13:51:02 | INFO | root | End purification for resolution 64*64, loss=0.09221034497022629
+2025-12-08 13:51:02 | INFO | root | Training time: 1.5193076133728027, loss: 0.09221034497022629, params_num: 52488
+2025-12-08 13:51:02 | INFO | root | Purified data 56, shape: torch.Size([1, 64, 1500]), mse:0.2635669708251953
+2025-12-08 13:51:02 | INFO | root | 
+2025-12-08 13:51:02 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:02 | INFO | root | End purification for resolution 8*8, loss=0.00020285575010348111
+2025-12-08 13:51:02 | INFO | root | End purification for resolution 16*16, loss=2.587365815998055e-05
+2025-12-08 13:51:03 | INFO | root | End purification for resolution 32*32, loss=0.0031094406731426716
+2025-12-08 13:51:03 | INFO | root | End purification for resolution 64*64, loss=0.08758457750082016
+2025-12-08 13:51:03 | INFO | root | Training time: 1.4953312873840332, loss: 0.08758457750082016, params_num: 52488
+2025-12-08 13:51:03 | INFO | root | Purified data 57, shape: torch.Size([1, 64, 1500]), mse:0.2510414719581604
+2025-12-08 13:51:03 | INFO | root | 
+2025-12-08 13:51:03 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:04 | INFO | root | End purification for resolution 8*8, loss=3.4095162391167833e-06
+2025-12-08 13:51:04 | INFO | root | End purification for resolution 16*16, loss=1.743691973388195e-05
+2025-12-08 13:51:04 | INFO | root | End purification for resolution 32*32, loss=0.003229319117963314
+2025-12-08 13:51:05 | INFO | root | End purification for resolution 64*64, loss=0.0904572606086731
+2025-12-08 13:51:05 | INFO | root | Training time: 1.492706298828125, loss: 0.0904572606086731, params_num: 52488
+2025-12-08 13:51:05 | INFO | root | Purified data 58, shape: torch.Size([1, 64, 1500]), mse:0.2606608271598816
+2025-12-08 13:51:05 | INFO | root | 
+2025-12-08 13:51:05 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:05 | INFO | root | End purification for resolution 8*8, loss=0.00016115393373183906
+2025-12-08 13:51:05 | INFO | root | End purification for resolution 16*16, loss=2.522553040762432e-05
+2025-12-08 13:51:06 | INFO | root | End purification for resolution 32*32, loss=0.0023116001393646
+2025-12-08 13:51:06 | INFO | root | End purification for resolution 64*64, loss=0.08268090337514877
+2025-12-08 13:51:06 | INFO | root | Training time: 1.4953227043151855, loss: 0.08268090337514877, params_num: 52488
+2025-12-08 13:51:06 | INFO | root | Purified data 59, shape: torch.Size([1, 64, 1500]), mse:0.23486194014549255
+2025-12-08 13:51:06 | INFO | root | 
+2025-12-08 13:51:06 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:07 | INFO | root | End purification for resolution 8*8, loss=3.695020859595388e-05
+2025-12-08 13:51:07 | INFO | root | End purification for resolution 16*16, loss=3.4709926694631577e-05
+2025-12-08 13:51:07 | INFO | root | End purification for resolution 32*32, loss=0.0032390509732067585
+2025-12-08 13:51:08 | INFO | root | End purification for resolution 64*64, loss=0.08099842816591263
+2025-12-08 13:51:08 | INFO | root | Training time: 1.4859378337860107, loss: 0.08099842816591263, params_num: 52488
+2025-12-08 13:51:08 | INFO | root | Purified data 60, shape: torch.Size([1, 64, 1500]), mse:0.23189590871334076
+2025-12-08 13:51:08 | INFO | root | 
+2025-12-08 13:51:08 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:08 | INFO | root | End purification for resolution 8*8, loss=0.00020409483113326132
+2025-12-08 13:51:08 | INFO | root | End purification for resolution 16*16, loss=3.365802331245504e-05
+2025-12-08 13:51:09 | INFO | root | End purification for resolution 32*32, loss=0.0032312131952494383
+2025-12-08 13:51:09 | INFO | root | End purification for resolution 64*64, loss=0.08800014853477478
+2025-12-08 13:51:09 | INFO | root | Training time: 1.479583501815796, loss: 0.08800014853477478, params_num: 52488
+2025-12-08 13:51:09 | INFO | root | Purified data 61, shape: torch.Size([1, 64, 1500]), mse:0.2536778450012207
+2025-12-08 13:51:09 | INFO | root | 
+2025-12-08 13:51:09 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:10 | INFO | root | End purification for resolution 8*8, loss=0.00034324234002269804
+2025-12-08 13:51:10 | INFO | root | End purification for resolution 16*16, loss=3.7427998904604465e-05
+2025-12-08 13:51:10 | INFO | root | End purification for resolution 32*32, loss=0.0035507390275597572
+2025-12-08 13:51:11 | INFO | root | End purification for resolution 64*64, loss=0.09258057922124863
+2025-12-08 13:51:11 | INFO | root | Training time: 1.5173606872558594, loss: 0.09258057922124863, params_num: 52488
+2025-12-08 13:51:11 | INFO | root | Purified data 62, shape: torch.Size([1, 64, 1500]), mse:0.26526594161987305
+2025-12-08 13:51:11 | INFO | root | 
+2025-12-08 13:51:11 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:11 | INFO | root | End purification for resolution 8*8, loss=0.0004153529880568385
+2025-12-08 13:51:11 | INFO | root | End purification for resolution 16*16, loss=3.436541010159999e-05
+2025-12-08 13:51:12 | INFO | root | End purification for resolution 32*32, loss=0.0025236448273062706
+2025-12-08 13:51:12 | INFO | root | End purification for resolution 64*64, loss=0.0831177607178688
+2025-12-08 13:51:12 | INFO | root | Training time: 1.510873556137085, loss: 0.0831177607178688, params_num: 52488
+2025-12-08 13:51:12 | INFO | root | Purified data 63, shape: torch.Size([1, 64, 1500]), mse:0.2398177832365036
+2025-12-08 13:51:12 | INFO | root | 
+2025-12-08 13:51:12 | INFO | root | 
+2025-12-08 13:51:12 | INFO | root | 
+2025-12-08 13:51:12 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:13 | INFO | root | End purification for resolution 8*8, loss=1.3098317140247673e-05
+2025-12-08 13:51:13 | INFO | root | End purification for resolution 16*16, loss=3.751479380298406e-05
+2025-12-08 13:51:13 | INFO | root | End purification for resolution 32*32, loss=0.002689116634428501
+2025-12-08 13:51:14 | INFO | root | End purification for resolution 64*64, loss=0.08139272034168243
+2025-12-08 13:51:14 | INFO | root | Training time: 1.4722912311553955, loss: 0.08139272034168243, params_num: 52488
+2025-12-08 13:51:14 | INFO | root | Purified data 0, shape: torch.Size([1, 64, 1500]), mse:0.2331097275018692
+2025-12-08 13:51:14 | INFO | root | 
+2025-12-08 13:51:14 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:14 | INFO | root | End purification for resolution 8*8, loss=1.3378260518948082e-05
+2025-12-08 13:51:14 | INFO | root | End purification for resolution 16*16, loss=5.000103556085378e-05
+2025-12-08 13:51:15 | INFO | root | End purification for resolution 32*32, loss=0.0028605908155441284
+2025-12-08 13:51:15 | INFO | root | End purification for resolution 64*64, loss=0.07294917851686478
+2025-12-08 13:51:15 | INFO | root | Training time: 1.4770476818084717, loss: 0.07294917851686478, params_num: 52488
+2025-12-08 13:51:15 | INFO | root | Purified data 1, shape: torch.Size([1, 64, 1500]), mse:0.2066023349761963
+2025-12-08 13:51:15 | INFO | root | 
+2025-12-08 13:51:15 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:16 | INFO | root | End purification for resolution 8*8, loss=9.948985098162666e-05
+2025-12-08 13:51:16 | INFO | root | End purification for resolution 16*16, loss=2.286271410412155e-05
+2025-12-08 13:51:16 | INFO | root | End purification for resolution 32*32, loss=0.0024663107469677925
+2025-12-08 13:51:17 | INFO | root | End purification for resolution 64*64, loss=0.09491626173257828
+2025-12-08 13:51:17 | INFO | root | Training time: 1.484492301940918, loss: 0.09491626173257828, params_num: 52488
+2025-12-08 13:51:17 | INFO | root | Purified data 2, shape: torch.Size([1, 64, 1500]), mse:0.2749742865562439
+2025-12-08 13:51:17 | INFO | root | 
+2025-12-08 13:51:17 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:17 | INFO | root | End purification for resolution 8*8, loss=0.0001559909142088145
+2025-12-08 13:51:17 | INFO | root | End purification for resolution 16*16, loss=3.09769602608867e-05
+2025-12-08 13:51:18 | INFO | root | End purification for resolution 32*32, loss=0.002204888965934515
+2025-12-08 13:51:19 | INFO | root | End purification for resolution 64*64, loss=0.06801959872245789
+2025-12-08 13:51:19 | INFO | root | Training time: 1.5671112537384033, loss: 0.06801959872245789, params_num: 52488
+2025-12-08 13:51:19 | INFO | root | Purified data 3, shape: torch.Size([1, 64, 1500]), mse:0.19372490048408508
+2025-12-08 13:51:19 | INFO | root | 
+2025-12-08 13:51:19 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:19 | INFO | root | End purification for resolution 8*8, loss=0.0002462473348714411
+2025-12-08 13:51:19 | INFO | root | End purification for resolution 16*16, loss=2.798441164486576e-05
+2025-12-08 13:51:19 | INFO | root | End purification for resolution 32*32, loss=0.0024957931600511074
+2025-12-08 13:51:20 | INFO | root | End purification for resolution 64*64, loss=0.08309468626976013
+2025-12-08 13:51:20 | INFO | root | Training time: 1.5904488563537598, loss: 0.08309468626976013, params_num: 52488
+2025-12-08 13:51:20 | INFO | root | Purified data 4, shape: torch.Size([1, 64, 1500]), mse:0.2376600205898285
+2025-12-08 13:51:20 | INFO | root | 
+2025-12-08 13:51:20 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:20 | INFO | root | End purification for resolution 8*8, loss=4.00352882934385e-06
+2025-12-08 13:51:20 | INFO | root | End purification for resolution 16*16, loss=3.102953633060679e-05
+2025-12-08 13:51:21 | INFO | root | End purification for resolution 32*32, loss=0.002358983736485243
+2025-12-08 13:51:22 | INFO | root | End purification for resolution 64*64, loss=0.07748482376337051
+2025-12-08 13:51:22 | INFO | root | Training time: 1.4813251495361328, loss: 0.07748482376337051, params_num: 52488
+2025-12-08 13:51:22 | INFO | root | Purified data 5, shape: torch.Size([1, 64, 1500]), mse:0.22206933796405792
+2025-12-08 13:51:22 | INFO | root | 
+2025-12-08 13:51:22 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:22 | INFO | root | End purification for resolution 8*8, loss=8.590390280005522e-06
+2025-12-08 13:51:22 | INFO | root | End purification for resolution 16*16, loss=2.1063640815555118e-05
+2025-12-08 13:51:22 | INFO | root | End purification for resolution 32*32, loss=0.002699898090213537
+2025-12-08 13:51:23 | INFO | root | End purification for resolution 64*64, loss=0.07709317654371262
+2025-12-08 13:51:23 | INFO | root | Training time: 1.4978787899017334, loss: 0.07709317654371262, params_num: 52488
+2025-12-08 13:51:23 | INFO | root | Purified data 6, shape: torch.Size([1, 64, 1500]), mse:0.2196103036403656
+2025-12-08 13:51:23 | INFO | root | 
+2025-12-08 13:51:23 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:23 | INFO | root | End purification for resolution 8*8, loss=0.0005381605005823076
+2025-12-08 13:51:23 | INFO | root | End purification for resolution 16*16, loss=4.971670568920672e-05
+2025-12-08 13:51:24 | INFO | root | End purification for resolution 32*32, loss=0.002407847438007593
+2025-12-08 13:51:25 | INFO | root | End purification for resolution 64*64, loss=0.07984091341495514
+2025-12-08 13:51:25 | INFO | root | Training time: 1.4816780090332031, loss: 0.07984091341495514, params_num: 52488
+2025-12-08 13:51:25 | INFO | root | Purified data 7, shape: torch.Size([1, 64, 1500]), mse:0.22629085183143616
+2025-12-08 13:51:25 | INFO | root | 
+2025-12-08 13:51:25 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:25 | INFO | root | End purification for resolution 8*8, loss=5.3073090384714305e-06
+2025-12-08 13:51:25 | INFO | root | End purification for resolution 16*16, loss=4.0121700294548646e-05
+2025-12-08 13:51:25 | INFO | root | End purification for resolution 32*32, loss=0.0023574628867208958
+2025-12-08 13:51:26 | INFO | root | End purification for resolution 64*64, loss=0.07897922396659851
+2025-12-08 13:51:26 | INFO | root | Training time: 1.4836766719818115, loss: 0.07897922396659851, params_num: 52488
+2025-12-08 13:51:26 | INFO | root | Purified data 8, shape: torch.Size([1, 64, 1500]), mse:0.2271759808063507
+2025-12-08 13:51:26 | INFO | root | 
+2025-12-08 13:51:26 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:26 | INFO | root | End purification for resolution 8*8, loss=3.465450936346315e-05
+2025-12-08 13:51:26 | INFO | root | End purification for resolution 16*16, loss=2.359115023864433e-05
+2025-12-08 13:51:27 | INFO | root | End purification for resolution 32*32, loss=0.002158585237339139
+2025-12-08 13:51:28 | INFO | root | End purification for resolution 64*64, loss=0.09052300453186035
+2025-12-08 13:51:28 | INFO | root | Training time: 1.4869976043701172, loss: 0.09052300453186035, params_num: 52488
+2025-12-08 13:51:28 | INFO | root | Purified data 9, shape: torch.Size([1, 64, 1500]), mse:0.2607415020465851
+2025-12-08 13:51:28 | INFO | root | 
+2025-12-08 13:51:28 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:28 | INFO | root | End purification for resolution 8*8, loss=3.679133442346938e-05
+2025-12-08 13:51:28 | INFO | root | End purification for resolution 16*16, loss=2.7683265216182917e-05
+2025-12-08 13:51:28 | INFO | root | End purification for resolution 32*32, loss=0.002249106066301465
+2025-12-08 13:51:29 | INFO | root | End purification for resolution 64*64, loss=0.08095141500234604
+2025-12-08 13:51:29 | INFO | root | Training time: 1.4841485023498535, loss: 0.08095141500234604, params_num: 52488
+2025-12-08 13:51:29 | INFO | root | Purified data 10, shape: torch.Size([1, 64, 1500]), mse:0.23095452785491943
+2025-12-08 13:51:29 | INFO | root | 
+2025-12-08 13:51:29 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:29 | INFO | root | End purification for resolution 8*8, loss=0.0003969302633777261
+2025-12-08 13:51:29 | INFO | root | End purification for resolution 16*16, loss=4.491824802244082e-05
+2025-12-08 13:51:30 | INFO | root | End purification for resolution 32*32, loss=0.0023492539767175913
+2025-12-08 13:51:31 | INFO | root | End purification for resolution 64*64, loss=0.08226777613162994
+2025-12-08 13:51:31 | INFO | root | Training time: 1.4910922050476074, loss: 0.08226777613162994, params_num: 52488
+2025-12-08 13:51:31 | INFO | root | Purified data 11, shape: torch.Size([1, 64, 1500]), mse:0.23736204206943512
+2025-12-08 13:51:31 | INFO | root | 
+2025-12-08 13:51:31 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:31 | INFO | root | End purification for resolution 8*8, loss=1.2829973456973676e-05
+2025-12-08 13:51:31 | INFO | root | End purification for resolution 16*16, loss=3.440045838942751e-05
+2025-12-08 13:51:31 | INFO | root | End purification for resolution 32*32, loss=0.002596427220851183
+2025-12-08 13:51:32 | INFO | root | End purification for resolution 64*64, loss=0.08666101098060608
+2025-12-08 13:51:32 | INFO | root | Training time: 1.4960296154022217, loss: 0.08666101098060608, params_num: 52488
+2025-12-08 13:51:32 | INFO | root | Purified data 12, shape: torch.Size([1, 64, 1500]), mse:0.2507598400115967
+2025-12-08 13:51:32 | INFO | root | 
+2025-12-08 13:51:32 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:32 | INFO | root | End purification for resolution 8*8, loss=0.0001752094249241054
+2025-12-08 13:51:32 | INFO | root | End purification for resolution 16*16, loss=3.396937972865999e-05
+2025-12-08 13:51:33 | INFO | root | End purification for resolution 32*32, loss=0.002189934253692627
+2025-12-08 13:51:34 | INFO | root | End purification for resolution 64*64, loss=0.08689182251691818
+2025-12-08 13:51:34 | INFO | root | Training time: 1.5260329246520996, loss: 0.08689182251691818, params_num: 52488
+2025-12-08 13:51:34 | INFO | root | Purified data 13, shape: torch.Size([1, 64, 1500]), mse:0.25041669607162476
+2025-12-08 13:51:34 | INFO | root | 
+2025-12-08 13:51:34 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:34 | INFO | root | End purification for resolution 8*8, loss=1.2924248949275352e-05
+2025-12-08 13:51:34 | INFO | root | End purification for resolution 16*16, loss=3.148696123389527e-05
+2025-12-08 13:51:34 | INFO | root | End purification for resolution 32*32, loss=0.0024706043768674135
+2025-12-08 13:51:35 | INFO | root | End purification for resolution 64*64, loss=0.08445705473423004
+2025-12-08 13:51:35 | INFO | root | Training time: 1.4888644218444824, loss: 0.08445705473423004, params_num: 52488
+2025-12-08 13:51:35 | INFO | root | Purified data 14, shape: torch.Size([1, 64, 1500]), mse:0.24446190893650055
+2025-12-08 13:51:35 | INFO | root | 
+2025-12-08 13:51:35 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:35 | INFO | root | End purification for resolution 8*8, loss=9.76377195911482e-05
+2025-12-08 13:51:35 | INFO | root | End purification for resolution 16*16, loss=2.3067430447554216e-05
+2025-12-08 13:51:36 | INFO | root | End purification for resolution 32*32, loss=0.0025128116831183434
+2025-12-08 13:51:37 | INFO | root | End purification for resolution 64*64, loss=0.09281828999519348
+2025-12-08 13:51:37 | INFO | root | Training time: 1.4825348854064941, loss: 0.09281828999519348, params_num: 52488
+2025-12-08 13:51:37 | INFO | root | Purified data 15, shape: torch.Size([1, 64, 1500]), mse:0.2700062692165375
+2025-12-08 13:51:37 | INFO | root | 
+2025-12-08 13:51:37 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:37 | INFO | root | End purification for resolution 8*8, loss=0.00043990154517814517
+2025-12-08 13:51:37 | INFO | root | End purification for resolution 16*16, loss=3.884814941557124e-05
+2025-12-08 13:51:37 | INFO | root | End purification for resolution 32*32, loss=0.002915900433436036
+2025-12-08 13:51:38 | INFO | root | End purification for resolution 64*64, loss=0.08936764299869537
+2025-12-08 13:51:38 | INFO | root | Training time: 1.4806857109069824, loss: 0.08936764299869537, params_num: 52488
+2025-12-08 13:51:38 | INFO | root | Purified data 16, shape: torch.Size([1, 64, 1500]), mse:0.2583032250404358
+2025-12-08 13:51:38 | INFO | root | 
+2025-12-08 13:51:38 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:38 | INFO | root | End purification for resolution 8*8, loss=1.2889969184470829e-05
+2025-12-08 13:51:38 | INFO | root | End purification for resolution 16*16, loss=2.8050686523783952e-05
+2025-12-08 13:51:39 | INFO | root | End purification for resolution 32*32, loss=0.0035380013287067413
+2025-12-08 13:51:40 | INFO | root | End purification for resolution 64*64, loss=0.08609028905630112
+2025-12-08 13:51:40 | INFO | root | Training time: 1.4984614849090576, loss: 0.08609028905630112, params_num: 52488
+2025-12-08 13:51:40 | INFO | root | Purified data 17, shape: torch.Size([1, 64, 1500]), mse:0.248576357960701
+2025-12-08 13:51:40 | INFO | root | 
+2025-12-08 13:51:40 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:40 | INFO | root | End purification for resolution 8*8, loss=8.709401299711317e-06
+2025-12-08 13:51:40 | INFO | root | End purification for resolution 16*16, loss=2.9105853172950447e-05
+2025-12-08 13:51:40 | INFO | root | End purification for resolution 32*32, loss=0.002468955237418413
+2025-12-08 13:51:41 | INFO | root | End purification for resolution 64*64, loss=0.07194945216178894
+2025-12-08 13:51:41 | INFO | root | Training time: 1.4914767742156982, loss: 0.07194945216178894, params_num: 52488
+2025-12-08 13:51:41 | INFO | root | Purified data 18, shape: torch.Size([1, 64, 1500]), mse:0.20276063680648804
+2025-12-08 13:51:41 | INFO | root | 
+2025-12-08 13:51:41 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:41 | INFO | root | End purification for resolution 8*8, loss=0.0002761658397503197
+2025-12-08 13:51:41 | INFO | root | End purification for resolution 16*16, loss=2.742031210800633e-05
+2025-12-08 13:51:42 | INFO | root | End purification for resolution 32*32, loss=0.0024733496829867363
+2025-12-08 13:51:43 | INFO | root | End purification for resolution 64*64, loss=0.08376048505306244
+2025-12-08 13:51:43 | INFO | root | Training time: 1.4808907508850098, loss: 0.08376048505306244, params_num: 52488
+2025-12-08 13:51:43 | INFO | root | Purified data 19, shape: torch.Size([1, 64, 1500]), mse:0.2419130504131317
+2025-12-08 13:51:43 | INFO | root | 
+2025-12-08 13:51:43 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:43 | INFO | root | End purification for resolution 8*8, loss=4.088656169187743e-06
+2025-12-08 13:51:43 | INFO | root | End purification for resolution 16*16, loss=3.398536500753835e-05
+2025-12-08 13:51:43 | INFO | root | End purification for resolution 32*32, loss=0.0027121042367070913
+2025-12-08 13:51:44 | INFO | root | End purification for resolution 64*64, loss=0.06666213274002075
+2025-12-08 13:51:44 | INFO | root | Training time: 1.5092289447784424, loss: 0.06666213274002075, params_num: 52488
+2025-12-08 13:51:44 | INFO | root | Purified data 20, shape: torch.Size([1, 64, 1500]), mse:0.19234824180603027
+2025-12-08 13:51:44 | INFO | root | 
+2025-12-08 13:51:44 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:44 | INFO | root | End purification for resolution 8*8, loss=1.792998955352232e-05
+2025-12-08 13:51:44 | INFO | root | End purification for resolution 16*16, loss=1.4143726730253547e-05
+2025-12-08 13:51:45 | INFO | root | End purification for resolution 32*32, loss=0.002873241901397705
+2025-12-08 13:51:46 | INFO | root | End purification for resolution 64*64, loss=0.07891415059566498
+2025-12-08 13:51:46 | INFO | root | Training time: 1.518054485321045, loss: 0.07891415059566498, params_num: 52488
+2025-12-08 13:51:46 | INFO | root | Purified data 21, shape: torch.Size([1, 64, 1500]), mse:0.2258981466293335
+2025-12-08 13:51:46 | INFO | root | 
+2025-12-08 13:51:46 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:46 | INFO | root | End purification for resolution 8*8, loss=0.00022927764803171158
+2025-12-08 13:51:46 | INFO | root | End purification for resolution 16*16, loss=2.6646301193977706e-05
+2025-12-08 13:51:46 | INFO | root | End purification for resolution 32*32, loss=0.0022461065091192722
+2025-12-08 13:51:47 | INFO | root | End purification for resolution 64*64, loss=0.07919250428676605
+2025-12-08 13:51:47 | INFO | root | Training time: 1.515415906906128, loss: 0.07919250428676605, params_num: 52488
+2025-12-08 13:51:47 | INFO | root | Purified data 22, shape: torch.Size([1, 64, 1500]), mse:0.22470593452453613
+2025-12-08 13:51:47 | INFO | root | 
+2025-12-08 13:51:47 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:47 | INFO | root | End purification for resolution 8*8, loss=2.6774341677082703e-06
+2025-12-08 13:51:48 | INFO | root | End purification for resolution 16*16, loss=2.5334178644698113e-05
+2025-12-08 13:51:48 | INFO | root | End purification for resolution 32*32, loss=0.0022436920553445816
+2025-12-08 13:51:49 | INFO | root | End purification for resolution 64*64, loss=0.07374076545238495
+2025-12-08 13:51:49 | INFO | root | Training time: 1.5056567192077637, loss: 0.07374076545238495, params_num: 52488
+2025-12-08 13:51:49 | INFO | root | Purified data 23, shape: torch.Size([1, 64, 1500]), mse:0.20818054676055908
+2025-12-08 13:51:49 | INFO | root | 
+2025-12-08 13:51:49 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:49 | INFO | root | End purification for resolution 8*8, loss=0.000107502521132119
+2025-12-08 13:51:49 | INFO | root | End purification for resolution 16*16, loss=1.9305483874632046e-05
+2025-12-08 13:51:49 | INFO | root | End purification for resolution 32*32, loss=0.0026130424812436104
+2025-12-08 13:51:50 | INFO | root | End purification for resolution 64*64, loss=0.08453977853059769
+2025-12-08 13:51:50 | INFO | root | Training time: 1.5397679805755615, loss: 0.08453977853059769, params_num: 52488
+2025-12-08 13:51:50 | INFO | root | Purified data 24, shape: torch.Size([1, 64, 1500]), mse:0.24189916253089905
+2025-12-08 13:51:50 | INFO | root | 
+2025-12-08 13:51:50 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:50 | INFO | root | End purification for resolution 8*8, loss=7.569466106360778e-06
+2025-12-08 13:51:51 | INFO | root | End purification for resolution 16*16, loss=2.6895240807789378e-05
+2025-12-08 13:51:51 | INFO | root | End purification for resolution 32*32, loss=0.0029490827582776546
+2025-12-08 13:51:52 | INFO | root | End purification for resolution 64*64, loss=0.1011916846036911
+2025-12-08 13:51:52 | INFO | root | Training time: 1.5698676109313965, loss: 0.1011916846036911, params_num: 52488
+2025-12-08 13:51:52 | INFO | root | Purified data 25, shape: torch.Size([1, 64, 1500]), mse:0.27349036931991577
+2025-12-08 13:51:52 | INFO | root | 
+2025-12-08 13:51:52 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:52 | INFO | root | End purification for resolution 8*8, loss=6.586749805137515e-06
+2025-12-08 13:51:52 | INFO | root | End purification for resolution 16*16, loss=3.1388761271955445e-05
+2025-12-08 13:51:53 | INFO | root | End purification for resolution 32*32, loss=0.0025435856077820063
+2025-12-08 13:51:53 | INFO | root | End purification for resolution 64*64, loss=0.08615411818027496
+2025-12-08 13:51:53 | INFO | root | Training time: 1.515169620513916, loss: 0.08615411818027496, params_num: 52488
+2025-12-08 13:51:53 | INFO | root | Purified data 26, shape: torch.Size([1, 64, 1500]), mse:0.24796901643276215
+2025-12-08 13:51:53 | INFO | root | 
+2025-12-08 13:51:53 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:54 | INFO | root | End purification for resolution 8*8, loss=2.5182469471474178e-05
+2025-12-08 13:51:54 | INFO | root | End purification for resolution 16*16, loss=3.740815009223297e-05
+2025-12-08 13:51:54 | INFO | root | End purification for resolution 32*32, loss=0.002132332418113947
+2025-12-08 13:51:55 | INFO | root | End purification for resolution 64*64, loss=0.07679751515388489
+2025-12-08 13:51:55 | INFO | root | Training time: 1.5352504253387451, loss: 0.07679751515388489, params_num: 52488
+2025-12-08 13:51:55 | INFO | root | Purified data 27, shape: torch.Size([1, 64, 1500]), mse:0.22109182178974152
+2025-12-08 13:51:55 | INFO | root | 
+2025-12-08 13:51:55 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:55 | INFO | root | End purification for resolution 8*8, loss=1.2788137610186823e-05
+2025-12-08 13:51:55 | INFO | root | End purification for resolution 16*16, loss=2.6502812033868395e-05
+2025-12-08 13:51:56 | INFO | root | End purification for resolution 32*32, loss=0.0024319891817867756
+2025-12-08 13:51:56 | INFO | root | End purification for resolution 64*64, loss=0.09044566750526428
+2025-12-08 13:51:56 | INFO | root | Training time: 1.503746747970581, loss: 0.09044566750526428, params_num: 52488
+2025-12-08 13:51:56 | INFO | root | Purified data 28, shape: torch.Size([1, 64, 1500]), mse:0.2592420279979706
+2025-12-08 13:51:56 | INFO | root | 
+2025-12-08 13:51:56 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:57 | INFO | root | End purification for resolution 8*8, loss=1.918169073178433e-05
+2025-12-08 13:51:57 | INFO | root | End purification for resolution 16*16, loss=2.8761231078533456e-05
+2025-12-08 13:51:57 | INFO | root | End purification for resolution 32*32, loss=0.0020504987332969904
+2025-12-08 13:51:58 | INFO | root | End purification for resolution 64*64, loss=0.08796768635511398
+2025-12-08 13:51:58 | INFO | root | Training time: 1.627978801727295, loss: 0.08796768635511398, params_num: 52488
+2025-12-08 13:51:58 | INFO | root | Purified data 29, shape: torch.Size([1, 64, 1500]), mse:0.2566167414188385
+2025-12-08 13:51:58 | INFO | root | 
+2025-12-08 13:51:58 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:51:58 | INFO | root | End purification for resolution 8*8, loss=4.114248440600932e-06
+2025-12-08 13:51:58 | INFO | root | End purification for resolution 16*16, loss=2.7929336283705197e-05
+2025-12-08 13:51:59 | INFO | root | End purification for resolution 32*32, loss=0.0031000287272036076
+2025-12-08 13:52:00 | INFO | root | End purification for resolution 64*64, loss=0.08872457593679428
+2025-12-08 13:52:00 | INFO | root | Training time: 1.647310495376587, loss: 0.08872457593679428, params_num: 52488
+2025-12-08 13:52:00 | INFO | root | Purified data 30, shape: torch.Size([1, 64, 1500]), mse:0.25364449620246887
+2025-12-08 13:52:00 | INFO | root | 
+2025-12-08 13:52:00 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:00 | INFO | root | End purification for resolution 8*8, loss=4.145575076108798e-06
+2025-12-08 13:52:00 | INFO | root | End purification for resolution 16*16, loss=2.1307692804839462e-05
+2025-12-08 13:52:00 | INFO | root | End purification for resolution 32*32, loss=0.003249619621783495
+2025-12-08 13:52:01 | INFO | root | End purification for resolution 64*64, loss=0.0862380862236023
+2025-12-08 13:52:01 | INFO | root | Training time: 1.6278941631317139, loss: 0.0862380862236023, params_num: 52488
+2025-12-08 13:52:01 | INFO | root | Purified data 31, shape: torch.Size([1, 64, 1500]), mse:0.24502728879451752
+2025-12-08 13:52:01 | INFO | root | 
+2025-12-08 13:52:01 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:02 | INFO | root | End purification for resolution 8*8, loss=1.8687910596781876e-06
+2025-12-08 13:52:02 | INFO | root | End purification for resolution 16*16, loss=1.3589164154836908e-05
+2025-12-08 13:52:02 | INFO | root | End purification for resolution 32*32, loss=0.002499070717021823
+2025-12-08 13:52:03 | INFO | root | End purification for resolution 64*64, loss=0.09300217777490616
+2025-12-08 13:52:03 | INFO | root | Training time: 1.6388850212097168, loss: 0.09300217777490616, params_num: 52488
+2025-12-08 13:52:03 | INFO | root | Purified data 32, shape: torch.Size([1, 64, 1500]), mse:0.2706194519996643
+2025-12-08 13:52:03 | INFO | root | 
+2025-12-08 13:52:03 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:03 | INFO | root | End purification for resolution 8*8, loss=3.1089421099750325e-05
+2025-12-08 13:52:03 | INFO | root | End purification for resolution 16*16, loss=3.0080969736445695e-05
+2025-12-08 13:52:04 | INFO | root | End purification for resolution 32*32, loss=0.0025710505433380604
+2025-12-08 13:52:05 | INFO | root | End purification for resolution 64*64, loss=0.06755639612674713
+2025-12-08 13:52:05 | INFO | root | Training time: 1.5422286987304688, loss: 0.06755639612674713, params_num: 52488
+2025-12-08 13:52:05 | INFO | root | Purified data 33, shape: torch.Size([1, 64, 1500]), mse:0.19058914482593536
+2025-12-08 13:52:05 | INFO | root | 
+2025-12-08 13:52:05 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:05 | INFO | root | End purification for resolution 8*8, loss=3.353938154759817e-05
+2025-12-08 13:52:05 | INFO | root | End purification for resolution 16*16, loss=2.8698701498797163e-05
+2025-12-08 13:52:05 | INFO | root | End purification for resolution 32*32, loss=0.002252165460959077
+2025-12-08 13:52:06 | INFO | root | End purification for resolution 64*64, loss=0.07815420627593994
+2025-12-08 13:52:06 | INFO | root | Training time: 1.4871172904968262, loss: 0.07815420627593994, params_num: 52488
+2025-12-08 13:52:06 | INFO | root | Purified data 34, shape: torch.Size([1, 64, 1500]), mse:0.22592692077159882
+2025-12-08 13:52:06 | INFO | root | 
+2025-12-08 13:52:06 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:06 | INFO | root | End purification for resolution 8*8, loss=1.8851216736948118e-05
+2025-12-08 13:52:06 | INFO | root | End purification for resolution 16*16, loss=2.4619337636977434e-05
+2025-12-08 13:52:07 | INFO | root | End purification for resolution 32*32, loss=0.0025013447739183903
+2025-12-08 13:52:08 | INFO | root | End purification for resolution 64*64, loss=0.07309684157371521
+2025-12-08 13:52:08 | INFO | root | Training time: 1.4870305061340332, loss: 0.07309684157371521, params_num: 52488
+2025-12-08 13:52:08 | INFO | root | Purified data 35, shape: torch.Size([1, 64, 1500]), mse:0.20766659080982208
+2025-12-08 13:52:08 | INFO | root | 
+2025-12-08 13:52:08 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:08 | INFO | root | End purification for resolution 8*8, loss=2.266372393933125e-05
+2025-12-08 13:52:08 | INFO | root | End purification for resolution 16*16, loss=2.0018625946249813e-05
+2025-12-08 13:52:08 | INFO | root | End purification for resolution 32*32, loss=0.0028221963439136744
+2025-12-08 13:52:09 | INFO | root | End purification for resolution 64*64, loss=0.07609981298446655
+2025-12-08 13:52:09 | INFO | root | Training time: 1.4841513633728027, loss: 0.07609981298446655, params_num: 52488
+2025-12-08 13:52:09 | INFO | root | Purified data 36, shape: torch.Size([1, 64, 1500]), mse:0.21652226150035858
+2025-12-08 13:52:09 | INFO | root | 
+2025-12-08 13:52:09 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:09 | INFO | root | End purification for resolution 8*8, loss=2.1747957362094894e-05
+2025-12-08 13:52:09 | INFO | root | End purification for resolution 16*16, loss=2.440289972582832e-05
+2025-12-08 13:52:10 | INFO | root | End purification for resolution 32*32, loss=0.002469828585162759
+2025-12-08 13:52:10 | INFO | root | End purification for resolution 64*64, loss=0.0737636536359787
+2025-12-08 13:52:10 | INFO | root | Training time: 1.4801757335662842, loss: 0.0737636536359787, params_num: 52488
+2025-12-08 13:52:10 | INFO | root | Purified data 37, shape: torch.Size([1, 64, 1500]), mse:0.20801442861557007
+2025-12-08 13:52:10 | INFO | root | 
+2025-12-08 13:52:10 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:11 | INFO | root | End purification for resolution 8*8, loss=3.677702625282109e-05
+2025-12-08 13:52:11 | INFO | root | End purification for resolution 16*16, loss=2.2801763407187536e-05
+2025-12-08 13:52:11 | INFO | root | End purification for resolution 32*32, loss=0.002443043515086174
+2025-12-08 13:52:12 | INFO | root | End purification for resolution 64*64, loss=0.09120465815067291
+2025-12-08 13:52:12 | INFO | root | Training time: 1.4755613803863525, loss: 0.09120465815067291, params_num: 52488
+2025-12-08 13:52:12 | INFO | root | Purified data 38, shape: torch.Size([1, 64, 1500]), mse:0.2646491229534149
+2025-12-08 13:52:12 | INFO | root | 
+2025-12-08 13:52:12 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:12 | INFO | root | End purification for resolution 8*8, loss=4.268510383553803e-05
+2025-12-08 13:52:12 | INFO | root | End purification for resolution 16*16, loss=2.1047329937573522e-05
+2025-12-08 13:52:13 | INFO | root | End purification for resolution 32*32, loss=0.002426210790872574
+2025-12-08 13:52:13 | INFO | root | End purification for resolution 64*64, loss=0.09305793046951294
+2025-12-08 13:52:13 | INFO | root | Training time: 1.5032994747161865, loss: 0.09305793046951294, params_num: 52488
+2025-12-08 13:52:13 | INFO | root | Purified data 39, shape: torch.Size([1, 64, 1500]), mse:0.2690686583518982
+2025-12-08 13:52:13 | INFO | root | 
+2025-12-08 13:52:13 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:14 | INFO | root | End purification for resolution 8*8, loss=0.0003330051258672029
+2025-12-08 13:52:14 | INFO | root | End purification for resolution 16*16, loss=2.661817597982008e-05
+2025-12-08 13:52:14 | INFO | root | End purification for resolution 32*32, loss=0.002377656754106283
+2025-12-08 13:52:15 | INFO | root | End purification for resolution 64*64, loss=0.08049501478672028
+2025-12-08 13:52:15 | INFO | root | Training time: 1.503300428390503, loss: 0.08049501478672028, params_num: 52488
+2025-12-08 13:52:15 | INFO | root | Purified data 40, shape: torch.Size([1, 64, 1500]), mse:0.23094823956489563
+2025-12-08 13:52:15 | INFO | root | 
+2025-12-08 13:52:15 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:15 | INFO | root | End purification for resolution 8*8, loss=9.462048183195293e-05
+2025-12-08 13:52:15 | INFO | root | End purification for resolution 16*16, loss=3.869455758831464e-05
+2025-12-08 13:52:16 | INFO | root | End purification for resolution 32*32, loss=0.002114844974130392
+2025-12-08 13:52:16 | INFO | root | End purification for resolution 64*64, loss=0.08097339421510696
+2025-12-08 13:52:16 | INFO | root | Training time: 1.4757859706878662, loss: 0.08097339421510696, params_num: 52488
+2025-12-08 13:52:16 | INFO | root | Purified data 41, shape: torch.Size([1, 64, 1500]), mse:0.23421871662139893
+2025-12-08 13:52:16 | INFO | root | 
+2025-12-08 13:52:16 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:17 | INFO | root | End purification for resolution 8*8, loss=9.345140824734699e-06
+2025-12-08 13:52:17 | INFO | root | End purification for resolution 16*16, loss=2.9178183467593044e-05
+2025-12-08 13:52:17 | INFO | root | End purification for resolution 32*32, loss=0.002861096989363432
+2025-12-08 13:52:18 | INFO | root | End purification for resolution 64*64, loss=0.0733075737953186
+2025-12-08 13:52:18 | INFO | root | Training time: 1.4818856716156006, loss: 0.0733075737953186, params_num: 52488
+2025-12-08 13:52:18 | INFO | root | Purified data 42, shape: torch.Size([1, 64, 1500]), mse:0.20897147059440613
+2025-12-08 13:52:18 | INFO | root | 
+2025-12-08 13:52:18 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:18 | INFO | root | End purification for resolution 8*8, loss=6.951992691028863e-05
+2025-12-08 13:52:18 | INFO | root | End purification for resolution 16*16, loss=2.76342143479269e-05
+2025-12-08 13:52:19 | INFO | root | End purification for resolution 32*32, loss=0.0026177652180194855
+2025-12-08 13:52:19 | INFO | root | End purification for resolution 64*64, loss=0.07787012308835983
+2025-12-08 13:52:19 | INFO | root | Training time: 1.4892594814300537, loss: 0.07787012308835983, params_num: 52488
+2025-12-08 13:52:19 | INFO | root | Purified data 43, shape: torch.Size([1, 64, 1500]), mse:0.21930097043514252
+2025-12-08 13:52:19 | INFO | root | 
+2025-12-08 13:52:19 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:20 | INFO | root | End purification for resolution 8*8, loss=0.0006867829943075776
+2025-12-08 13:52:20 | INFO | root | End purification for resolution 16*16, loss=3.4962336940225214e-05
+2025-12-08 13:52:20 | INFO | root | End purification for resolution 32*32, loss=0.002615658100694418
+2025-12-08 13:52:21 | INFO | root | End purification for resolution 64*64, loss=0.08656351268291473
+2025-12-08 13:52:21 | INFO | root | Training time: 1.4682731628417969, loss: 0.08656351268291473, params_num: 52488
+2025-12-08 13:52:21 | INFO | root | Purified data 44, shape: torch.Size([1, 64, 1500]), mse:0.2501756250858307
+2025-12-08 13:52:21 | INFO | root | 
+2025-12-08 13:52:21 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:21 | INFO | root | End purification for resolution 8*8, loss=3.3103256100730505e-06
+2025-12-08 13:52:21 | INFO | root | End purification for resolution 16*16, loss=2.409021180937998e-05
+2025-12-08 13:52:22 | INFO | root | End purification for resolution 32*32, loss=0.0027559595182538033
+2025-12-08 13:52:22 | INFO | root | End purification for resolution 64*64, loss=0.08332143723964691
+2025-12-08 13:52:22 | INFO | root | Training time: 1.4892346858978271, loss: 0.08332143723964691, params_num: 52488
+2025-12-08 13:52:22 | INFO | root | Purified data 45, shape: torch.Size([1, 64, 1500]), mse:0.23932641744613647
+2025-12-08 13:52:22 | INFO | root | 
+2025-12-08 13:52:22 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:23 | INFO | root | End purification for resolution 8*8, loss=1.0560456757957581e-05
+2025-12-08 13:52:23 | INFO | root | End purification for resolution 16*16, loss=3.35904405801557e-05
+2025-12-08 13:52:23 | INFO | root | End purification for resolution 32*32, loss=0.0027634594589471817
+2025-12-08 13:52:24 | INFO | root | End purification for resolution 64*64, loss=0.07578080892562866
+2025-12-08 13:52:24 | INFO | root | Training time: 1.4915642738342285, loss: 0.07578080892562866, params_num: 52488
+2025-12-08 13:52:24 | INFO | root | Purified data 46, shape: torch.Size([1, 64, 1500]), mse:0.21815213561058044
+2025-12-08 13:52:24 | INFO | root | 
+2025-12-08 13:52:24 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:24 | INFO | root | End purification for resolution 8*8, loss=7.922210897959303e-06
+2025-12-08 13:52:24 | INFO | root | End purification for resolution 16*16, loss=3.0499619242618792e-05
+2025-12-08 13:52:25 | INFO | root | End purification for resolution 32*32, loss=0.0024777776561677456
+2025-12-08 13:52:25 | INFO | root | End purification for resolution 64*64, loss=0.08849275857210159
+2025-12-08 13:52:25 | INFO | root | Training time: 1.5172810554504395, loss: 0.08849275857210159, params_num: 52488
+2025-12-08 13:52:25 | INFO | root | Purified data 47, shape: torch.Size([1, 64, 1500]), mse:0.2559044063091278
+2025-12-08 13:52:25 | INFO | root | 
+2025-12-08 13:52:25 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:26 | INFO | root | End purification for resolution 8*8, loss=0.0002754885354079306
+2025-12-08 13:52:26 | INFO | root | End purification for resolution 16*16, loss=3.136116356472485e-05
+2025-12-08 13:52:26 | INFO | root | End purification for resolution 32*32, loss=0.002319800667464733
+2025-12-08 13:52:27 | INFO | root | End purification for resolution 64*64, loss=0.09190677106380463
+2025-12-08 13:52:27 | INFO | root | Training time: 1.501326084136963, loss: 0.09190677106380463, params_num: 52488
+2025-12-08 13:52:27 | INFO | root | Purified data 48, shape: torch.Size([1, 64, 1500]), mse:0.26719456911087036
+2025-12-08 13:52:27 | INFO | root | 
+2025-12-08 13:52:27 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:27 | INFO | root | End purification for resolution 8*8, loss=2.8414449843694456e-05
+2025-12-08 13:52:27 | INFO | root | End purification for resolution 16*16, loss=2.835889063135255e-05
+2025-12-08 13:52:28 | INFO | root | End purification for resolution 32*32, loss=0.002341886516660452
+2025-12-08 13:52:28 | INFO | root | End purification for resolution 64*64, loss=0.08819298446178436
+2025-12-08 13:52:28 | INFO | root | Training time: 1.4891681671142578, loss: 0.08819298446178436, params_num: 52488
+2025-12-08 13:52:28 | INFO | root | Purified data 49, shape: torch.Size([1, 64, 1500]), mse:0.2539834976196289
+2025-12-08 13:52:28 | INFO | root | 
+2025-12-08 13:52:28 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:29 | INFO | root | End purification for resolution 8*8, loss=0.00015845904999878258
+2025-12-08 13:52:29 | INFO | root | End purification for resolution 16*16, loss=5.2029412472620606e-05
+2025-12-08 13:52:29 | INFO | root | End purification for resolution 32*32, loss=0.002252847421914339
+2025-12-08 13:52:30 | INFO | root | End purification for resolution 64*64, loss=0.07346297800540924
+2025-12-08 13:52:30 | INFO | root | Training time: 1.4884943962097168, loss: 0.07346297800540924, params_num: 52488
+2025-12-08 13:52:30 | INFO | root | Purified data 50, shape: torch.Size([1, 64, 1500]), mse:0.21028552949428558
+2025-12-08 13:52:30 | INFO | root | 
+2025-12-08 13:52:30 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:30 | INFO | root | End purification for resolution 8*8, loss=3.219732752768323e-05
+2025-12-08 13:52:30 | INFO | root | End purification for resolution 16*16, loss=2.8057460440322757e-05
+2025-12-08 13:52:31 | INFO | root | End purification for resolution 32*32, loss=0.002373162657022476
+2025-12-08 13:52:31 | INFO | root | End purification for resolution 64*64, loss=0.08897076547145844
+2025-12-08 13:52:31 | INFO | root | Training time: 1.4844896793365479, loss: 0.08897076547145844, params_num: 52488
+2025-12-08 13:52:31 | INFO | root | Purified data 51, shape: torch.Size([1, 64, 1500]), mse:0.2561761140823364
+2025-12-08 13:52:31 | INFO | root | 
+2025-12-08 13:52:31 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:32 | INFO | root | End purification for resolution 8*8, loss=1.7286671209149063e-05
+2025-12-08 13:52:32 | INFO | root | End purification for resolution 16*16, loss=2.4893090085242875e-05
+2025-12-08 13:52:32 | INFO | root | End purification for resolution 32*32, loss=0.002851543016731739
+2025-12-08 13:52:33 | INFO | root | End purification for resolution 64*64, loss=0.09384052455425262
+2025-12-08 13:52:33 | INFO | root | Training time: 1.5325102806091309, loss: 0.09384052455425262, params_num: 52488
+2025-12-08 13:52:33 | INFO | root | Purified data 52, shape: torch.Size([1, 64, 1500]), mse:0.27021732926368713
+2025-12-08 13:52:33 | INFO | root | 
+2025-12-08 13:52:33 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:33 | INFO | root | End purification for resolution 8*8, loss=7.219594408525154e-06
+2025-12-08 13:52:33 | INFO | root | End purification for resolution 16*16, loss=6.327162554953247e-05
+2025-12-08 13:52:34 | INFO | root | End purification for resolution 32*32, loss=0.0017937461379915476
+2025-12-08 13:52:35 | INFO | root | End purification for resolution 64*64, loss=0.05799392983317375
+2025-12-08 13:52:35 | INFO | root | Training time: 1.5423974990844727, loss: 0.05799392983317375, params_num: 52488
+2025-12-08 13:52:35 | INFO | root | Purified data 53, shape: torch.Size([1, 64, 1500]), mse:0.16519354283809662
+2025-12-08 13:52:35 | INFO | root | 
+2025-12-08 13:52:35 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:35 | INFO | root | End purification for resolution 8*8, loss=1.575693386257626e-05
+2025-12-08 13:52:35 | INFO | root | End purification for resolution 16*16, loss=2.3190574211184867e-05
+2025-12-08 13:52:35 | INFO | root | End purification for resolution 32*32, loss=0.0020958755630999804
+2025-12-08 13:52:36 | INFO | root | End purification for resolution 64*64, loss=0.08484037220478058
+2025-12-08 13:52:36 | INFO | root | Training time: 1.563286304473877, loss: 0.08484037220478058, params_num: 52488
+2025-12-08 13:52:36 | INFO | root | Purified data 54, shape: torch.Size([1, 64, 1500]), mse:0.24546079337596893
+2025-12-08 13:52:36 | INFO | root | 
+2025-12-08 13:52:36 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:36 | INFO | root | End purification for resolution 8*8, loss=4.294621612643823e-05
+2025-12-08 13:52:36 | INFO | root | End purification for resolution 16*16, loss=3.572860441636294e-05
+2025-12-08 13:52:37 | INFO | root | End purification for resolution 32*32, loss=0.0030513987876474857
+2025-12-08 13:52:38 | INFO | root | End purification for resolution 64*64, loss=0.08786782622337341
+2025-12-08 13:52:38 | INFO | root | Training time: 1.4986143112182617, loss: 0.08786782622337341, params_num: 52488
+2025-12-08 13:52:38 | INFO | root | Purified data 55, shape: torch.Size([1, 64, 1500]), mse:0.25452035665512085
+2025-12-08 13:52:38 | INFO | root | 
+2025-12-08 13:52:38 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:38 | INFO | root | End purification for resolution 8*8, loss=6.776403097319417e-06
+2025-12-08 13:52:38 | INFO | root | End purification for resolution 16*16, loss=2.4182638298952952e-05
+2025-12-08 13:52:38 | INFO | root | End purification for resolution 32*32, loss=0.003281682264059782
+2025-12-08 13:52:39 | INFO | root | End purification for resolution 64*64, loss=0.09205493330955505
+2025-12-08 13:52:39 | INFO | root | Training time: 1.4952752590179443, loss: 0.09205493330955505, params_num: 52488
+2025-12-08 13:52:39 | INFO | root | Purified data 56, shape: torch.Size([1, 64, 1500]), mse:0.2624071538448334
+2025-12-08 13:52:39 | INFO | root | 
+2025-12-08 13:52:39 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:39 | INFO | root | End purification for resolution 8*8, loss=0.0004989082808606327
+2025-12-08 13:52:40 | INFO | root | End purification for resolution 16*16, loss=2.8276017474127002e-05
+2025-12-08 13:52:40 | INFO | root | End purification for resolution 32*32, loss=0.002502406481653452
+2025-12-08 13:52:41 | INFO | root | End purification for resolution 64*64, loss=0.08740636706352234
+2025-12-08 13:52:41 | INFO | root | Training time: 1.4899163246154785, loss: 0.08740636706352234, params_num: 52488
+2025-12-08 13:52:41 | INFO | root | Purified data 57, shape: torch.Size([1, 64, 1500]), mse:0.2505611777305603
+2025-12-08 13:52:41 | INFO | root | 
+2025-12-08 13:52:41 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:41 | INFO | root | End purification for resolution 8*8, loss=5.771782525698654e-06
+2025-12-08 13:52:41 | INFO | root | End purification for resolution 16*16, loss=1.7272765035158955e-05
+2025-12-08 13:52:41 | INFO | root | End purification for resolution 32*32, loss=0.0033187048975378275
+2025-12-08 13:52:42 | INFO | root | End purification for resolution 64*64, loss=0.09024864435195923
+2025-12-08 13:52:42 | INFO | root | Training time: 1.511059284210205, loss: 0.09024864435195923, params_num: 52488
+2025-12-08 13:52:42 | INFO | root | Purified data 58, shape: torch.Size([1, 64, 1500]), mse:0.2597450315952301
+2025-12-08 13:52:42 | INFO | root | 
+2025-12-08 13:52:42 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:42 | INFO | root | End purification for resolution 8*8, loss=9.63778165896656e-06
+2025-12-08 13:52:43 | INFO | root | End purification for resolution 16*16, loss=2.4476899852743372e-05
+2025-12-08 13:52:43 | INFO | root | End purification for resolution 32*32, loss=0.0025301817804574966
+2025-12-08 13:52:44 | INFO | root | End purification for resolution 64*64, loss=0.08260630071163177
+2025-12-08 13:52:44 | INFO | root | Training time: 1.6290178298950195, loss: 0.08260630071163177, params_num: 52488
+2025-12-08 13:52:44 | INFO | root | Purified data 59, shape: torch.Size([1, 64, 1500]), mse:0.2337954342365265
+2025-12-08 13:52:44 | INFO | root | 
+2025-12-08 13:52:44 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:44 | INFO | root | End purification for resolution 8*8, loss=4.983049802831374e-05
+2025-12-08 13:52:44 | INFO | root | End purification for resolution 16*16, loss=5.863801925443113e-05
+2025-12-08 13:52:45 | INFO | root | End purification for resolution 32*32, loss=0.002989556174725294
+2025-12-08 13:52:45 | INFO | root | End purification for resolution 64*64, loss=0.08107909560203552
+2025-12-08 13:52:45 | INFO | root | Training time: 1.6480791568756104, loss: 0.08107909560203552, params_num: 52488
+2025-12-08 13:52:45 | INFO | root | Purified data 60, shape: torch.Size([1, 64, 1500]), mse:0.23200605809688568
+2025-12-08 13:52:45 | INFO | root | 
+2025-12-08 13:52:45 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:46 | INFO | root | End purification for resolution 8*8, loss=1.5108856132428627e-05
+2025-12-08 13:52:46 | INFO | root | End purification for resolution 16*16, loss=1.5674309906898998e-05
+2025-12-08 13:52:46 | INFO | root | End purification for resolution 32*32, loss=0.0032298171427100897
+2025-12-08 13:52:47 | INFO | root | End purification for resolution 64*64, loss=0.08831676095724106
+2025-12-08 13:52:47 | INFO | root | Training time: 1.5969960689544678, loss: 0.08831676095724106, params_num: 52488
+2025-12-08 13:52:47 | INFO | root | Purified data 61, shape: torch.Size([1, 64, 1500]), mse:0.2542172968387604
+2025-12-08 13:52:47 | INFO | root | 
+2025-12-08 13:52:47 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:47 | INFO | root | End purification for resolution 8*8, loss=4.4554555643117055e-05
+2025-12-08 13:52:47 | INFO | root | End purification for resolution 16*16, loss=2.0991739802411757e-05
+2025-12-08 13:52:48 | INFO | root | End purification for resolution 32*32, loss=0.0026962030678987503
+2025-12-08 13:52:49 | INFO | root | End purification for resolution 64*64, loss=0.09243614226579666
+2025-12-08 13:52:49 | INFO | root | Training time: 1.5676474571228027, loss: 0.09243614226579666, params_num: 52488
+2025-12-08 13:52:49 | INFO | root | Purified data 62, shape: torch.Size([1, 64, 1500]), mse:0.2649441063404083
+2025-12-08 13:52:49 | INFO | root | 
+2025-12-08 13:52:49 | INFO | root | original data shape: torch.Size([1, 64, 1500]), Resized data shape: torch.Size([2, 64, 64, 64])
+2025-12-08 13:52:49 | INFO | root | End purification for resolution 8*8, loss=0.0005378128844313323
+2025-12-08 13:52:49 | INFO | root | End purification for resolution 16*16, loss=3.470970841590315e-05
+2025-12-08 13:52:49 | INFO | root | End purification for resolution 32*32, loss=0.003025976475328207
+2025-12-08 13:52:50 | INFO | root | End purification for resolution 64*64, loss=0.08293677121400833
+2025-12-08 13:52:50 | INFO | root | Training time: 1.6075999736785889, loss: 0.08293677121400833, params_num: 52488
+2025-12-08 13:52:50 | INFO | root | Purified data 63, shape: torch.Size([1, 64, 1500]), mse:0.23935909569263458
+2025-12-08 13:52:50 | INFO | root | 
+2025-12-08 13:52:50 | INFO | root | 
+2025-12-08 13:52:50 | INFO | root | 
+2025-12-08 13:52:50 | INFO | root | Purified adversarial data accuracy: 0.484375, loss: 2.361998677253723
+2025-12-08 13:52:50 | INFO | root | Purified clean data accuracy: 0.859375, loss: 0.5584755912423134
+2025-12-08 13:52:50 | INFO | root | Mean mse of purified adversarial data: 0.23825048469007015
+2025-12-08 13:52:50 | INFO | root | Mean mse of purified clean data: 0.23777670692652464
