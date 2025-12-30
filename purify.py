@@ -9,7 +9,8 @@ from torcheeg.model_selection import KFold, train_test_split
 from torcheeg.datasets.constants import SEED_IV_CHANNEL_LOCATION_DICT, M3CV_CHANNEL_LOCATION_DICT
 from torcheeg.datasets.constants.motor_imagery import BCICIV2A_LOCATION_DICT
 from torcheeg.datasets.constants.ssvep import TSUBENCHMARK_CHANNEL_LOCATION_DICT
-from torcheeg.transforms import ToGrid, ToInterpolatedGrid
+from torcheeg.transforms import ToGrid
+from utils.standalone_to_interpolated_grid import ToInterpolatedGrid
 
 dataset_channel_location_dicts = {
    'seediv': SEED_IV_CHANNEL_LOCATION_DICT,
@@ -22,10 +23,11 @@ from models.model_args import get_model_args
 from data.load import load_seediv, load_m3cv, load_bciciv2a, load_thubenchmark
 from TN.PTR import PTR
 from TN.PTR_3d import PTR_3d
+from TN.PTR_3d_fs import PTR_3d_fs
 from TN.PTR_tfs import PTR_tfs
 from TN.opt import *
 from TN.utils import get_TN_args
-from visualize import plot_eeg
+from utils.visualize import plot_eeg
 
 def seed_everything(seed=42):
     torch.manual_seed(seed)
@@ -41,6 +43,7 @@ def parse_args():
     parser.add_argument('--model', type=str, default='eegnet', choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
     parser.add_argument('--fold', type=int, default=0, help='which fold to use')
     parser.add_argument('--attack', type=str, default='fgsm', choices=['fgsm', 'pgd', 'cw', 'autoattack', 'clean'], help='choose attack')
+    parser.add_argument('--eps', type=float, default=0.1, help='epsilon for attacks')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--gpu_id', type=int, default=0, help='which gpu to use')
@@ -129,12 +132,35 @@ def interpolate(args, data, sampling_rate):
     elif config.strategy == '3d':
         dataset_channel_location_dict = dataset_channel_location_dicts[args.dataset]
         t = ToGrid(dataset_channel_location_dict)
-        # t = ToInterpolatedGrid(dataset_channel_location_dict)
         pre_data = torch.from_numpy(t(eeg=data.squeeze().numpy())['eeg']).permute(1, 2, 0).float()
         new_w = round(2**np.ceil(np.log2(w)+config.c))
         pre_data = fft_resample(pre_data, target_len=new_w)
+    elif config.strategy == '3d_interpolate':
+        dataset_channel_location_dict = dataset_channel_location_dicts[args.dataset]
+        t = ToInterpolatedGrid(dataset_channel_location_dict)
+        pre_data = torch.from_numpy(t(eeg=data.squeeze().numpy())['eeg']).permute(1, 2, 0).float()
+        new_w = round(2**np.ceil(np.log2(w)+config.c))
+        pre_data = fft_resample(pre_data, target_len=new_w)
+    elif config.strategy == '3d_fs':
+        # 3d grid interpolation
+        dataset_channel_location_dict = dataset_channel_location_dicts[args.dataset]
+        t = ToInterpolatedGrid(dataset_channel_location_dict)
+        pre_data = torch.from_numpy(t(eeg=data.squeeze().numpy())['eeg']).permute(1, 2, 0).float()
+        # resample to 2^d
+        new_w = round(2**np.ceil(np.log2(w)+config.c))
+        pre_data = fft_resample(pre_data, target_len=new_w)
+        # stft
+        time_log = round(np.log2(new_w))
+        n_fft_log = time_log // 2
+        hop_length_log = time_log - n_fft_log
+        n_fft = 2 ** n_fft_log
+        hop_length = 2 ** hop_length_log
+        new_w = max(new_w - hop_length, 1)
+        pre_data = fft_resample(pre_data, target_len=new_w)
+        pre_data = torch.stft(pre_data, n_fft=n_fft, hop_length=hop_length, return_complex=False, onesided=True, normalized=True).float().permute(4, 0, 1, 2, 3)
+
     elif config.strategy == 'tfs':
-        new_h = round(2**np.ceil(np.log2(h)))
+        new_h = round(2**np.ceil(np.log2(h)+config.c))
         data = torch.nn.functional.interpolate(data.permute(2, 0, 1).unsqueeze(0).cpu(), size=(new_h, w), mode='bilinear', align_corners=False).squeeze(0).permute(1, 2, 0)
         new_w = round(2**np.ceil(np.log2(w)+config.c))
         hop_length = new_w // new_h
@@ -166,11 +192,15 @@ def inv_interpolate(args, pre_data, original_shape, strategy):
         pre_data = fft_resample(pre_data, target_len=original_shape[-1])
         dataset_channel_location_dict = dataset_channel_location_dicts[args.dataset]
         t = ToGrid(dataset_channel_location_dict)
-        # t = ToInterpolatedGrid(dataset_channel_location_dict)
+        data = torch.from_numpy(t.reverse(eeg=pre_data.permute(2, 0, 1).cpu().numpy())['eeg']).unsqueeze(0).float()
+    elif strategy == '3d_interpolate':
+        pre_data = fft_resample(pre_data, target_len=original_shape[-1])
+        dataset_channel_location_dict = dataset_channel_location_dicts[args.dataset]
+        t = ToInterpolatedGrid(dataset_channel_location_dict)
         data = torch.from_numpy(t.reverse(eeg=pre_data.permute(2, 0, 1).cpu().numpy())['eeg']).unsqueeze(0).float()
     elif strategy == 'tfs':
         pre_data = pre_data.permute(1, 2, 3, 0)
-        new_h = round(2**np.ceil(np.log2(h)))
+        new_h = round(2**np.ceil(np.log2(h)+config.c))
         new_w = round(2**np.ceil(np.log2(w)+config.c))
         hop_length = new_w // new_h
         pre_data = torch.istft(torch.view_as_complex(pre_data.contiguous()), new_h*2-2, hop_length=hop_length, return_complex=False, onesided=True, normalized=True)
@@ -196,6 +226,7 @@ def purify(args, index, data, sampling_rate, device, logging):
     TN_dict = {
         'PTR': PTR,
         'PTR_3d': PTR_3d,
+        'PTR_3d_fs': PTR_3d_fs,
         'PTR_tfs': PTR_tfs,
     }
     TN = TN_dict[config.model]
@@ -214,10 +245,10 @@ def purify(args, index, data, sampling_rate, device, logging):
     if args.visualize:
         plot_eeg(data.cpu().squeeze().numpy(), title=f'Original data {index}', save_path=f'visualization/{args.dataset}_original_data_{index}.png')
         plot_eeg(purified_data.cpu().squeeze().numpy(), title=f'Purified data {index}', save_path=f'visualization/{args.dataset}_purified_data_{index}.png')
-        plot_eeg(pre_data[0].cpu().squeeze().numpy(), title=f'Resized data {index}', save_path=f'visualization/{args.dataset}_resized_data_{index}.png')
-        plot_eeg(purified_data_resized[0].cpu().squeeze().numpy(), title=f'Purified resized data {index}', save_path=f'visualization/{args.dataset}_purified_resized_data_{index}.png')
-        for i, t in enumerate(tn.targets):
-            plot_eeg(t[0].cpu().squeeze().numpy(), title=f'Target {i} of data {index}', save_path=f'visualization/{args.dataset}_target_{i}_{index}.png')
+        # plot_eeg(pre_data.cpu().squeeze().numpy(), title=f'Resized data {index}', save_path=f'visualization/{args.dataset}_resized_data_{index}.png')
+        # plot_eeg(purified_data_resized.cpu().squeeze().numpy(), title=f'Purified resized data {index}', save_path=f'visualization/{args.dataset}_purified_resized_data_{index}.png')
+        # for i, t in enumerate(tn.targets):
+        #     plot_eeg(t.cpu().squeeze().numpy(), title=f'Target {i} of data {index}', save_path=f'visualization/{args.dataset}_target_{i}_{index}.png')
 
     return purified_data, mse
     
@@ -229,7 +260,7 @@ if __name__ == '__main__':
 
     # set log file
     import logging
-    logfile_directory = f'./log_purify/purify_{args.dataset}_{args.model}_{args.attack}_{args.seed}_{args.config}.log'
+    logfile_directory = f'./log_purify/purify_{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_{args.config}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Purifying {args.attack} on {args.dataset} with {args.model}')
     logging.info(args)
@@ -250,7 +281,7 @@ if __name__ == '__main__':
             continue
         val_dataset, test_dataset = train_test_split(test_dataset, shuffle=True, test_size=0.5, random_state=args.seed, split_path=f'./cached_data/{args.dataset}_split/test_val_split_{index}')
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
-        ad_data, labels = torch.load(f'./ad_data/{args.dataset}_{args.model}_{args.attack}_{args.seed}_fold{args.fold}.pth')
+        ad_data, labels = torch.load(f'./ad_data/{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}.pth')
         clean_data = []
         for i, (data, target) in enumerate(test_loader):
             data, target = data.to(device), target.to(device)
@@ -321,5 +352,5 @@ if __name__ == '__main__':
 
     # save purified data
     if args.attack != 'clean':
-        torch.save((purified_ad_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_{args.seed}_fold{args.fold}_{args.config}_ad.pth')
-    torch.save((purified_clean_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_{args.seed}_fold{args.fold}_{args.config}_clean.pth')
+        torch.save((purified_ad_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}_{args.config}_ad.pth')
+    torch.save((purified_clean_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}_{args.config}_clean.pth')

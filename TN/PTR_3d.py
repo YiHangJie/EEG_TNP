@@ -195,6 +195,145 @@ class PTR_3d(BaseTNModel):
             num += core.numel()
         return num
     
+    def TV_3d(self, tensor, p=2):
+        """
+        shape: h,w,c
+        calculate total variation
+        """
+        # Compute the squared differences in the third direction
+        horizontal_diff = torch.pow(abs(tensor[:, :, 1:] - tensor[:, :, :-1]), p)
+
+        # Compute the squared differences in the second direction
+        vertical_diff = torch.pow(abs(tensor[:, 1:, :] - tensor[:, :-1, :]), p)
+
+        # Compute the squared differences in the first direction
+        depth_diff = torch.pow(abs(tensor[1:, :, :] - tensor[:-1, :, :]), p)
+
+        # Sum up the horizontal and vertical differences
+        total_variation_loss = torch.sum(horizontal_diff) + torch.sum(vertical_diff) + torch.sum(depth_diff)
+
+        return total_variation_loss / tensor.numel()
+    
+    def TV_eeg(self, tensor, p=2):
+        """
+        shape: h,w,c
+        calculate total variation
+        """
+        # Compute the squared differences in the horizontal direction
+        horizontal_diff = torch.pow(abs(tensor[:, :, 1:] - tensor[:, :, :-1]), p)
+
+        # Sum up the horizontal and vertical differences
+        total_variation_loss = torch.sum(horizontal_diff)
+
+        return total_variation_loss / tensor.numel()
+    
+    def TV_CFT(self, tensor: torch.Tensor, p: int = 1, mode: str = 'ft') -> torch.Tensor:
+        """
+        tensor: (C, F, T) or (F, T) etc.
+        mode:
+        - 'ft': 对最后两个维度(F,T)做TV（推荐用于 (C,F,T)）
+        - 'f' : 只对频率维做TV
+        - 't' : 只对时间维做TV
+        - 'cft': 对 (C,F,T) 三维都做TV（若输入就是3D）
+        """
+        # 统一成至少 3D: (C,F,T)
+        if tensor.dim() == 2:
+            tensor = tensor.unsqueeze(0)  # (1,F,T)
+        elif tensor.dim() != 3:
+            raise ValueError(f"TV expects 2D or 3D tensor, got shape={tuple(tensor.shape)}")
+
+        # (C,F,T)
+        if 'f' in mode:
+            # 频率方向差分：F 维
+            df = torch.abs(tensor[:, 1:, :] - tensor[:, :-1, :]).pow(p)
+        if 't' in mode:
+            # 时间方向差分：T 维
+            dt = torch.abs(tensor[:, :, 1:] - tensor[:, :, :-1]).pow(p)
+        if 'c' in mode:
+            # 通道方向差分：C 维
+            dc = torch.abs(tensor[1:, :, :] - tensor[:-1, :, :]).pow(p) if tensor.size(0) > 1 else None
+
+        if mode == 'ft':
+            loss = df.sum() + dt.sum()
+        elif mode == 'f':
+            loss = df.sum()
+        elif mode == 't':
+            loss = dt.sum()
+        elif mode == 'cft':
+            loss = df.sum() + dt.sum() + (dc.sum() if dc is not None else 0.0)
+        else:
+            raise ValueError(f"Unknown mode={mode}, choose from ['ft','f','t','cft']")
+
+        return loss / tensor.numel()
+    
+    def robust_phase_tv(self, phase):
+        """
+        处理相位回绕的 TV
+        phase: (C, F, T) in radians
+        """
+        # 1. 频率方向差分 (Group Delay)
+        # 计算 exp(j * phase) 的差分，或者直接用 diff 并 wrap
+        diff_f = phase[:, 1:, :] - phase[:, :-1, :]
+        # 将差值 wrap 到 (-pi, pi]
+        diff_f = (diff_f + torch.pi) % (2 * torch.pi) - torch.pi
+        
+        # 2. 时间方向差分 (Instantaneous Frequency)
+        diff_t = phase[:, :, 1:] - phase[:, :, :-1]
+        diff_t = (diff_t + torch.pi) % (2 * torch.pi) - torch.pi
+
+        # L1 Loss
+        loss = torch.abs(diff_f).mean() + torch.abs(diff_t).mean()
+        return loss
+
+    def tf_tv_losses(
+        self,
+        data: torch.Tensor,
+        phase_freq_start: int = 30,
+        phase_mode: str = 'f',
+        mag_mode: str = 'ft',
+    ) -> dict:
+        """
+        计算 TF-TV 
+
+        输入 data: (C, T) 
+        返回 loss
+        """
+        if data.dim() == 3 and data.size(-1) == 1:
+            data = data.squeeze(-1)  # (C,T)
+        if data.dim() != 2:
+            raise ValueError(f"data should be (C,T,1) or (C,T), got shape={tuple(data.shape)}")
+
+        C, T = data.shape
+
+        # --- STFT ---
+        n_fft = C * 2 - 2
+        hop_length = T // C
+        pre_data = torch.stft(
+            data,
+            n_fft=n_fft,
+            hop_length=hop_length,
+            return_complex=True,
+            onesided=True,
+            normalized=True
+        )  # shape: (new_h, F, TT)
+
+        # --- losses ---
+        mag = torch.abs(pre_data)
+        phase = torch.angle(pre_data)
+
+        tv_mag = self.TV_CFT(mag, p=1, mode=mag_mode)
+
+        # # 你原来 phase 只对高频部分算（[:, 15:, :]），并且 mode='f'
+        # if phase_freq_start is not None and phase_freq_start > 0:
+        #     freqs = torch.fft.rfftfreq(n_fft, d=1/250)  # (n_freq,)
+        #     phase_freq_start_index = 15
+        #     phase = phase[:, phase_freq_start_index:, :]
+
+        # tv_phase = self.TV_CFT(phase, p=1, mode=phase_mode)
+        tv_phase = self.robust_phase_tv(phase)
+
+        return tv_mag + tv_phase
+    
     def forward(self, reso):
         assert reso in self.interm_resos, f"Invalid intermediate resolution, should be one of {self.interm_resos}"
 
@@ -204,6 +343,15 @@ class PTR_3d(BaseTNModel):
         recon_ = recon.clone()
         self.img = recon.detach().clone()
         loss = self.loss_fn(recon, self.targets[reso_index])
+        if self.loss_fn_str == "TV":
+            loss_reg = self.TV_3d(recon_)
+            loss += self.regularization_weight * loss_reg
+        elif self.loss_fn_str == "TVeeg":
+            loss_reg = self.TV_eeg(recon_)
+            loss += self.regularization_weight * loss_reg
+        elif self.loss_fn_str == "TVft":
+            loss_reg = self.tf_tv_losses(recon_.reshape(-1, self.T))
+            loss += self.regularization_weight * loss_reg
         loss_recon = loss.item()
 
         return loss, loss_recon

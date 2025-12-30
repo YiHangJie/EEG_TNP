@@ -9,27 +9,13 @@ conda init
 conda activate torch
 
 commands=(
-    "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack fgsm" 
-    "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack pgd" 
-    "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack cw" 
-    "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack autoattack"
-
-    # "python -u attack.py --dataset thubenchmark --model tsception --lr 0.0001"
-
-    # "python -u attack.py --dataset thubenchmark --model atcnet --lr 0.0001"
-
-    # "python -u attack.py --dataset thubenchmark --model conformer"
-
-    # "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack fgsm" 
-    # "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack pgd" 
-    # "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack cw" 
-    # "python -u attack.py --dataset m3cv --model eegnet --fold 0 --attack autoattack"
-
-    # "python -u attack.py --dataset m3cv --model tsception --lr 0.0001"
-
-    # "python -u attack.py --dataset m3cv --model atcnet --lr 0.0001"
-
-    # "python -u attack.py --dataset m3cv --model conformer"
+    # "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack fgsm" 
+    # "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack pgd" 
+    # "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack cw" 
+    # "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack autoattack"
+    "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack autoattack --eps 0.05"
+    "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack autoattack --eps 0.75"
+    "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack autoattack --eps 0.1"
 )
 
 # Run each command in the array in the background, with at most max_jobs concurrent jobs

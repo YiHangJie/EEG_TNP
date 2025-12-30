@@ -1,0 +1,23 @@
+nohup: 忽略输入
+no change     /home/yhj/miniconda3/condabin/conda
+no change     /home/yhj/miniconda3/bin/conda
+no change     /home/yhj/miniconda3/bin/conda-env
+no change     /home/yhj/miniconda3/bin/activate
+no change     /home/yhj/miniconda3/bin/deactivate
+no change     /home/yhj/miniconda3/etc/profile.d/conda.sh
+no change     /home/yhj/miniconda3/etc/fish/conf.d/conda.fish
+no change     /home/yhj/miniconda3/shell/condabin/Conda.psm1
+no change     /home/yhj/miniconda3/shell/condabin/conda-hook.ps1
+no change     /home/yhj/miniconda3/lib/python3.12/site-packages/xontrib/conda.xsh
+no change     /home/yhj/miniconda3/etc/profile.d/conda.csh
+no change     /home/yhj/.bashrc
+No action taken.
+
+CondaError: Run 'conda init' before 'conda activate'
+
+usage: train.py [-h] [--dataset {seediv,m3cv,bciciv2a,thubenchmark}]
+                [--model {eegnet,tsception,atcnet,conformer}]
+                [--epochs EPOCHS] [--batch_size BATCH_SIZE] [--lr LR]
+                [--weight_decay WEIGHT_DECAY] [--patience PATIENCE]
+                [--seed SEED] [--gpu_id GPU_ID]
+train.py: error: unrecognized arguments: --at_strategy madry

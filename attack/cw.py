@@ -8,7 +8,7 @@ class CW(Attack):
         super(CW, self).__init__(model, device)
         self.lr = lr
         self.steps = steps
-        self.c = 100
+        self.c = 10000
         self.kappa = 1
     
     def forward(self, images, labels):

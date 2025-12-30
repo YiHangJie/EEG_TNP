@@ -114,8 +114,8 @@ class PTR(BaseTNModel):
         if self.ds_method == 'avg_pool':
             for factor in self.factors:
                 # low_res_img = torch.nn.functional.avg_pool2d(img.permute(2,0,1).unsqueeze(0).clone(), kernel_size=(factor, factor * self.T // self.C), stride=(factor, factor * self.T // self.C))
-                # low_res_img = torch.nn.functional.avg_pool2d(img.permute(2,0,1).unsqueeze(0).clone(), kernel_size=(factor, factor), stride=(factor, factor))
-                low_res_img = torch.nn.functional.avg_pool2d(img.permute(2,0,1).unsqueeze(0).clone(), kernel_size=(1, factor*factor), stride=(1, factor*factor))
+                low_res_img = torch.nn.functional.avg_pool2d(img.permute(2,0,1).unsqueeze(0).clone(), kernel_size=(factor, factor), stride=(factor, factor))
+                # low_res_img = torch.nn.functional.avg_pool2d(img.permute(2,0,1).unsqueeze(0).clone(), kernel_size=(1, factor*factor), stride=(1, factor*factor))
                 # print(f"Generated low res img shape: {low_res_img.shape} for factor {factor}")
                 high_res_moasic_img = torch.nn.functional.interpolate(low_res_img, size=img.shape[:2], mode='nearest').squeeze(0).permute(1,2,0).to(self.device)
                 # high_res_moasic_img = torch.nn.functional.interpolate(low_res_img, size=img.shape[:2], mode='bilinear').squeeze(0).permute(1,2,0).to(self.device)
@@ -307,6 +307,19 @@ class PTR(BaseTNModel):
             num += core.numel()
         return num
     
+    def TV_eeg(self, tensor, p=2):
+        """
+        shape: h,w,c
+        calculate total variation
+        """
+        # Compute the squared differences in the horizontal direction
+        horizontal_diff = torch.pow(abs(tensor[:, 1:, :] - tensor[:, :-1, :]), p)
+
+        # Sum up the horizontal and vertical differences
+        total_variation_loss = torch.sum(horizontal_diff)
+
+        return total_variation_loss / tensor.numel()
+    
     def forward(self, reso):
         assert reso in self.interm_resos, f"Invalid intermediate resolution, should be one of {self.interm_resos}"
 
@@ -319,6 +332,8 @@ class PTR(BaseTNModel):
         
         if self.loss_fn_str == "TV":
             loss += self.regularization_weight * self.TV(recon, p=2)
+        elif self.loss_fn_str == "TVeeg":
+            loss += self.regularization_weight * self.TV_eeg(recon, p=2)
 
         loss_recon = loss.item()
 

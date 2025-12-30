@@ -26,9 +26,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='seediv', choices=['seediv','m3cv', 'bciciv2a', 'thubenchmark'], help='choose dataset')
     parser.add_argument('--model', type=str, default='eegnet', choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
+    parser.add_argument('--at_strategy', type=str, default='none', choices=['madry', 'fbf', 'trades', 'none'], help='adversarial training strategy')
     parser.add_argument('--fold', type=int, default=0, help='which fold to use')
     parser.add_argument('--attack', type=str, default='fgsm', choices=['fgsm', 'pgd', 'cw', 'autoattack'], help='choose attack')
-    parser.add_argument('--eps', type=float, default=0.0313, help='attack budget, default is 8/255')
+    parser.add_argument('--eps', type=float, default=0.1, help='attack budget, default is 8/255')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--gpu_id', type=int, default=0, help='which gpu to use')
@@ -60,7 +61,7 @@ if __name__ == '__main__':
 
     # set log file
     import logging
-    logfile_directory = f'./log_attack/attack_{args.dataset}_{args.model}_{args.attack}_{args.eps}_{args.seed}.log'
+    logfile_directory = f'./log_attack/attack_{args.dataset}_{args.model}_{args.at_strategy}_{args.attack}_{args.eps}_{args.seed}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Attacking {args.attack} on {args.dataset} with {args.model}')
     logging.info(args)
@@ -90,7 +91,7 @@ if __name__ == '__main__':
         }
         model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
         model.to(device)
-        checkpoint = torch.load(f'./checkpoints/{args.dataset}_{args.model}_{args.seed}_fold{args.fold}_best.pth', map_location=device)
+        checkpoint = torch.load(f'./checkpoints/{args.dataset}_{args.model}_{args.at_strategy}_{args.seed}_fold{args.fold}_best.pth', map_location=device)
         model.load_state_dict(checkpoint)
         logging.info(f'Model: {args.model}, fold: {args.fold}')
 
@@ -136,7 +137,30 @@ if __name__ == '__main__':
         logging.info(f'MSE between clean data and adversarial data: {mse.item():.6f}')
 
         # save adversarial data
-        torch.save((ad_data, labels), f'./ad_data/{args.dataset}_{args.model}_{args.attack}_{args.seed}_fold{args.fold}.pth')
+        torch.save((ad_data, labels), f'./ad_data/{args.dataset}_{args.model}_{args.at_strategy}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}.pth')
+
+        if args.at_strategy != 'none':
+            logging.info(f"Test model on 512 samples for adversarial training")
+            test_data = []
+            test_label = []
+            for i, (data, target) in enumerate(test_loader):
+                test_data.append(data.detach().cpu())
+                test_label.append(target.detach().cpu())
+            test_data = torch.cat(test_data, dim=0)
+            test_label = torch.cat(test_label, dim=0)
+            test_dataset = torch.utils.data.TensorDataset(test_data[:512], test_label[:512])
+            test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+
+            ad_dataset = torch.utils.data.TensorDataset(ad_data[:512], labels[:512])
+            ad_loader = torch.utils.data.DataLoader(ad_dataset, batch_size=args.batch_size, shuffle=False)
+            ad_evaluate_acc, ad_evaluate_loss = evaluate(model, ad_loader)
+            
+            logging.info(f'After Attack - Test Accuracy on 512 samples: {ad_evaluate_acc*100:.2f}%, Test Loss: {ad_evaluate_loss:.4f}')
+            test_evaluate_acc, test_evaluate_loss = evaluate(model, test_loader)
+            logging.info(f'Before Attack - Test Accuracy on 512 samples: {test_evaluate_acc*100:.2f}%, Test Loss: {test_evaluate_loss:.4f}')
+
+            
+
         
         
 

@@ -572,6 +572,51 @@ def get_rr_template_qtr_eeg_3d(C1, C2, T, stage, max_rank = 256, dim=2, sigma_in
 
     return tt
 
+def get_rr_template_qtr_eeg_3d_fs(C1, C2, FT, stage, max_rank = 256, dim=2, sigma_init = None, device = None):
+    """
+    Tensor-ring template for 3D frequency-space PTR.
+
+    C1/C2 are spatial channel grid sizes, FT is the (power-of-two) joint
+    frequency-time resolution driving the coarse-to-fine tf cores.
+    """
+    tf_core_num = int(np.log2(FT))
+    ranks = [C1, max(C1, C2), C2] + [max_rank] * (tf_core_num - 1)
+
+    tt_core_shapes = [
+            (ranks[0], C1, ranks[1])
+        ] + [
+            (ranks[1], C2, ranks[2])
+        ] + [
+            (ranks[2], 4, max_rank)
+        ] + [
+            (max_rank, 4, max_rank)
+        ] * max(int(tf_core_num - 2), 0) + [
+            (max_rank, 4, ranks[0])
+        ]
+        
+    start_i = len(ranks) - stage + 1
+
+    if sigma_init is None or sigma_init == 0:
+        sigma_init = (-torch.tensor(ranks).double().log().sum() / (2. * len(ranks))).exp().item()
+
+    cores = []
+    for i, shape in enumerate(tt_core_shapes):
+        if i < start_i:
+            core = torch.randn(shape, dtype=torch.float) * sigma_init
+            core = core.to(device)
+            cores.append(core)
+        else:
+            core = torch.stack([torch.eye(shape[0], shape[2])] * shape[1], dim=1)
+            core = core.to(device)
+            cores.append(core)
+    tt = cores
+
+    num_params = 0
+    for core in tt:
+        num_params += core.numel()
+
+    return tt
+
 def get_rr_template_qtr_eeg_tfs(C, F, T, stage, max_rank = 256, dim=3, sigma_init = None, device = None):
     # shape_source, shape_target, shape_factors, factor_source_to_target, factor_target_to_source = get_qtt_shape_eeg(C, T, dim=dim)
     core_num = int(np.log2(T))

@@ -90,6 +90,8 @@ class BaseTNModel(torch.nn.Module):
             'L1': torch.nn.L1Loss(),
             'L2': torch.nn.MSELoss(),
             'TV': torch.nn.MSELoss(),
+            'TVeeg': torch.nn.MSELoss(),
+            'TVft': torch.nn.MSELoss(),
         }[loss_fn_str]
         return fn_loss
     
