@@ -1,0 +1,35 @@
+nohup: ignoring input
+no change     /home/yhj/miniconda3/condabin/conda
+no change     /home/yhj/miniconda3/bin/conda
+no change     /home/yhj/miniconda3/bin/conda-env
+no change     /home/yhj/miniconda3/bin/activate
+no change     /home/yhj/miniconda3/bin/deactivate
+no change     /home/yhj/miniconda3/etc/profile.d/conda.sh
+no change     /home/yhj/miniconda3/etc/fish/conf.d/conda.fish
+no change     /home/yhj/miniconda3/shell/condabin/Conda.psm1
+no change     /home/yhj/miniconda3/shell/condabin/conda-hook.ps1
+no change     /home/yhj/miniconda3/lib/python3.12/site-packages/xontrib/conda.xsh
+no change     /home/yhj/miniconda3/etc/profile.d/conda.csh
+no change     /home/yhj/.bashrc
+No action taken.
+
+CondaError: Run 'conda init' before 'conda activate'
+
+[2026-01-04 22:33:59] INFO (torcheeg/MainThread) 🔍 | Processing EEG data. Processed EEG data has been cached to [92m./cached_data/bciciv2a[0m.
+[2026-01-04 22:33:59] INFO (torcheeg/MainThread) ⏳ | Monitoring the detailed processing of a record for debugging. The processing of other records will only be reported in percentage to keep it clean.
+Traceback (most recent call last):
+  File "/home/yhj/pythonProject/EEG_TNP/train_AT.py", line 221, in <module>
+    dataset, info = dataset_dict[args.dataset]()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yhj/pythonProject/EEG_TNP/data/load.py", line 145, in load_bciciv2a
+    dataset = BCICIV2aDataset(io_path='./cached_data/bciciv2a',
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yhj/miniconda3/envs/torch/lib/python3.11/site-packages/torcheeg/datasets/module/motor_imagery/bciciv_2a.py", line 116, in __init__
+    super().__init__(**params)
+  File "/home/yhj/miniconda3/envs/torch/lib/python3.11/site-packages/torcheeg/datasets/module/base_dataset.py", line 49, in __init__
+    records = self.set_records(**kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yhj/miniconda3/envs/torch/lib/python3.11/site-packages/torcheeg/datasets/module/motor_imagery/bciciv_2a.py", line 210, in set_records
+    assert os.path.exists(
+           ^^^^^^^^^^^^^^^
+AssertionError: root_path (/home/yhj/pythonProject/data/bciciv2a) does not exist. Please download the dataset and set the root_path to the downloaded path.
