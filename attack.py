@@ -26,7 +26,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='seediv', choices=['seediv','m3cv', 'bciciv2a', 'thubenchmark'], help='choose dataset')
     parser.add_argument('--model', type=str, default='eegnet', choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
-    parser.add_argument('--at_strategy', type=str, default='none', choices=['madry', 'fbf', 'trades', 'none'], help='adversarial training strategy')
+    parser.add_argument('--at_strategy', type=str, default='clean', choices=['madry', 'fbf', 'trades', 'clean'], help='adversarial training strategy')
     parser.add_argument('--fold', type=int, default=0, help='which fold to use')
     parser.add_argument('--attack', type=str, default='fgsm', choices=['fgsm', 'pgd', 'cw', 'autoattack'], help='choose attack')
     parser.add_argument('--eps', type=float, default=0.1, help='attack budget, default is 8/255')
@@ -91,6 +91,7 @@ if __name__ == '__main__':
         }
         model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
         model.to(device)
+        model.eval()
         checkpoint = torch.load(f'./checkpoints/{args.dataset}_{args.model}_{args.at_strategy}_{args.seed}_fold{args.fold}_best.pth', map_location=device)
         model.load_state_dict(checkpoint)
         logging.info(f'Model: {args.model}, fold: {args.fold}')
@@ -139,7 +140,7 @@ if __name__ == '__main__':
         # save adversarial data
         torch.save((ad_data, labels), f'./ad_data/{args.dataset}_{args.model}_{args.at_strategy}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}.pth')
 
-        if args.at_strategy != 'none':
+        if args.at_strategy != 'clean':
             logging.info(f"Test model on 512 samples for adversarial training")
             test_data = []
             test_label = []

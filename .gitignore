@@ -6,6 +6,7 @@ __pycache__/
 
 .DS_Store
 checkpoints/
+checkpoints_1231/
 ad_data/
 .vscode/
 cached_data/

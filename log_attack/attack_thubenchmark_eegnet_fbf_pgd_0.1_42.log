@@ -1,0 +1,44 @@
+2025-12-31 08:44:27 | INFO | root | Attacking pgd on thubenchmark with eegnet
+2025-12-31 08:44:27 | INFO | root | Namespace(dataset='thubenchmark', model='eegnet', at_strategy='fbf', fold=0, attack='pgd', eps=0.1, batch_size=32, seed=42, gpu_id=0)
+2025-12-31 08:44:27 | INFO | torcheeg | 🔍 | Detected cached processing results, reading cache from ./cached_data/thubenchmark_EA.
+2025-12-31 08:44:28 | INFO | root | Dataset: thubenchmark
+2025-12-31 08:44:28 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/kfold_split.
+2025-12-31 08:44:28 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2025-12-31 08:44:28 | INFO | root | Model: eegnet, fold: 0
+2025-12-31 08:44:28 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/test_val_split_0.
+2025-12-31 08:44:28 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2025-12-31 08:44:28 | INFO | root | Sample num in test set: 840
+2025-12-31 08:44:28 | INFO | root | test dataset size: 840
+2025-12-31 08:44:32 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 1/27
+2025-12-31 08:44:36 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 2/27
+2025-12-31 08:44:40 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 3/27
+2025-12-31 08:44:44 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 4/27
+2025-12-31 08:44:48 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 5/27
+2025-12-31 08:44:52 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 6/27
+2025-12-31 08:44:56 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 7/27
+2025-12-31 08:45:00 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 8/27
+2025-12-31 08:45:03 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 9/27
+2025-12-31 08:45:07 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 10/27
+2025-12-31 08:45:10 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 11/27
+2025-12-31 08:45:14 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 12/27
+2025-12-31 08:45:17 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 13/27
+2025-12-31 08:45:21 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 14/27
+2025-12-31 08:45:24 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 15/27
+2025-12-31 08:45:27 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 16/27
+2025-12-31 08:45:31 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 17/27
+2025-12-31 08:45:34 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 18/27
+2025-12-31 08:45:38 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 19/27
+2025-12-31 08:45:41 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 20/27
+2025-12-31 08:45:45 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 21/27
+2025-12-31 08:45:48 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 22/27
+2025-12-31 08:45:52 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 23/27
+2025-12-31 08:45:55 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 24/27
+2025-12-31 08:45:59 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 25/27
+2025-12-31 08:46:02 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 26/27
+2025-12-31 08:46:03 | INFO | root | Attacking pgd on thubenchmark with eegnet, fold: 0, batch: 27/27
+2025-12-31 08:46:03 | INFO | root | Before Attack - Test Accuracy: 95.36%, Test Loss: 0.1683
+2025-12-31 08:46:03 | INFO | root | After Attack - Test Accuracy: 3.21%, Test Loss: 13.3233
+2025-12-31 08:46:03 | INFO | root | MSE between clean data and adversarial data: 0.009996
+2025-12-31 08:46:04 | INFO | root | Test model on 512 samples for adversarial training
+2025-12-31 08:46:04 | INFO | root | After Attack - Test Accuracy on 512 samples: 3.91%, Test Loss: 13.1978
+2025-12-31 08:46:04 | INFO | root | Before Attack - Test Accuracy on 512 samples: 94.53%, Test Loss: 0.2040

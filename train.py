@@ -124,7 +124,7 @@ if __name__ == '__main__':
                 loss = criterion(output, target)
                 loss.backward()
                 # grad clip
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.01)
+                # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.01)
                 optimizer.step()
                 train_loss += loss.item() * data.size(0)
             train_loss /= len(train_loader.dataset)

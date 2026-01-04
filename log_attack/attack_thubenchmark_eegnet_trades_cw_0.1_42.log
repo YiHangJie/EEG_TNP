@@ -1,0 +1,44 @@
+2025-12-31 08:51:52 | INFO | root | Attacking cw on thubenchmark with eegnet
+2025-12-31 08:51:52 | INFO | root | Namespace(dataset='thubenchmark', model='eegnet', at_strategy='trades', fold=0, attack='cw', eps=0.1, batch_size=32, seed=42, gpu_id=0)
+2025-12-31 08:51:52 | INFO | torcheeg | 🔍 | Detected cached processing results, reading cache from ./cached_data/thubenchmark_EA.
+2025-12-31 08:51:53 | INFO | root | Dataset: thubenchmark
+2025-12-31 08:51:53 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/kfold_split.
+2025-12-31 08:51:53 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2025-12-31 08:51:54 | INFO | root | Model: eegnet, fold: 0
+2025-12-31 08:51:54 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/test_val_split_0.
+2025-12-31 08:51:54 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2025-12-31 08:51:54 | INFO | root | Sample num in test set: 840
+2025-12-31 08:51:54 | INFO | root | test dataset size: 840
+2025-12-31 08:51:56 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 1/27
+2025-12-31 08:51:59 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 2/27
+2025-12-31 08:52:01 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 3/27
+2025-12-31 08:52:03 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 4/27
+2025-12-31 08:52:06 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 5/27
+2025-12-31 08:52:08 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 6/27
+2025-12-31 08:52:11 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 7/27
+2025-12-31 08:52:13 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 8/27
+2025-12-31 08:52:16 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 9/27
+2025-12-31 08:52:19 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 10/27
+2025-12-31 08:52:21 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 11/27
+2025-12-31 08:52:24 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 12/27
+2025-12-31 08:52:27 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 13/27
+2025-12-31 08:52:29 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 14/27
+2025-12-31 08:52:32 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 15/27
+2025-12-31 08:52:34 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 16/27
+2025-12-31 08:52:37 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 17/27
+2025-12-31 08:52:39 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 18/27
+2025-12-31 08:52:41 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 19/27
+2025-12-31 08:52:44 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 20/27
+2025-12-31 08:52:46 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 21/27
+2025-12-31 08:52:48 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 22/27
+2025-12-31 08:52:51 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 23/27
+2025-12-31 08:52:53 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 24/27
+2025-12-31 08:52:55 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 25/27
+2025-12-31 08:52:58 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 26/27
+2025-12-31 08:52:59 | INFO | root | Attacking cw on thubenchmark with eegnet, fold: 0, batch: 27/27
+2025-12-31 08:52:59 | INFO | root | Before Attack - Test Accuracy: 94.05%, Test Loss: 0.2848
+2025-12-31 08:52:59 | INFO | root | After Attack - Test Accuracy: 0.00%, Test Loss: 3.1536
+2025-12-31 08:52:59 | INFO | root | MSE between clean data and adversarial data: 0.002323
+2025-12-31 08:52:59 | INFO | root | Test model on 512 samples for adversarial training
+2025-12-31 08:52:59 | INFO | root | After Attack - Test Accuracy on 512 samples: 0.00%, Test Loss: 3.1386
+2025-12-31 08:53:00 | INFO | root | Before Attack - Test Accuracy on 512 samples: 93.75%, Test Loss: 0.2761

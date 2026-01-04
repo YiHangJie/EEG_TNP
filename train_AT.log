@@ -15,9 +15,31 @@ No action taken.
 
 CondaError: Run 'conda init' before 'conda activate'
 
-usage: train.py [-h] [--dataset {seediv,m3cv,bciciv2a,thubenchmark}]
-                [--model {eegnet,tsception,atcnet,conformer}]
-                [--epochs EPOCHS] [--batch_size BATCH_SIZE] [--lr LR]
-                [--weight_decay WEIGHT_DECAY] [--patience PATIENCE]
-                [--seed SEED] [--gpu_id GPU_ID]
-train.py: error: unrecognized arguments: --at_strategy madry
+[2025-12-31 01:06:18] INFO (torcheeg/MainThread) 🔍 | Detected cached processing results, reading cache from ./cached_data/thubenchmark_EA.
+[2025-12-31 01:06:20] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/kfold_split.
+[2025-12-31 01:06:20] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+[2025-12-31 01:06:20] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/test_val_split_0.
+[2025-12-31 01:06:20] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+/home/yhj/miniconda3/envs/torch/lib/python3.11/site-packages/torch/optim/lr_scheduler.py:60: UserWarning: The verbose parameter is deprecated. Please use get_last_lr() to access the learning rate.
+  warnings.warn(
+[2025-12-31 04:53:19] INFO (torcheeg/MainThread) 🔍 | Detected cached processing results, reading cache from ./cached_data/thubenchmark_EA.
+[2025-12-31 04:53:20] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/kfold_split.
+[2025-12-31 04:53:20] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+[2025-12-31 04:53:20] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/test_val_split_0.
+[2025-12-31 04:53:20] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+/home/yhj/miniconda3/envs/torch/lib/python3.11/site-packages/torch/optim/lr_scheduler.py:60: UserWarning: The verbose parameter is deprecated. Please use get_last_lr() to access the learning rate.
+  warnings.warn(
+[2025-12-31 05:11:19] INFO (torcheeg/MainThread) 🔍 | Detected cached processing results, reading cache from ./cached_data/thubenchmark_EA.
+[2025-12-31 05:11:20] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/kfold_split.
+[2025-12-31 05:11:20] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+[2025-12-31 05:11:20] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/test_val_split_0.
+[2025-12-31 05:11:20] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+/home/yhj/miniconda3/envs/torch/lib/python3.11/site-packages/torch/optim/lr_scheduler.py:60: UserWarning: The verbose parameter is deprecated. Please use get_last_lr() to access the learning rate.
+  warnings.warn(
+[2025-12-31 08:21:20] INFO (torcheeg/MainThread) 🔍 | Detected cached processing results, reading cache from ./cached_data/thubenchmark_EA.
+[2025-12-31 08:21:21] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/kfold_split.
+[2025-12-31 08:21:21] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+[2025-12-31 08:21:21] INFO (torcheeg/MainThread) 📊 | Detected existing split of train and test set, use existing split from ./cached_data/thubenchmark_split/test_val_split_0.
+[2025-12-31 08:21:21] INFO (torcheeg/MainThread) 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+/home/yhj/miniconda3/envs/torch/lib/python3.11/site-packages/torch/optim/lr_scheduler.py:60: UserWarning: The verbose parameter is deprecated. Please use get_last_lr() to access the learning rate.
+  warnings.warn(

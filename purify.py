@@ -302,7 +302,7 @@ if __name__ == '__main__':
     }
     model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
     model.to(device)
-    checkpoint = torch.load(f'./checkpoints/{args.dataset}_{args.model}_{args.seed}_fold{args.fold}_best.pth', map_location=device)
+    checkpoint = torch.load(f'./checkpoints/{args.dataset}_{args.model}_{"clean"}_{args.seed}_fold{args.fold}_best.pth', map_location=device)
     model.load_state_dict(checkpoint)
     logging.info(f'Model: {args.model}, fold: {args.fold}')
 

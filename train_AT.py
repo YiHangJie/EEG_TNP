@@ -28,9 +28,9 @@ def parse_args():
     parser.add_argument('--at_strategy', type=str, default='madry', choices=['madry', 'fbf', 'trades', 'clean'], help='adversarial training strategy')
     parser.add_argument('--epsilon', type=float, default=0.1, help='max perturbation budget for adversarial training')
     parser.add_argument('--pgd_step_size', type=float, default=0.01, help='step size for PGD/FGSM updates')
-    parser.add_argument('--pgd_steps', type=int, default=7, help='number of PGD steps for adversarial example generation')
-    parser.add_argument('--fbf_replays', type=int, default=4, help='number of repeats per batch for FBF training')
-    parser.add_argument('--trades_beta', type=float, default=6.0, help='beta coefficient for TRADES loss')
+    parser.add_argument('--pgd_steps', type=int, default=20, help='number of PGD steps for adversarial example generation')
+    parser.add_argument('--fbf_replays', type=int, default=2, help='number of repeats per batch for FBF training')
+    parser.add_argument('--trades_beta', type=float, default=0.1, help='beta coefficient for TRADES loss') # 1, 6
     parser.add_argument('--clean_ratio', type=float, default=0.0, help='portion of clean loss mixed with adversarial loss (Madry)')
     parser.add_argument('--clip_min', type=float, default=None, help='minimum value to clamp adversarial examples')
     parser.add_argument('--clip_max', type=float, default=None, help='maximum value to clamp adversarial examples')
@@ -301,6 +301,7 @@ if __name__ == '__main__':
         best_model.load_state_dict(best_state_dict)
         best_model.to(device)
         best_models.append(best_model)
+        torch.save(best_state_dict, f'./checkpoints/{args.dataset}_{args.model}_{args.at_strategy}_{args.seed}_fold{index}_best.pth')  # 保存最佳模型
 
         # evaluate model
         test_acc, test_loss = evaluate(best_model, test_loader)

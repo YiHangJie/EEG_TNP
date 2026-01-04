@@ -12,6 +12,7 @@ commands=(
     "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy madry"
     "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy fbf"
     "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy trades" 
+    "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy clean"
 )
 
 # Run each command in the array in the background, with at most max_jobs concurrent jobs
