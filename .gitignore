@@ -12,3 +12,15 @@ ad_data/
 cached_data/
 purified_data/
 nohup.out
+
+# 忽略所有 checkpoints 开头的文件夹
+checkpoints*/
+
+# 忽略所有 log 开头的文件夹
+log*/
+
+# 忽略所有 configs_backup 开头的文件夹
+configs_backup*/
+
+# 忽略所有 .pth 模型权重文件 (防止漏网之鱼)
+*.pth

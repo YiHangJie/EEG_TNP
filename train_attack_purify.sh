@@ -13,33 +13,33 @@ gpu_id="${2:-0}"
 
 train_commands=(
     # train
-    "python -u train_AT.py --dataset ${dataset} --model eegnet --at_strategy madry --gpu_id ${gpu_id}"
-    "python -u train_AT.py --dataset ${dataset} --model eegnet --at_strategy fbf --gpu_id ${gpu_id}"
-    "python -u train_AT.py --dataset ${dataset} --model eegnet --at_strategy trades --gpu_id ${gpu_id}" 
-    "python -u train_AT.py --dataset ${dataset} --model eegnet --at_strategy clean --gpu_id ${gpu_id}"
+    # "python -u train_AT.py --dataset ${dataset} --model eegnet --at_strategy madry --gpu_id ${gpu_id}"
+    # "python -u train_AT.py --dataset ${dataset} --model eegnet --at_strategy fbf --gpu_id ${gpu_id}"
+    # "python -u train_AT.py --dataset ${dataset} --model eegnet --at_strategy trades --gpu_id ${gpu_id}" 
+    # "python -u train_AT.py --dataset ${dataset} --model eegnet --at_strategy clean --gpu_id ${gpu_id}"
 )
 
 attack_commands=(
     # attack
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy clean --fold 0 --attack autoattack --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy madry --fold 0 --attack autoattack --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy fbf --fold 0 --attack autoattack --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy trades --fold 0 --attack autoattack --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy clean --fold 0 --attack autoattack --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy madry --fold 0 --attack autoattack --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy fbf --fold 0 --attack autoattack --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy trades --fold 0 --attack autoattack --eps 0.1 --gpu_id ${gpu_id}"
 
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy clean --fold 0 --attack fgsm --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy madry --fold 0 --attack fgsm --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy fbf --fold 0 --attack fgsm --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy trades --fold 0 --attack fgsm --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy clean --fold 0 --attack fgsm --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy madry --fold 0 --attack fgsm --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy fbf --fold 0 --attack fgsm --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy trades --fold 0 --attack fgsm --eps 0.1 --gpu_id ${gpu_id}"
 
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy clean --fold 0 --attack pgd --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy madry --fold 0 --attack pgd --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy fbf --fold 0 --attack pgd --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy trades --fold 0 --attack pgd --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy clean --fold 0 --attack pgd --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy madry --fold 0 --attack pgd --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy fbf --fold 0 --attack pgd --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy trades --fold 0 --attack pgd --eps 0.1 --gpu_id ${gpu_id}"
 
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy clean --fold 0 --attack cw --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy madry --fold 0 --attack cw --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy fbf --fold 0 --attack cw --eps 0.1 --gpu_id ${gpu_id}"
-    "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy trades --fold 0 --attack cw --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy clean --fold 0 --attack cw --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy madry --fold 0 --attack cw --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy fbf --fold 0 --attack cw --eps 0.1 --gpu_id ${gpu_id}"
+    # "python -u attack.py --dataset ${dataset} --model eegnet --at_strategy trades --fold 0 --attack cw --eps 0.1 --gpu_id ${gpu_id}"
 )
 
 purify_commands=(
@@ -65,7 +65,7 @@ purify_commands=(
 
 # Run each command in the array in the background, with at most max_jobs concurrent jobs
 train_max_jobs=1
-attack_max_jobs=2
+attack_max_jobs=1
 purify_max_jobs=2
 
 # for cmd in "${train_commands[@]}"; do
