@@ -18,6 +18,8 @@ checkpoints*/
 
 # 忽略所有 log 开头的文件夹
 log*/
+*.log
+*.sh
 
 # 忽略所有 configs_backup 开头的文件夹
 configs_backup*/
