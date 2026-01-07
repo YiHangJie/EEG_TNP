@@ -1,5 +1,0 @@
-2026-01-04 22:33:59 | INFO | root | Training bciciv2a with eegnet
-2026-01-04 22:33:59 | INFO | root | Namespace(dataset='bciciv2a', model='eegnet', at_strategy='madry', epsilon=0.1, pgd_step_size=0.01, pgd_steps=20, fbf_replays=2, trades_beta=0.1, clean_ratio=0.0, clip_min=None, clip_max=None, pgd_random_start=True, epochs=400, batch_size=128, lr=0.001, weight_decay=0, patience=20, seed=42, gpu_id=1)
-2026-01-04 22:33:59 | INFO | root | AT config | strategy: madry, eps: 0.1, step size: 0.01, steps: 20, fbf_replays: 2, trades_beta: 0.1, clean_ratio: 0.0, random_start: True, clip_min/max: (None, None)
-2026-01-04 22:33:59 | INFO | torcheeg | 🔍 | Processing EEG data. Processed EEG data has been cached to [92m./cached_data/bciciv2a[0m.
-2026-01-04 22:33:59 | INFO | torcheeg | ⏳ | Monitoring the detailed processing of a record for debugging. The processing of other records will only be reported in percentage to keep it clean.

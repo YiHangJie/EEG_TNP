@@ -1,0 +1,135 @@
+2026-01-06 19:09:54 | INFO | root | Attacking autoattack on seediv with eegnet
+2026-01-06 19:09:54 | INFO | root | Namespace(dataset='seediv', model='eegnet', at_strategy='madry', fold=0, attack='autoattack', eps=0.1, batch_size=32, seed=42, gpu_id=3)
+2026-01-06 19:09:54 | INFO | torcheeg | 🔍 | Detected cached processing results, reading cache from ./cached_data/seediv_EA.
+2026-01-06 19:10:08 | INFO | root | Dataset: seediv
+2026-01-06 19:10:08 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/seediv_split/kfold_split.
+2026-01-06 19:10:08 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2026-01-06 19:10:09 | INFO | root | Model: eegnet, fold: 0
+2026-01-06 19:10:09 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/seediv_split/test_val_split_0.
+2026-01-06 19:10:09 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2026-01-06 19:10:09 | INFO | root | Sample num in test set: 3758
+2026-01-06 19:10:09 | INFO | root | test dataset size: 3758
+2026-01-06 19:10:22 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 1/118
+2026-01-06 19:10:34 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 2/118
+2026-01-06 19:10:45 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 3/118
+2026-01-06 19:10:56 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 4/118
+2026-01-06 19:11:06 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 5/118
+2026-01-06 19:11:34 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 6/118
+2026-01-06 19:12:07 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 7/118
+2026-01-06 19:12:41 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 8/118
+2026-01-06 19:13:10 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 9/118
+2026-01-06 19:13:21 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 10/118
+2026-01-06 19:13:32 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 11/118
+2026-01-06 19:13:44 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 12/118
+2026-01-06 19:13:56 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 13/118
+2026-01-06 19:14:08 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 14/118
+2026-01-06 19:14:36 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 15/118
+2026-01-06 19:15:14 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 16/118
+2026-01-06 19:15:49 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 17/118
+2026-01-06 19:16:10 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 18/118
+2026-01-06 19:16:21 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 19/118
+2026-01-06 19:16:30 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 20/118
+2026-01-06 19:16:41 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 21/118
+2026-01-06 19:16:52 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 22/118
+2026-01-06 19:17:02 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 23/118
+2026-01-06 19:17:19 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 24/118
+2026-01-06 19:17:48 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 25/118
+2026-01-06 19:18:19 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 26/118
+2026-01-06 19:18:29 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 27/118
+2026-01-06 19:18:38 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 28/118
+2026-01-06 19:18:49 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 29/118
+2026-01-06 19:19:00 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 30/118
+2026-01-06 19:19:14 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 31/118
+2026-01-06 19:19:45 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 32/118
+2026-01-06 19:20:17 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 33/118
+2026-01-06 19:20:27 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 34/118
+2026-01-06 19:20:38 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 35/118
+2026-01-06 19:20:48 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 36/118
+2026-01-06 19:20:58 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 37/118
+2026-01-06 19:21:09 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 38/118
+2026-01-06 19:21:34 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 39/118
+2026-01-06 19:22:02 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 40/118
+2026-01-06 19:22:13 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 41/118
+2026-01-06 19:22:24 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 42/118
+2026-01-06 19:22:34 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 43/118
+2026-01-06 19:22:44 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 44/118
+2026-01-06 19:22:55 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 45/118
+2026-01-06 19:23:04 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 46/118
+2026-01-06 19:23:26 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 47/118
+2026-01-06 19:23:54 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 48/118
+2026-01-06 19:24:21 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 49/118
+2026-01-06 19:24:32 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 50/118
+2026-01-06 19:24:42 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 51/118
+2026-01-06 19:24:51 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 52/118
+2026-01-06 19:25:03 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 53/118
+2026-01-06 19:25:46 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 54/118
+2026-01-06 19:27:18 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 55/118
+2026-01-06 19:28:49 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 56/118
+2026-01-06 19:30:20 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 57/118
+2026-01-06 19:31:50 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 58/118
+2026-01-06 19:32:30 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 59/118
+2026-01-06 19:32:44 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 60/118
+2026-01-06 19:32:55 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 61/118
+2026-01-06 19:33:06 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 62/118
+2026-01-06 19:34:10 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 63/118
+2026-01-06 19:35:49 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 64/118
+2026-01-06 19:37:59 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 65/118
+2026-01-06 19:40:09 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 66/118
+2026-01-06 19:40:55 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 67/118
+2026-01-06 19:42:33 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 68/118
+2026-01-06 19:44:08 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 69/118
+2026-01-06 19:45:42 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 70/118
+2026-01-06 19:47:14 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 71/118
+2026-01-06 19:48:24 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 72/118
+2026-01-06 19:48:54 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 73/118
+2026-01-06 19:49:05 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 74/118
+2026-01-06 19:49:16 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 75/118
+2026-01-06 19:49:27 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 76/118
+2026-01-06 19:49:38 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 77/118
+2026-01-06 19:49:48 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 78/118
+2026-01-06 19:49:58 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 79/118
+2026-01-06 19:50:23 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 80/118
+2026-01-06 19:51:47 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 81/118
+2026-01-06 19:53:46 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 82/118
+2026-01-06 19:55:56 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 83/118
+2026-01-06 19:57:48 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 84/118
+2026-01-06 19:59:28 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 85/118
+2026-01-06 20:02:10 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 86/118
+2026-01-06 20:04:30 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 87/118
+2026-01-06 20:05:08 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 88/118
+2026-01-06 20:07:44 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 89/118
+2026-01-06 20:10:02 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 90/118
+2026-01-06 20:10:42 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 91/118
+2026-01-06 20:12:11 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 92/118
+2026-01-06 20:14:49 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 93/118
+2026-01-06 20:15:37 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 94/118
+2026-01-06 20:16:35 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 95/118
+2026-01-06 20:18:47 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 96/118
+2026-01-06 20:19:50 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 97/118
+2026-01-06 20:20:28 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 98/118
+2026-01-06 20:21:07 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 99/118
+2026-01-06 20:21:46 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 100/118
+2026-01-06 20:22:24 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 101/118
+2026-01-06 20:23:04 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 102/118
+2026-01-06 20:23:41 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 103/118
+2026-01-06 20:24:18 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 104/118
+2026-01-06 20:24:59 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 105/118
+2026-01-06 20:25:36 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 106/118
+2026-01-06 20:26:14 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 107/118
+2026-01-06 20:26:55 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 108/118
+2026-01-06 20:27:35 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 109/118
+2026-01-06 20:28:13 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 110/118
+2026-01-06 20:28:52 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 111/118
+2026-01-06 20:29:35 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 112/118
+2026-01-06 20:30:18 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 113/118
+2026-01-06 20:30:58 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 114/118
+2026-01-06 20:31:41 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 115/118
+2026-01-06 20:32:28 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 116/118
+2026-01-06 20:33:14 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 117/118
+2026-01-06 20:33:54 | INFO | root | Attacking autoattack on seediv with eegnet, fold: 0, batch: 118/118
+2026-01-06 20:33:57 | INFO | root | Before Attack - Test Accuracy: 26.18%, Test Loss: 1.3829
+2026-01-06 20:33:58 | INFO | root | After Attack - Test Accuracy: 26.18%, Test Loss: 1.3829
+2026-01-06 20:33:58 | INFO | root | MSE between clean data and adversarial data: 0.000000
+2026-01-06 20:33:59 | INFO | root | Test model on 512 samples for adversarial training
+2026-01-06 20:34:02 | INFO | root | After Attack - Test Accuracy on 512 samples: 25.59%, Test Loss: 1.3788
+2026-01-06 20:34:02 | INFO | root | Before Attack - Test Accuracy on 512 samples: 25.59%, Test Loss: 1.3788

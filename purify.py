@@ -1,4 +1,5 @@
 import argparse
+import os
 import torch
 import random
 import numpy as np
@@ -256,7 +257,9 @@ def purify(args, index, data, sampling_rate, device, logging):
 if __name__ == '__main__':
     args = parse_args()
     seed_everything(args.seed)
-    device = torch.device(f'cuda:{args.gpu_id}' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device(f'cuda:{args.gpu_id}' if torch.cuda.is_available() else 'cpu')
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # set log file
     import logging
@@ -281,7 +284,7 @@ if __name__ == '__main__':
             continue
         val_dataset, test_dataset = train_test_split(test_dataset, shuffle=True, test_size=0.5, random_state=args.seed, split_path=f'./cached_data/{args.dataset}_split/test_val_split_{index}')
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
-        ad_data, labels = torch.load(f'./ad_data/{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}.pth')
+        ad_data, labels = torch.load(f'./ad_data/{args.dataset}_{args.model}_{"clean"}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}.pth')
         clean_data = []
         for i, (data, target) in enumerate(test_loader):
             data, target = data.to(device), target.to(device)

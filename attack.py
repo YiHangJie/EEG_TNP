@@ -116,13 +116,13 @@ if __name__ == '__main__':
         for i, (data, target) in enumerate(test_loader):
             data, target = data.to(device), target.to(device)
             adv_data = attack(data, target)
-            ad_data.append(adv_data.detach().cpu())
-            clean_data.append(data.detach().cpu())
-            labels.append(target.detach().cpu())
+            ad_data.append(adv_data.detach())
+            clean_data.append(data.detach())
+            labels.append(target.detach())
             logging.info(f'Attacking {args.attack} on {args.dataset} with {args.model}, fold: {args.fold}, batch: {i+1}/{len(test_loader)}')
-        ad_data = torch.cat(ad_data, dim=0)
-        clean_data = torch.cat(clean_data, dim=0)
-        labels = torch.cat(labels, dim=0)
+        ad_data = torch.cat(ad_data, dim=0).cpu()
+        clean_data = torch.cat(clean_data, dim=0).cpu()
+        labels = torch.cat(labels, dim=0).cpu()
         
         # evaluate
         evaluate_acc, evaluate_loss = evaluate(model, test_loader)

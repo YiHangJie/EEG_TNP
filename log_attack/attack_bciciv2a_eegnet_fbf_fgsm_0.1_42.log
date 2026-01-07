@@ -1,0 +1,34 @@
+2026-01-05 16:37:29 | INFO | root | Attacking fgsm on bciciv2a with eegnet
+2026-01-05 16:37:29 | INFO | root | Namespace(dataset='bciciv2a', model='eegnet', at_strategy='fbf', fold=0, attack='fgsm', eps=0.1, batch_size=32, seed=42, gpu_id=1)
+2026-01-05 16:37:29 | INFO | torcheeg | 🔍 | Detected cached processing results, reading cache from ./cached_data/bciciv2a_EA.
+2026-01-05 16:37:31 | INFO | root | Dataset: bciciv2a
+2026-01-05 16:37:31 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/bciciv2a_split/kfold_split.
+2026-01-05 16:37:31 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2026-01-05 16:37:32 | INFO | root | Model: eegnet, fold: 0
+2026-01-05 16:37:32 | INFO | torcheeg | 📊 | Detected existing split of train and test set, use existing split from ./cached_data/bciciv2a_split/test_val_split_0.
+2026-01-05 16:37:32 | INFO | torcheeg | 💡 | If the dataset is re-generated, you need to re-generate the split of the dataset instead of using the previous split.
+2026-01-05 16:37:32 | INFO | root | Sample num in test set: 519
+2026-01-05 16:37:32 | INFO | root | test dataset size: 519
+2026-01-05 16:37:35 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 1/17
+2026-01-05 16:37:35 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 2/17
+2026-01-05 16:37:36 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 3/17
+2026-01-05 16:37:36 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 4/17
+2026-01-05 16:37:37 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 5/17
+2026-01-05 16:37:38 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 6/17
+2026-01-05 16:37:39 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 7/17
+2026-01-05 16:37:40 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 8/17
+2026-01-05 16:37:41 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 9/17
+2026-01-05 16:37:42 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 10/17
+2026-01-05 16:37:43 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 11/17
+2026-01-05 16:37:44 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 12/17
+2026-01-05 16:37:45 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 13/17
+2026-01-05 16:37:45 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 14/17
+2026-01-05 16:37:46 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 15/17
+2026-01-05 16:37:47 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 16/17
+2026-01-05 16:37:47 | INFO | root | Attacking fgsm on bciciv2a with eegnet, fold: 0, batch: 17/17
+2026-01-05 16:38:13 | INFO | root | Before Attack - Test Accuracy: 75.92%, Test Loss: 0.6545
+2026-01-05 16:38:33 | INFO | root | After Attack - Test Accuracy: 0.00%, Test Loss: 8.8962
+2026-01-05 16:38:33 | INFO | root | MSE between clean data and adversarial data: 0.010000
+2026-01-05 16:38:34 | INFO | root | Test model on 512 samples for adversarial training
+2026-01-05 16:39:08 | INFO | root | After Attack - Test Accuracy on 512 samples: 0.00%, Test Loss: 8.8788
+2026-01-05 16:39:20 | INFO | root | Before Attack - Test Accuracy on 512 samples: 75.98%, Test Loss: 0.6502
