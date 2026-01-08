@@ -92,7 +92,8 @@ if __name__ == '__main__':
         model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
         model.to(device)
         model.eval()
-        checkpoint = torch.load(f'./checkpoints/{args.dataset}_{args.model}_{args.at_strategy}_{args.seed}_fold{args.fold}_best.pth', map_location=device)
+        eps = args.eps if args.at_strategy != 'clean' else 0
+        checkpoint = torch.load(f'./checkpoints/{args.dataset}_{args.model}_{args.at_strategy}_eps{eps}_{args.seed}_fold{args.fold}_best.pth', map_location=device)
         model.load_state_dict(checkpoint)
         logging.info(f'Model: {args.model}, fold: {args.fold}')
 

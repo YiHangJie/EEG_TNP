@@ -26,10 +26,10 @@ def parse_args():
     parser.add_argument('--dataset', type=str, default='seediv', choices=['seediv','m3cv', 'bciciv2a', 'thubenchmark'], help='choose dataset')
     parser.add_argument('--model', type=str, default='eegnet', choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
     parser.add_argument('--at_strategy', type=str, default='madry', choices=['madry', 'fbf', 'trades', 'clean'], help='adversarial training strategy')
-    parser.add_argument('--epsilon', type=float, default=0.2, help='max perturbation budget for adversarial training')
-    parser.add_argument('--pgd_step_size', type=float, default=0.04, help='step size for PGD/FGSM updates')
+    parser.add_argument('--epsilon', type=float, default=0.1, help='max perturbation budget for adversarial training')
+    parser.add_argument('--pgd_step_size', type=float, default=0.02, help='step size for PGD/FGSM updates')
     parser.add_argument('--pgd_steps', type=int, default=10, help='number of PGD steps for adversarial example generation')
-    parser.add_argument('--fbf_replays', type=int, default=2, help='number of repeats per batch for FBF training')
+    parser.add_argument('--fbf_replays', type=int, default=3, help='number of repeats per batch for FBF training')
     parser.add_argument('--trades_beta', type=float, default=0.1, help='beta coefficient for TRADES loss') # 1, 6
     parser.add_argument('--clean_ratio', type=float, default=0.0, help='portion of clean loss mixed with adversarial loss (Madry)')
     parser.add_argument('--clip_min', type=float, default=None, help='minimum value to clamp adversarial examples')
@@ -190,16 +190,17 @@ def train_epoch_clean(model, loader, optimizer, criterion, device):
 
 if __name__ == '__main__':
     args = parse_args()
+    args.pgd_step_size = args.epsilon / 5
+    args.pgd_steps = 5*2
+    if args.at_strategy == 'clean':
+        args.epsilon = 0
     seed_everything(args.seed)
     device = torch.device(f'cuda:{args.gpu_id}' if torch.cuda.is_available() else 'cpu')
-
-    if args.pgd_step_size is None or args.pgd_step_size <= 0:
-        args.pgd_step_size = args.epsilon / max(args.pgd_steps, 1)
 
     # set log file
     import logging
     timestamp = str(datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
-    logfile_directory = f'./log_train_AT/train_{args.dataset}_{args.model}_{args.at_strategy}_{args.seed}_{args.lr}_{args.weight_decay}_{args.batch_size}_{timestamp}.log'
+    logfile_directory = f'./log_train_AT/train_{args.dataset}_{args.model}_{args.at_strategy}_eps{args.epsilon}_{args.seed}_{args.lr}_{args.weight_decay}_{args.batch_size}_{timestamp}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Training {args.dataset} with {args.model}')
     logging.info(args)
@@ -287,7 +288,7 @@ if __name__ == '__main__':
                 best_val_loss = val_loss
                 no_improve_epochs = 0
                 best_state_dict = copy.deepcopy(model.state_dict())
-                torch.save(best_state_dict, f'./checkpoints/{args.dataset}_{args.model}_{args.at_strategy}_{args.seed}_fold{index}_{args.lr}_{args.weight_decay}_best.pth')  # 仍然保存最佳模型
+                torch.save(best_state_dict, f'./checkpoints/{args.dataset}_{args.model}_{args.at_strategy}_eps{args.epsilon}_{args.seed}_fold{index}_{args.lr}_{args.weight_decay}_best.pth')  # 仍然保存最佳模型
             else:
                 no_improve_epochs += 1
                 if no_improve_epochs >= patience:
@@ -301,7 +302,7 @@ if __name__ == '__main__':
         best_model.load_state_dict(best_state_dict)
         best_model.to(device)
         best_models.append(best_model)
-        torch.save(best_state_dict, f'./checkpoints/{args.dataset}_{args.model}_{args.at_strategy}_{args.seed}_fold{index}_best.pth')  # 保存最佳模型
+        torch.save(best_state_dict, f'./checkpoints/{args.dataset}_{args.model}_{args.at_strategy}_eps{args.epsilon}_{args.seed}_fold{index}_best.pth')  # 保存最佳模型
 
         # evaluate model
         test_acc, test_loss = evaluate(best_model, test_loader)
