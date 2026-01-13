@@ -1,8 +1,10 @@
 import argparse
+import logging
 import torch
 import random
 import numpy as np
 from tqdm import tqdm
+from contextlib import contextmanager
 
 from torcheeg.models import EEGNet, TSCeption, ATCNet, Conformer
 from torcheeg.model_selection import KFold, train_test_split
@@ -36,6 +38,62 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+def _format_cuda_bytes(num_bytes):
+    return f"{num_bytes / (1024 ** 2):.2f}MB"
+
+def _cuda_memory_reserved(device):
+    if hasattr(torch.cuda, "memory_reserved"):
+        return torch.cuda.memory_reserved(device)
+    return torch.cuda.memory_cached(device)
+
+def _cuda_max_memory_reserved(device):
+    if hasattr(torch.cuda, "max_memory_reserved"):
+        return torch.cuda.max_memory_reserved(device)
+    return torch.cuda.max_memory_cached(device)
+
+def log_cuda_memory(tag, device, logger=None):
+    if not torch.cuda.is_available():
+        return
+    if logger is None:
+        logger = logging
+    torch.cuda.synchronize(device)
+    allocated = torch.cuda.memory_allocated(device)
+    reserved = _cuda_memory_reserved(device)
+    peak_allocated = torch.cuda.max_memory_allocated(device)
+    peak_reserved = _cuda_max_memory_reserved(device)
+    logger.info(
+        f"[CUDA] {tag} | alloc={_format_cuda_bytes(allocated)} "
+        f"reserved={_format_cuda_bytes(reserved)} "
+        f"peak_alloc={_format_cuda_bytes(peak_allocated)} "
+        f"peak_reserved={_format_cuda_bytes(peak_reserved)}"
+    )
+
+@contextmanager
+def cuda_mem_tracker(tag, device, logger=None):
+    if not torch.cuda.is_available():
+        yield
+        return
+    if logger is None:
+        logger = logging
+    torch.cuda.synchronize(device)
+    torch.cuda.reset_peak_memory_stats(device)
+    start_alloc = torch.cuda.memory_allocated(device)
+    start_reserved = _cuda_memory_reserved(device)
+    yield
+    torch.cuda.synchronize(device)
+    end_alloc = torch.cuda.memory_allocated(device)
+    end_reserved = _cuda_memory_reserved(device)
+    peak_alloc = torch.cuda.max_memory_allocated(device)
+    peak_reserved = _cuda_max_memory_reserved(device)
+    logger.info(
+        f"[CUDA] {tag} | start_alloc={_format_cuda_bytes(start_alloc)} "
+        f"start_reserved={_format_cuda_bytes(start_reserved)} "
+        f"end_alloc={_format_cuda_bytes(end_alloc)} "
+        f"end_reserved={_format_cuda_bytes(end_reserved)} "
+        f"peak_alloc={_format_cuda_bytes(peak_alloc)} "
+        f"peak_reserved={_format_cuda_bytes(peak_reserved)}"
+    )
+
 def evaluate(model, loader):
     model.eval()
     device = next(model.parameters()).device
@@ -56,11 +114,12 @@ def evaluate(model, loader):
 
 if __name__ == '__main__':
     args = parse_args()
+    if args.dataset == 'm3cv':
+        args.batch_size = 16
     seed_everything(args.seed)
     device = torch.device(f'cuda:{args.gpu_id}' if torch.cuda.is_available() else 'cpu')
 
     # set log file
-    import logging
     logfile_directory = f'./log_attack/attack_{args.dataset}_{args.model}_{args.at_strategy}_{args.attack}_{args.eps}_{args.seed}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Attacking {args.attack} on {args.dataset} with {args.model}')
@@ -92,10 +151,12 @@ if __name__ == '__main__':
         model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
         model.to(device)
         model.eval()
+        log_cuda_memory("after model init", device)
         eps = args.eps if args.at_strategy != 'clean' else 0
         checkpoint = torch.load(f'./checkpoints/{args.dataset}_{args.model}_{args.at_strategy}_eps{eps}_{args.seed}_fold{args.fold}_best.pth', map_location=device)
         model.load_state_dict(checkpoint)
         logging.info(f'Model: {args.model}, fold: {args.fold}')
+        log_cuda_memory("after checkpoint load", device)
 
         # init attack
         attack_dict = {
@@ -105,32 +166,39 @@ if __name__ == '__main__':
             'autoattack': AutoAttack
         }
         attack = attack_dict[args.attack](model, eps=args.eps, device=device, n_classes=info['num_classes'])
+        log_cuda_memory("after attack init", device)
         
         val_dataset, test_dataset = train_test_split(test_dataset, shuffle=True, test_size=0.5, random_state=args.seed, split_path=f'./cached_data/{args.dataset}_split/test_val_split_{index}')
         logging.info(f"Sample num in test set: {len(test_dataset)}")
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
         logging.info(f"test dataset size: {len(test_dataset)}")
 
+        log_cuda_memory("before attack loop", device)
         ad_data = []
         clean_data = []
         labels = []
         for i, (data, target) in enumerate(test_loader):
             data, target = data.to(device), target.to(device)
-            adv_data = attack(data, target)
-            ad_data.append(adv_data.detach())
-            clean_data.append(data.detach())
-            labels.append(target.detach())
+            log_cuda_memory(f"after loading batch {i+1}/{len(test_loader)}", device)
+            with cuda_mem_tracker(f'attack batch {i+1}/{len(test_loader)}', device):
+                adv_data = attack(data, target)
+            ad_data.append(adv_data.detach().cpu())
+            clean_data.append(data.detach().cpu())
+            labels.append(target.detach().cpu())
             logging.info(f'Attacking {args.attack} on {args.dataset} with {args.model}, fold: {args.fold}, batch: {i+1}/{len(test_loader)}')
+        log_cuda_memory("after attack loop", device)
         ad_data = torch.cat(ad_data, dim=0).cpu()
         clean_data = torch.cat(clean_data, dim=0).cpu()
         labels = torch.cat(labels, dim=0).cpu()
         
         # evaluate
-        evaluate_acc, evaluate_loss = evaluate(model, test_loader)
+        with cuda_mem_tracker("evaluate clean", device):
+            evaluate_acc, evaluate_loss = evaluate(model, test_loader)
         logging.info(f'Before Attack - Test Accuracy: {evaluate_acc*100:.2f}%, Test Loss: {evaluate_loss:.4f}')
         ad_dataset = torch.utils.data.TensorDataset(ad_data, labels)
         ad_loader = torch.utils.data.DataLoader(ad_dataset, batch_size=args.batch_size, shuffle=False)
-        ad_evaluate_acc, ad_evaluate_loss = evaluate(model, ad_loader)
+        with cuda_mem_tracker("evaluate adversarial", device):
+            ad_evaluate_acc, ad_evaluate_loss = evaluate(model, ad_loader)
         logging.info(f'After Attack - Test Accuracy: {ad_evaluate_acc*100:.2f}%, Test Loss: {ad_evaluate_loss:.4f}')
 
         # calculate mse
