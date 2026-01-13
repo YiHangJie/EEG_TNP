@@ -353,7 +353,7 @@ if __name__ == '__main__':
     logging.info(f'Mean mse of purified adversarial data: {np.mean(mses_ad)}')
     logging.info(f'Mean mse of purified clean data: {np.mean(mses_clean)}')
 
-    # save purified data
-    if args.attack != 'clean':
-        torch.save((purified_ad_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}_{args.config}_ad.pth')
-    torch.save((purified_clean_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}_{args.config}_clean.pth')
+    # # save purified data
+    # if args.attack != 'clean':
+    #     torch.save((purified_ad_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}_{args.config}_ad.pth')
+    # torch.save((purified_clean_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}_{args.config}_clean.pth')
