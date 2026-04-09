@@ -1,12 +1,15 @@
 import argparse
 import os
+from runtime_env import configure_runtime_env
+
+configure_runtime_env()
+
 import torch
 import random
 import numpy as np
 import yaml
 
 from torcheeg.models import EEGNet, TSCeption, ATCNet, Conformer
-from torcheeg.model_selection import KFold, train_test_split
 from torcheeg.datasets.constants import SEED_IV_CHANNEL_LOCATION_DICT, M3CV_CHANNEL_LOCATION_DICT
 from torcheeg.datasets.constants.motor_imagery import BCICIV2A_LOCATION_DICT
 from torcheeg.datasets.constants.ssvep import TSUBENCHMARK_CHANNEL_LOCATION_DICT
@@ -22,6 +25,7 @@ dataset_channel_location_dicts = {
 
 from models.model_args import get_model_args
 from data.load import load_seediv, load_m3cv, load_bciciv2a, load_thubenchmark
+from data.subject_ea import get_protocol_tag, prepare_subject_ea_fold
 from TN.PTR import PTR
 from TN.PTR_3d import PTR_3d
 from TN.PTR_3d_fs import PTR_3d_fs
@@ -267,6 +271,8 @@ if __name__ == '__main__':
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Purifying {args.attack} on {args.dataset} with {args.model}')
     logging.info(args)
+    protocol_tag = get_protocol_tag()
+    logging.info(f'EA protocol: {protocol_tag}')
 
     # load dataset and adversarial dataset
     dataset_dict = {
@@ -277,19 +283,23 @@ if __name__ == '__main__':
     }
     dataset, info = dataset_dict[args.dataset]()
     logging.info(f'Dataset: {args.dataset}')
-    cv = KFold(n_splits=5, shuffle=True, random_state=args.seed, split_path=f'./cached_data/{args.dataset}_split/kfold_split')
-
-    for index, (train_dataset, test_dataset) in enumerate(cv.split(dataset)):
-        if index != args.fold:
-            continue
-        val_dataset, test_dataset = train_test_split(test_dataset, shuffle=True, test_size=0.5, random_state=args.seed, split_path=f'./cached_data/{args.dataset}_split/test_val_split_{index}')
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
-        ad_data, labels = torch.load(f'./ad_data/{args.dataset}_{args.model}_{"clean"}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}.pth')
-        clean_data = []
-        for i, (data, target) in enumerate(test_loader):
-            data, target = data.to(device), target.to(device)
-            clean_data.append(data.detach().cpu())
-        clean_data = torch.cat(clean_data, dim=0)
+    _, _, test_dataset, split_path = prepare_subject_ea_fold(
+        dataset_name=args.dataset,
+        dataset=dataset,
+        info=info,
+        fold_id=args.fold,
+        seed=args.seed
+    )
+    logging.info(f'Split path: {split_path}')
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+    ad_data, labels = torch.load(
+        f'./ad_data/{args.dataset}_{args.model}_{protocol_tag}_{"clean"}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}.pth'
+    )
+    clean_data = []
+    for data, target in test_loader:
+        data, target = data.to(device), target.to(device)
+        clean_data.append(data.detach().cpu())
+    clean_data = torch.cat(clean_data, dim=0)
     ad_data = ad_data[:args.sample_num]
     clean_data = clean_data[:args.sample_num]
     labels = labels[:args.sample_num]
@@ -305,7 +315,10 @@ if __name__ == '__main__':
     }
     model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
     model.to(device)
-    checkpoint = torch.load(f'./checkpoints/{args.dataset}_{args.model}_{"clean_eps0"}_{args.seed}_fold{args.fold}_best.pth', map_location=device)
+    checkpoint = torch.load(
+        f'./checkpoints/{args.dataset}_{args.model}_{protocol_tag}_{"clean_eps0"}_{args.seed}_fold{args.fold}_best.pth',
+        map_location=device
+    )
     model.load_state_dict(checkpoint)
     logging.info(f'Model: {args.model}, fold: {args.fold}')
 

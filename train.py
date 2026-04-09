@@ -1,16 +1,20 @@
 import argparse
 import copy
 import datetime
+from runtime_env import configure_runtime_env
+
+configure_runtime_env()
+
 import torch
 import random
 import numpy as np
 from tqdm import tqdm
 
 from torcheeg.models import EEGNet, TSCeption, ATCNet, Conformer
-from torcheeg.model_selection import KFold, train_test_split
 
 from models.model_args import get_model_args
 from data.load import load_seediv, load_m3cv, load_bciciv2a, load_thubenchmark
+from data.subject_ea import get_protocol_tag, iter_subject_ea_folds
 
 def seed_everything(seed=42):
     torch.manual_seed(seed)
@@ -64,6 +68,8 @@ if __name__ == '__main__':
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Training {args.dataset} with {args.model}')
     logging.info(args)
+    protocol_tag = get_protocol_tag()
+    logging.info(f'EA protocol: {protocol_tag}')
 
     # load dataset
     dataset_dict = {
@@ -74,16 +80,21 @@ if __name__ == '__main__':
     }
     dataset, info = dataset_dict[args.dataset]()
     logging.info(f'Dataset: {args.dataset}, Sample_num: {len(dataset)}, num_classes: {info["num_classes"]}')
-    cv = KFold(n_splits=5, shuffle=True, random_state=args.seed, split_path=f'./cached_data/{args.dataset}_split/kfold_split')
 
     # train model
     accs = []
     losses = []
     best_models = []
-    for index, (train_dataset, test_dataset) in enumerate(cv.split(dataset)):
+    for index, train_dataset, val_dataset, test_dataset, split_path in iter_subject_ea_folds(
+        dataset_name=args.dataset,
+        dataset=dataset,
+        info=info,
+        seed=args.seed
+    ):
         if index >= 1:
             break
-        logging.info(f"sample num in train set: {len(train_dataset)}, sample num in test set: {len(test_dataset)}")
+        logging.info(f'Split path: {split_path}')
+        logging.info(f"sample num in train set: {len(train_dataset)}, sample num in val set: {len(val_dataset)}, sample num in test set: {len(test_dataset)}")
         # initialize model
         model_dict = {
             'eegnet': EEGNet,
@@ -95,9 +106,6 @@ if __name__ == '__main__':
         model.to(device)
         logging.info(f'Model: {args.model}, Parameter Num: {sum(p.numel() for p in model.parameters())}')
 
-        # train_dataset, val_dataset = train_test_split(train_dataset, shuffle=True, test_size=0.25, random_state=args.seed, split_path=f'./cached_data/{args.dataset}_split/test_val_split_{index}')
-        val_dataset, test_dataset = train_test_split(test_dataset, shuffle=True, test_size=0.5, random_state=args.seed, split_path=f'./cached_data/{args.dataset}_split/test_val_split_{index}')
-        logging.info(f"sample num in train set: {len(train_dataset)}, sample num in val set: {len(val_dataset)}, sample num in test set: {len(test_dataset)}")
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
         val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
@@ -145,7 +153,7 @@ if __name__ == '__main__':
                 best_val_loss = val_loss
                 no_improve_epochs = 0
                 best_state_dict = copy.deepcopy(model.state_dict())
-                torch.save(best_state_dict, f'./checkpoints/{args.dataset}_{args.model}_{args.seed}_fold{index}_{args.lr}_{args.weight_decay}_best.pth')  # 仍然保存最佳模型
+                torch.save(best_state_dict, f'./checkpoints/{args.dataset}_{args.model}_{protocol_tag}_{args.seed}_fold{index}_{args.lr}_{args.weight_decay}_best.pth')  # 仍然保存最佳模型
             else:
                 no_improve_epochs += 1
                 if no_improve_epochs >= patience:
