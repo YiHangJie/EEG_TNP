@@ -1,6 +1,7 @@
 import argparse
 import copy
 import datetime
+import os
 from runtime_env import configure_runtime_env
 
 configure_runtime_env()
@@ -15,7 +16,14 @@ from torcheeg.models import EEGNet, TSCeption, ATCNet, Conformer
 
 from models.model_args import get_model_args
 from data.load import load_seediv, load_m3cv, load_bciciv2a, load_thubenchmark
-from data.subject_ea import get_protocol_tag, iter_subject_ea_folds
+from data.subject_ea import get_protocol_tag, iter_subject_folds
+from utils.experiment_artifacts import (
+    build_checkpoint_path,
+    eeg_classification_collate,
+    load_tensor_payload,
+    normalize_path_args,
+    safe_token,
+)
 
 def seed_everything(seed=42):
     torch.manual_seed(seed)
@@ -43,10 +51,20 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=400, help='number of epochs to train')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size for training')
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
-    parser.add_argument('--weight_decay', type=float, default=0.001, help='weight decay')
+    parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay')
     parser.add_argument('--patience', type=int, default=20, help='early stopping patience')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--gpu_id', type=int, default=0, help='which gpu to use')
+    parser.add_argument('--use_ea', dest='use_ea', action='store_true', default=False,
+                        help='use EA-aligned data after subject split')
+    parser.add_argument('--no_ea', dest='use_ea', action='store_false',
+                        help='use raw subject-split data without EA alignment')
+    parser.add_argument('--use_purified_aug', action='store_true',
+                        help='augment the training split with saved purified train clean/adversarial samples')
+    parser.add_argument('--purified_aug_paths', nargs='*', default=None,
+                        help='one or more purified train .pth files; comma-separated input is also accepted')
+    parser.add_argument('--purified_aug_tag', type=str, default='purified_aug',
+                        help='experiment tag added to logs and checkpoints when purified augmentation is enabled')
     args = parser.parse_args()
     return args
 
@@ -192,6 +210,79 @@ def train_epoch_clean(model, loader, optimizer, criterion, device):
         total_loss += loss.item() * data.size(0)
     return total_loss / len(loader.dataset)
 
+def _normalize_aug_kind(meta):
+    if not isinstance(meta, dict):
+        return 'clean'
+    kind = str(meta.get('kind', 'clean')).lower()
+    if kind in ('clean', 'adversarial'):
+        return kind
+    raise ValueError(f'Unsupported purified augmentation kind: {kind}.')
+
+def _validate_aug_meta(meta, path, args, fold_index, protocol_tag):
+    if not isinstance(meta, dict):
+        raise ValueError(f'Purified augmentation metadata missing or invalid for {path}.')
+    checks = {
+        'dataset': args.dataset,
+        'model': args.model,
+        'fold': fold_index,
+        'seed': args.seed,
+    }
+    for key, expected in checks.items():
+        if key not in meta:
+            raise ValueError(f'Purified augmentation metadata missing {key} for {path}.')
+        if str(meta[key]) != str(expected):
+            raise ValueError(
+                f'Purified augmentation metadata mismatch for {path}: '
+                f'{key}={meta[key]} but expected {expected}.'
+            )
+    meta_protocol = meta.get('protocol', meta.get('protocol_tag'))
+    if meta_protocol is None:
+        raise ValueError(f'Purified augmentation metadata missing protocol for {path}.')
+    if str(meta_protocol) != str(protocol_tag):
+        raise ValueError(
+            f'Purified augmentation metadata mismatch for {path}: '
+            f'protocol={meta_protocol} but expected {protocol_tag}.'
+        )
+    source_split = meta.get('source_split')
+    if source_split != 'train':
+        raise ValueError(
+            f'Purified augmentation file must come from train split: '
+            f'{path} has source_split={source_split}.'
+        )
+
+def load_purified_aug_dataset(paths, expected_sample_shape, args, fold_index, protocol_tag, logger):
+    aug_data_parts = []
+    aug_label_parts = []
+    kind_counts = {'clean': 0, 'adversarial': 0}
+    for path in paths:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f'Purified augmentation file not found: {path}')
+        data, labels, meta = load_tensor_payload(path)
+        if data.size(0) != labels.size(0):
+            raise ValueError(
+                f'Purified augmentation length mismatch for {path}: '
+                f'data has {data.size(0)} samples but labels has {labels.size(0)}.'
+            )
+        if tuple(data.shape[1:]) != tuple(expected_sample_shape):
+            raise ValueError(
+                f'Purified augmentation shape mismatch for {path}: '
+                f'sample shape {tuple(data.shape[1:])} but expected {tuple(expected_sample_shape)}.'
+            )
+
+        _validate_aug_meta(meta, path, args, fold_index, protocol_tag)
+        kind = _normalize_aug_kind(meta)
+        kind_counts[kind] += data.size(0)
+        aug_data_parts.append(data)
+        aug_label_parts.append(labels)
+        logger.info(
+            f'Loaded purified augmentation: {path}, kind: {kind}, '
+            f'source_split: {meta.get("source_split")}, data shape: {tuple(data.shape)}'
+        )
+
+    aug_data = torch.cat(aug_data_parts, dim=0)
+    aug_labels = torch.cat(aug_label_parts, dim=0)
+    return torch.utils.data.TensorDataset(aug_data, aug_labels), kind_counts
+
 if __name__ == '__main__':
     args = parse_args()
     args.pgd_step_size = args.epsilon / 5
@@ -204,12 +295,15 @@ if __name__ == '__main__':
     # set log file
     import logging
     timestamp = str(datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
-    logfile_directory = f'./log_train_AT/train_{args.dataset}_{args.model}_{args.at_strategy}_eps{args.epsilon}_{args.seed}_{args.lr}_{args.weight_decay}_{args.batch_size}_{timestamp}.log'
+    checkpoint_tag = f'aug_{safe_token(args.purified_aug_tag)}' if args.use_purified_aug else None
+    aug_suffix = f'_{checkpoint_tag}' if checkpoint_tag else ''
+    logfile_directory = f'./log_train_AT/train_{args.dataset}_{args.model}_{args.at_strategy}_eps{args.epsilon}_{args.seed}_{args.lr}_{args.weight_decay}_{args.batch_size}{aug_suffix}_{timestamp}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Training {args.dataset} with {args.model}')
     logging.info(args)
-    protocol_tag = get_protocol_tag()
-    logging.info(f'EA protocol: {protocol_tag}')
+    protocol_tag = get_protocol_tag(use_ea=args.use_ea)
+    logging.info(f'Data protocol: {protocol_tag}, use_ea: {args.use_ea}')
+    logging.info(f'Purified augmentation enabled: {args.use_purified_aug}, tag: {args.purified_aug_tag}')
     logging.info(
         f"AT config | strategy: {args.at_strategy}, eps: {args.epsilon}, "
         f"step size: {args.pgd_step_size}, steps: {args.pgd_steps}, "
@@ -232,16 +326,38 @@ if __name__ == '__main__':
     accs = []
     losses = []
     best_models = []
-    for index, train_dataset, val_dataset, test_dataset, split_path in iter_subject_ea_folds(
+    for index, train_dataset, val_dataset, test_dataset, split_path in iter_subject_folds(
         dataset_name=args.dataset,
         dataset=dataset,
         info=info,
-        seed=args.seed
+        seed=args.seed,
+        use_ea=args.use_ea,
     ):
         if index >= 1:
             break
         logging.info(f'Split path: {split_path}')
         logging.info(f"sample num in train set: {len(train_dataset)}, sample num in val set: {len(val_dataset)}, sample num in test set: {len(test_dataset)}")
+
+        if args.use_purified_aug:
+            purified_aug_paths = normalize_path_args(args.purified_aug_paths)
+            if not purified_aug_paths:
+                raise ValueError('--use_purified_aug requires at least one --purified_aug_paths file.')
+            sample_data, _ = train_dataset[0]
+            aug_dataset, aug_kind_counts = load_purified_aug_dataset(
+                paths=purified_aug_paths,
+                expected_sample_shape=tuple(sample_data.shape),
+                args=args,
+                fold_index=index,
+                protocol_tag=protocol_tag,
+                logger=logging,
+            )
+            train_dataset = torch.utils.data.ConcatDataset([train_dataset, aug_dataset])
+            logging.info(
+                f'Using purified augmentation: {len(aug_dataset)} purified samples, '
+                f'clean: {aug_kind_counts["clean"]}, adversarial: {aug_kind_counts["adversarial"]}, '
+                f'total train samples after concat: {len(train_dataset)}'
+            )
+
         # initialize model
         model_dict = {
             'eegnet': EEGNet,
@@ -253,9 +369,27 @@ if __name__ == '__main__':
         model.to(device)
         logging.info(f'Model: {args.model}, Parameter Num: {sum(p.numel() for p in model.parameters())}')
 
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
-        val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=0,
+            collate_fn=eeg_classification_collate,
+        )
+        val_loader = torch.utils.data.DataLoader(
+            val_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=0,
+            collate_fn=eeg_classification_collate,
+        )
+        test_loader = torch.utils.data.DataLoader(
+            test_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=0,
+            collate_fn=eeg_classification_collate,
+        )
 
         # init optimizer and scheduler
         # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -296,7 +430,14 @@ if __name__ == '__main__':
                 best_val_loss = val_loss
                 no_improve_epochs = 0
                 best_state_dict = copy.deepcopy(model.state_dict())
-                torch.save(best_state_dict, f'./checkpoints/{args.dataset}_{args.model}_{protocol_tag}_{args.at_strategy}_eps{args.epsilon}_{args.seed}_fold{index}_{args.lr}_{args.weight_decay}_best.pth')  # 仍然保存最佳模型
+                torch.save(
+                    best_state_dict,
+                    build_checkpoint_path(
+                        args.dataset, args.model, protocol_tag, args.at_strategy,
+                        args.epsilon, args.seed, index, tag=checkpoint_tag,
+                        lr=args.lr, weight_decay=args.weight_decay,
+                    )
+                )  # 仍然保存最佳模型
             else:
                 no_improve_epochs += 1
                 if no_improve_epochs >= patience:
@@ -310,7 +451,13 @@ if __name__ == '__main__':
         best_model.load_state_dict(best_state_dict)
         best_model.to(device)
         best_models.append(best_model)
-        torch.save(best_state_dict, f'./checkpoints/{args.dataset}_{args.model}_{protocol_tag}_{args.at_strategy}_eps{args.epsilon}_{args.seed}_fold{index}_best.pth')  # 保存最佳模型
+        torch.save(
+            best_state_dict,
+            build_checkpoint_path(
+                args.dataset, args.model, protocol_tag, args.at_strategy,
+                args.epsilon, args.seed, index, tag=checkpoint_tag,
+            )
+        )  # 保存最佳模型
 
         # evaluate model
         test_acc, test_loss = evaluate(best_model, test_loader)

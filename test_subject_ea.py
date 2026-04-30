@@ -6,10 +6,12 @@ import torch
 
 from data.ea_utils import EA_R_inv_sqrt, eeg_alignment, finalize_eeg_sample
 from data.subject_ea import (
+    CachedEEGDataset,
     SubjectEAAlignedDataset,
     build_or_load_subject_splits,
     build_or_load_grouped_splits,
     fit_subject_r_inv_sqrt,
+    prepare_subject_fold,
     prepare_subject_ea_fold,
 )
 
@@ -180,6 +182,19 @@ def test_subject_ea_alignment_uses_train_only_subject_statistics():
     assert signal.shape == (1, 2, 3)
 
 
+def test_cached_eeg_dataset_returns_unaligned_cached_signal():
+    dataset = _make_subject_dataset()
+    raw_dataset = CachedEEGDataset(dataset)
+
+    signal, label = raw_dataset[0]
+    info = raw_dataset.read_info(0)
+    expected_signal = finalize_eeg_sample(dataset.read_eeg(info['_record_id'], info['clip_id']))
+
+    assert torch.allclose(signal, expected_signal)
+    assert label in (0, 1)
+    assert signal.shape == (1, 2, 3)
+
+
 def test_prepare_subject_ea_fold_smoke():
     dataset = _make_subject_dataset()
     info = {}
@@ -196,6 +211,31 @@ def test_prepare_subject_ea_fold_smoke():
         )
 
         assert len(train_dataset) + len(val_dataset) + len(test_dataset) == len(dataset)
+        train_signal, train_label = train_dataset[0]
+        assert isinstance(train_signal, torch.Tensor)
+        assert train_signal.ndim == 3
+        assert train_signal.shape[0] == 1
+        assert train_label in (0, 1)
+
+
+def test_prepare_subject_fold_without_ea_returns_raw_dataset():
+    dataset = _make_subject_dataset()
+    info = {}
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        train_dataset, val_dataset, test_dataset, _ = prepare_subject_fold(
+            dataset_name='dummy',
+            dataset=dataset,
+            info=info,
+            fold_id=0,
+            seed=5,
+            n_splits=3,
+            split_path=tmpdir,
+            use_ea=False
+        )
+
+        assert len(train_dataset) + len(val_dataset) + len(test_dataset) == len(dataset)
+        assert isinstance(train_dataset, CachedEEGDataset)
         train_signal, train_label = train_dataset[0]
         assert isinstance(train_signal, torch.Tensor)
         assert train_signal.ndim == 3

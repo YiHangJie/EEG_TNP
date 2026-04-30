@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import os
 from runtime_env import configure_runtime_env
 
@@ -13,8 +14,8 @@ from torcheeg.models import EEGNet, TSCeption, ATCNet, Conformer
 from torcheeg.datasets.constants import SEED_IV_CHANNEL_LOCATION_DICT, M3CV_CHANNEL_LOCATION_DICT
 from torcheeg.datasets.constants.motor_imagery import BCICIV2A_LOCATION_DICT
 from torcheeg.datasets.constants.ssvep import TSUBENCHMARK_CHANNEL_LOCATION_DICT
-from torcheeg.transforms import ToGrid
-from utils.standalone_to_interpolated_grid import ToInterpolatedGrid
+from torcheeg.transforms import ToGrid, ToInterpolatedGrid
+# from utils.standalone_to_interpolated_grid import ToInterpolatedGrid
 
 dataset_channel_location_dicts = {
    'seediv': SEED_IV_CHANNEL_LOCATION_DICT,
@@ -22,16 +23,24 @@ dataset_channel_location_dicts = {
    'bciciv2a': BCICIV2A_LOCATION_DICT,
    'thubenchmark': TSUBENCHMARK_CHANNEL_LOCATION_DICT
 }
+AT_STRATEGIES = ('madry', 'fbf', 'trades', 'clean')
 
 from models.model_args import get_model_args
 from data.load import load_seediv, load_m3cv, load_bciciv2a, load_thubenchmark
-from data.subject_ea import get_protocol_tag, prepare_subject_ea_fold
+from data.subject_ea import get_protocol_tag, prepare_subject_fold
 from TN.PTR import PTR
 from TN.PTR_3d import PTR_3d
 from TN.PTR_3d_fs import PTR_3d_fs
 from TN.PTR_tfs import PTR_tfs
 from TN.opt import *
 from TN.utils import get_TN_args
+from utils.experiment_artifacts import (
+    build_checkpoint_path,
+    eeg_classification_collate,
+    load_tensor_payload,
+    safe_token,
+    short_protocol_tag,
+)
 from utils.visualize import plot_eeg
 
 def seed_everything(seed=42):
@@ -46,20 +55,111 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='seediv', choices=['seediv','m3cv', 'bciciv2a', 'thubenchmark'], help='choose dataset')
     parser.add_argument('--model', type=str, default='eegnet', choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
+    parser.add_argument('--at_strategy', type=str, default=None, choices=AT_STRATEGIES,
+                        help='adversarial training strategy of the evaluated classifier; inferred from artifact paths when omitted')
     parser.add_argument('--fold', type=int, default=0, help='which fold to use')
     parser.add_argument('--attack', type=str, default='fgsm', choices=['fgsm', 'pgd', 'cw', 'autoattack', 'clean'], help='choose attack')
     parser.add_argument('--eps', type=float, default=0.1, help='epsilon for attacks')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--gpu_id', type=int, default=0, help='which gpu to use')
+    parser.add_argument('--use_ea', dest='use_ea', action='store_true', default=False,
+                        help='use EA-aligned data after subject split')
+    parser.add_argument('--no_ea', dest='use_ea', action='store_false',
+                        help='use raw subject-split data without EA alignment')
 
     parser.add_argument('--config', type=str, help='path to purify config file')
     parser.add_argument('--sample_num', type=int, default=512, help='number of samples to purify')
+    parser.add_argument('--ad_data_path', type=str, default=None,
+                        help='explicit adversarial data .pth path; defaults to the legacy clean-model ad_data path')
+    parser.add_argument('--checkpoint_path', type=str, default=None,
+                        help='explicit classifier checkpoint path for evaluation')
+    parser.add_argument('--checkpoint_tag', type=str, default=None,
+                        help='optional suffix inserted before _best.pth in the default clean checkpoint name')
+    parser.add_argument('--model_tag', type=str, default=None,
+                        help='model/source tag written to purified output file names')
+    parser.add_argument('--output_tag', type=str, default=None,
+                        help='extra tag written to purified output file names')
+    parser.add_argument('--save_purified', dest='save_purified', action='store_true', default=True,
+                        help='save purified clean/adversarial tensors')
+    parser.add_argument('--no_save_purified', dest='save_purified', action='store_false',
+                        help='disable saving purified tensors')
 
     parser.add_argument('--visualize', action='store_true', help='whether to visualize the purification process')
 
     args = parser.parse_args()
     return args
+
+def build_default_ad_data_path(args, protocol_tag):
+    return (
+        f'./ad_data/{args.dataset}_{args.model}_{protocol_tag}_clean_'
+        f'{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}.pth'
+    )
+
+def resolve_checkpoint_path(args, protocol_tag):
+    if args.checkpoint_path:
+        return args.checkpoint_path
+    return build_checkpoint_path(
+        args.dataset, args.model, protocol_tag, 'clean',
+        0, args.seed, args.fold, tag=args.checkpoint_tag,
+    )
+
+def infer_at_strategy(args):
+    if args.at_strategy:
+        return args.at_strategy
+
+    candidates = [
+        args.checkpoint_path,
+        args.ad_data_path,
+        args.checkpoint_tag,
+        args.model_tag,
+        args.output_tag,
+    ]
+    for value in candidates:
+        if not value:
+            continue
+        token = safe_token(os.path.splitext(os.path.basename(str(value)))[0])
+        parts = token.replace('-', '_').lower().split('_')
+        for strategy in AT_STRATEGIES:
+            if strategy in parts:
+                return strategy
+    return 'clean'
+
+def infer_model_tag(args, ad_meta):
+    if args.model_tag:
+        return safe_token(args.model_tag)
+    if args.output_tag:
+        return safe_token(args.output_tag)
+    if args.checkpoint_tag:
+        return safe_token(args.checkpoint_tag)
+    if isinstance(ad_meta, dict):
+        for key in ('model_tag', 'adv_output_tag', 'checkpoint_tag'):
+            if ad_meta.get(key):
+                return safe_token(ad_meta[key])
+    return 'clean'
+
+def select_random_indices(dataset_size, sample_num, seed, fold):
+    """从测试 split 中无放回随机抽样，避免连续取样带来的 subject/session 偏置。"""
+    if sample_num > dataset_size:
+        raise ValueError(
+            f'Requested {sample_num} random samples but dataset has only {dataset_size} samples.'
+        )
+    selection_seed = seed + fold * 1000
+    rng = np.random.RandomState(selection_seed)
+    return rng.choice(dataset_size, size=sample_num, replace=False).tolist(), selection_seed
+
+def build_purified_output_paths(args, protocol_short, model_tag, sample_num):
+    config_tag = safe_token(os.path.splitext(os.path.basename(args.config))[0])
+    output_suffix = f'_tag{safe_token(args.output_tag)}' if args.output_tag else ''
+    base_name = (
+        f'{args.dataset}_{args.model}_{protocol_short}_{model_tag}_{args.attack}_'
+        f'eps{args.eps}_seed{args.seed}_fold{args.fold}_{config_tag}_n{sample_num}{output_suffix}'
+    )
+    output_dir = './purified_data/attacked'
+    return (
+        os.path.join(output_dir, f'{base_name}_ad.pth'),
+        os.path.join(output_dir, f'{base_name}_clean.pth'),
+    )
 
 def evaluate(model, loader):
     model.eval()
@@ -260,6 +360,7 @@ def purify(args, index, data, sampling_rate, device, logging):
 
 if __name__ == '__main__':
     args = parse_args()
+    args.at_strategy = infer_at_strategy(args)
     seed_everything(args.seed)
     # device = torch.device(f'cuda:{args.gpu_id}' if torch.cuda.is_available() else 'cpu')
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
@@ -267,12 +368,26 @@ if __name__ == '__main__':
 
     # set log file
     import logging
-    logfile_directory = f'./log_purify/purify_{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_{args.config}.log'
+    os.makedirs('./log_purify', exist_ok=True)
+    explicit_artifact_mode = any([
+        args.ad_data_path,
+        args.checkpoint_path,
+        args.checkpoint_tag,
+        args.model_tag,
+        args.output_tag,
+    ])
+    if explicit_artifact_mode:
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        log_model_tag = safe_token(args.model_tag or args.output_tag or args.checkpoint_tag or '')
+        log_tag_suffix = f'_{log_model_tag}' if log_model_tag != 'none' else ''
+        logfile_directory = f'./log_purify/purify_{args.dataset}_{args.model}_{args.at_strategy}{log_tag_suffix}_{args.attack}_eps{args.eps}_{args.seed}_{args.config}_{timestamp}.log'
+    else:
+        logfile_directory = f'./log_purify/purify_{args.dataset}_{args.model}_{args.at_strategy}_{args.attack}_eps{args.eps}_{args.seed}_{args.config}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Purifying {args.attack} on {args.dataset} with {args.model}')
     logging.info(args)
-    protocol_tag = get_protocol_tag()
-    logging.info(f'EA protocol: {protocol_tag}')
+    protocol_tag = get_protocol_tag(use_ea=args.use_ea)
+    logging.info(f'Data protocol: {protocol_tag}, use_ea: {args.use_ea}')
 
     # load dataset and adversarial dataset
     dataset_dict = {
@@ -283,27 +398,79 @@ if __name__ == '__main__':
     }
     dataset, info = dataset_dict[args.dataset]()
     logging.info(f'Dataset: {args.dataset}')
-    _, _, test_dataset, split_path = prepare_subject_ea_fold(
+    _, _, test_dataset, split_path = prepare_subject_fold(
         dataset_name=args.dataset,
         dataset=dataset,
         info=info,
         fold_id=args.fold,
-        seed=args.seed
+        seed=args.seed,
+        use_ea=args.use_ea,
     )
     logging.info(f'Split path: {split_path}')
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
-    ad_data, labels = torch.load(
-        f'./ad_data/{args.dataset}_{args.model}_{protocol_tag}_{"clean"}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}.pth'
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=eeg_classification_collate,
     )
+
     clean_data = []
+    clean_labels = []
     for data, target in test_loader:
         data, target = data.to(device), target.to(device)
         clean_data.append(data.detach().cpu())
+        clean_labels.append(target.detach().cpu().long().view(-1))
     clean_data = torch.cat(clean_data, dim=0)
-    ad_data = ad_data[:args.sample_num]
-    clean_data = clean_data[:args.sample_num]
-    labels = labels[:args.sample_num]
-    logging.info(f"Adversarial and clean data loaded, ad_data shape: {ad_data.shape}, clean_data shape: {clean_data.shape}")
+    clean_labels = torch.cat(clean_labels, dim=0)
+
+    ad_data = None
+    ad_data_path = None
+    ad_meta = {}
+    if args.ad_data_path or args.attack != 'clean':
+        ad_data_path = args.ad_data_path or build_default_ad_data_path(args, protocol_tag)
+        if not os.path.exists(ad_data_path):
+            raise FileNotFoundError(f'Adversarial data not found: {ad_data_path}')
+        ad_data, labels, ad_meta = load_tensor_payload(ad_data_path)
+        logging.info(f'Loaded adversarial data: {ad_data_path}')
+    else:
+        labels = clean_labels
+
+    sample_num_candidates = [clean_data.size(0), labels.size(0)]
+    if ad_data is not None:
+        sample_num_candidates.append(ad_data.size(0))
+    available_sample_num = min(sample_num_candidates)
+    sample_num = min(args.sample_num, available_sample_num)
+    if sample_num <= 0:
+        raise ValueError('No samples available for purification.')
+    if sample_num < args.sample_num:
+        logging.info(f'Requested sample_num={args.sample_num}, using available sample_num={sample_num}.')
+
+    selected_indices, selection_seed = select_random_indices(
+        dataset_size=available_sample_num,
+        sample_num=sample_num,
+        seed=args.seed,
+        fold=args.fold,
+    )
+    selected_index_tensor = torch.as_tensor(selected_indices, dtype=torch.long)
+    logging.info(
+        f'Selected {len(selected_indices)} random test samples without replacement; '
+        f'selection_seed: {selection_seed}'
+    )
+    logging.info(f'Source index preview: {selected_indices[:20]}')
+
+    if clean_labels.size(0) >= sample_num and not torch.equal(
+        clean_labels[selected_index_tensor],
+        labels[selected_index_tensor],
+    ):
+        logging.warning('Loaded adversarial labels differ from test split labels for the selected samples.')
+
+    clean_data = clean_data[selected_index_tensor]
+    labels = labels[selected_index_tensor]
+    if ad_data is not None:
+        ad_data = ad_data[selected_index_tensor]
+        logging.info(f"Adversarial and clean data loaded, ad_data shape: {ad_data.shape}, clean_data shape: {clean_data.shape}")
+    else:
+        logging.info(f"Clean data loaded, clean_data shape: {clean_data.shape}")
     logging.info('')
 
     # load model
@@ -315,58 +482,135 @@ if __name__ == '__main__':
     }
     model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
     model.to(device)
-    checkpoint = torch.load(
-        f'./checkpoints/{args.dataset}_{args.model}_{protocol_tag}_{"clean_eps0"}_{args.seed}_fold{args.fold}_best.pth',
-        map_location=device
-    )
+    checkpoint_path = resolve_checkpoint_path(args, protocol_tag)
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f'Checkpoint not found: {checkpoint_path}')
+    checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint)
-    logging.info(f'Model: {args.model}, fold: {args.fold}')
+    logging.info(f'Model: {args.model}, fold: {args.fold}, checkpoint: {checkpoint_path}')
 
     # evaluate adversarial and clean data
-    ad_data_dataset = torch.utils.data.TensorDataset(ad_data, labels)
-    ad_data_dataloader = torch.utils.data.DataLoader(ad_data_dataset, batch_size=args.batch_size, shuffle=False)
+    ad_accuracy = None
+    ad_loss = None
+    if ad_data is not None:
+        ad_data_dataset = torch.utils.data.TensorDataset(ad_data, labels)
+        ad_data_dataloader = torch.utils.data.DataLoader(
+            ad_data_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            collate_fn=eeg_classification_collate,
+        )
+        ad_accuracy, ad_loss = evaluate(model, ad_data_dataloader)
+        logging.info(f'Adversarial data accuracy: {ad_accuracy}, loss: {ad_loss}')
     clean_data_dataset = torch.utils.data.TensorDataset(clean_data, labels)
-    clean_data_dataloader = torch.utils.data.DataLoader(clean_data_dataset, batch_size=args.batch_size, shuffle=False)
-    ad_accuracy, ad_loss = evaluate(model, ad_data_dataloader)
-    logging.info(f'Adversarial data accuracy: {ad_accuracy}, loss: {ad_loss}')
+    clean_data_dataloader = torch.utils.data.DataLoader(
+        clean_data_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=eeg_classification_collate,
+    )
     clean_accuracy, clean_loss = evaluate(model, clean_data_dataloader)
     logging.info(f'Clean data accuracy: {clean_accuracy}, loss: {clean_loss}')
 
-    if args.attack != 'clean':
-        # purify
-        purified_ad_data = []
-        mses_ad = []
-        for i in range(args.sample_num):
+    purified_ad_data = None
+    mses_ad = []
+    if ad_data is not None:
+        purified_ad_samples = []
+        for i in range(sample_num):
             tmp_purified_ad_data, mse = purify(args, i, ad_data[i], info['sampling_rate'], device, logging)
-            purified_ad_data.append(tmp_purified_ad_data)
+            purified_ad_samples.append(tmp_purified_ad_data)
             mses_ad.append(mse)
+        purified_ad_data = torch.stack(purified_ad_samples, dim=0)
         logging.info('')
         logging.info('')
     
     purified_clean_data = []
     mses_clean = []
-    for i in range(args.sample_num):
+    for i in range(sample_num):
         tmp_purified_clean_data, mse = purify(args, i, clean_data[i], info['sampling_rate'], device, logging)
         purified_clean_data.append(tmp_purified_clean_data)
         mses_clean.append(mse)
     logging.info('')
     logging.info('')
 
-    if args.attack != 'clean':
-        purified_ad_data = torch.stack(purified_ad_data, dim=0)
+    purified_ad_accuracy = None
+    purified_ad_loss = None
+    if purified_ad_data is not None:
         purified_ad_data_dataset = torch.utils.data.TensorDataset(purified_ad_data, labels)
-        purified_ad_data_dataloader = torch.utils.data.DataLoader(purified_ad_data_dataset, batch_size=args.batch_size, shuffle=False)
+        purified_ad_data_dataloader = torch.utils.data.DataLoader(
+            purified_ad_data_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            collate_fn=eeg_classification_collate,
+        )
         purified_ad_accuracy, purified_ad_loss = evaluate(model, purified_ad_data_dataloader)
         logging.info(f'Purified adversarial data accuracy: {purified_ad_accuracy}, loss: {purified_ad_loss}')
     purified_clean_data = torch.stack(purified_clean_data, dim=0)
     purified_clean_data_dataset = torch.utils.data.TensorDataset(purified_clean_data, labels)
-    purified_clean_data_dataloader = torch.utils.data.DataLoader(purified_clean_data_dataset, batch_size=args.batch_size, shuffle=False)
+    purified_clean_data_dataloader = torch.utils.data.DataLoader(
+        purified_clean_data_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=eeg_classification_collate,
+    )
     purified_clean_accuracy, purified_clean_loss = evaluate(model, purified_clean_data_dataloader)
     logging.info(f'Purified clean data accuracy: {purified_clean_accuracy}, loss: {purified_clean_loss}')
-    logging.info(f'Mean mse of purified adversarial data: {np.mean(mses_ad)}')
+    if mses_ad:
+        logging.info(f'Mean mse of purified adversarial data: {np.mean(mses_ad)}')
+    else:
+        logging.info('Mean mse of purified adversarial data: N/A')
     logging.info(f'Mean mse of purified clean data: {np.mean(mses_clean)}')
 
-    # # save purified data
-    # if args.attack != 'clean':
-    #     torch.save((purified_ad_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}_{args.config}_ad.pth')
-    # torch.save((purified_clean_data, labels), f'./purified_data/{args.dataset}_{args.model}_{args.attack}_eps{args.eps}_{args.seed}_fold{args.fold}_{args.config}_clean.pth')
+    if args.save_purified:
+        os.makedirs('./purified_data/attacked', exist_ok=True)
+        model_tag = infer_model_tag(args, ad_meta)
+        ad_output_path, clean_output_path = build_purified_output_paths(
+            args=args,
+            protocol_short=short_protocol_tag(args.use_ea),
+            model_tag=model_tag,
+            sample_num=sample_num,
+        )
+        common_meta = {
+            'dataset': args.dataset,
+            'model': args.model,
+            'at_strategy': args.at_strategy,
+            'fold': args.fold,
+            'seed': args.seed,
+            'protocol': protocol_tag,
+            'protocol_short': short_protocol_tag(args.use_ea),
+            'use_ea': args.use_ea,
+            'attack': args.attack,
+            'eps': args.eps,
+            'config': args.config,
+            'sample_num': sample_num,
+            'requested_sample_num': args.sample_num,
+            'selection_strategy': 'random_without_replacement',
+            'selection_seed': selection_seed,
+            'source_indices': selected_indices,
+            'ad_data_path': ad_data_path,
+            'checkpoint_path': checkpoint_path,
+            'model_tag': model_tag,
+            'source_split': 'test',
+            'ad_meta': ad_meta,
+            'clean_accuracy': clean_accuracy,
+            'clean_loss': clean_loss,
+            'purified_clean_accuracy': purified_clean_accuracy,
+            'purified_clean_loss': purified_clean_loss,
+            'mean_clean_mse': float(np.mean(mses_clean)) if mses_clean else None,
+        }
+        if purified_ad_data is not None:
+            ad_meta_out = dict(common_meta)
+            ad_meta_out.update({
+                'kind': 'adversarial',
+                'ad_accuracy': ad_accuracy,
+                'ad_loss': ad_loss,
+                'purified_ad_accuracy': purified_ad_accuracy,
+                'purified_ad_loss': purified_ad_loss,
+                'mean_ad_mse': float(np.mean(mses_ad)) if mses_ad else None,
+            })
+            torch.save((purified_ad_data, labels, ad_meta_out), ad_output_path)
+            logging.info(f'Saved purified adversarial data: {ad_output_path}')
+        clean_meta_out = dict(common_meta)
+        clean_meta_out.update({'kind': 'clean'})
+        torch.save((purified_clean_data, labels, clean_meta_out), clean_output_path)
+        logging.info(f'Saved purified clean data: {clean_output_path}')

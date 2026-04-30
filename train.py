@@ -14,7 +14,7 @@ from torcheeg.models import EEGNet, TSCeption, ATCNet, Conformer
 
 from models.model_args import get_model_args
 from data.load import load_seediv, load_m3cv, load_bciciv2a, load_thubenchmark
-from data.subject_ea import get_protocol_tag, iter_subject_ea_folds
+from data.subject_ea import get_protocol_tag, iter_subject_folds
 
 def seed_everything(seed=42):
     torch.manual_seed(seed)
@@ -31,10 +31,14 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=400, help='number of epochs to train')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size for training')
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
-    parser.add_argument('--weight_decay', type=float, default=0, help='weight decay')
+    parser.add_argument('--weight_decay', type=float, default=1e-4, help='weight decay')
     parser.add_argument('--patience', type=int, default=20, help='early stopping patience')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--gpu_id', type=int, default=0, help='which gpu to use')
+    parser.add_argument('--use_ea', dest='use_ea', action='store_true', default=False,
+                        help='use EA-aligned data after subject split')
+    parser.add_argument('--no_ea', dest='use_ea', action='store_false',
+                        help='use raw subject-split data without EA alignment')
     args = parser.parse_args()
     return args
 
@@ -68,8 +72,8 @@ if __name__ == '__main__':
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Training {args.dataset} with {args.model}')
     logging.info(args)
-    protocol_tag = get_protocol_tag()
-    logging.info(f'EA protocol: {protocol_tag}')
+    protocol_tag = get_protocol_tag(use_ea=args.use_ea)
+    logging.info(f'Data protocol: {protocol_tag}, use_ea: {args.use_ea}')
 
     # load dataset
     dataset_dict = {
@@ -85,11 +89,12 @@ if __name__ == '__main__':
     accs = []
     losses = []
     best_models = []
-    for index, train_dataset, val_dataset, test_dataset, split_path in iter_subject_ea_folds(
+    for index, train_dataset, val_dataset, test_dataset, split_path in iter_subject_folds(
         dataset_name=args.dataset,
         dataset=dataset,
         info=info,
-        seed=args.seed
+        seed=args.seed,
+        use_ea=args.use_ea,
     ):
         if index >= 1:
             break
@@ -132,7 +137,7 @@ if __name__ == '__main__':
                 loss = criterion(output, target)
                 loss.backward()
                 # grad clip
-                # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.01)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.01)
                 optimizer.step()
                 train_loss += loss.item() * data.size(0)
             train_loss /= len(train_loader.dataset)

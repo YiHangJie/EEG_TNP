@@ -10,11 +10,12 @@ from data.ea_utils import EA_R_inv_sqrt, eeg_alignment, finalize_eeg_sample
 
 
 EA_PROTOCOL_TAG = 'train_only_subject_ea_subject_split'
+RAW_PROTOCOL_TAG = 'train_only_subject_no_ea_subject_split'
 DEFAULT_N_SPLITS = 5
 
 
-def get_protocol_tag() -> str:
-    return EA_PROTOCOL_TAG
+def get_protocol_tag(use_ea: bool = True) -> str:
+    return EA_PROTOCOL_TAG if use_ea else RAW_PROTOCOL_TAG
 
 
 def get_default_n_splits(dataset_name: str) -> int:
@@ -170,10 +171,9 @@ def _validate_subject_coverage(dataset, subject_r_inv_sqrt, split_name: str):
         )
 
 
-class SubjectEAAlignedDataset(Dataset):
-    def __init__(self, dataset, subject_r_inv_sqrt):
+class CachedEEGDataset(Dataset):
+    def __init__(self, dataset):
         self.dataset = dataset
-        self.subject_r_inv_sqrt = subject_r_inv_sqrt
         self.info = dataset.info
         self.num_channel = getattr(dataset, 'num_channel', None)
 
@@ -183,14 +183,13 @@ class SubjectEAAlignedDataset(Dataset):
     def read_info(self, index: int):
         return self.dataset.read_info(index)
 
+    def _prepare_eeg(self, eeg: np.ndarray, info: dict) -> np.ndarray:
+        return eeg
+
     def __getitem__(self, index: int):
         info = self.dataset.read_info(index)
-        subject_id = info['subject_id']
-        if subject_id not in self.subject_r_inv_sqrt:
-            raise ValueError(f'Missing EA matrix for subject_id={subject_id}.')
-
         eeg = _read_cached_eeg(self.dataset, index)
-        eeg = eeg_alignment(eeg, self.subject_r_inv_sqrt[subject_id])
+        eeg = self._prepare_eeg(eeg, info)
         signal = finalize_eeg_sample(eeg)
 
         label = info
@@ -200,13 +199,26 @@ class SubjectEAAlignedDataset(Dataset):
         return signal, label
 
 
-def prepare_subject_ea_fold(dataset_name: str,
-                            dataset,
-                            info: dict,
-                            fold_id: int,
-                            seed: int = 42,
-                            n_splits: int | None = None,
-                            split_path: str | None = None):
+class SubjectEAAlignedDataset(CachedEEGDataset):
+    def __init__(self, dataset, subject_r_inv_sqrt):
+        super().__init__(dataset)
+        self.subject_r_inv_sqrt = subject_r_inv_sqrt
+
+    def _prepare_eeg(self, eeg: np.ndarray, info: dict) -> np.ndarray:
+        subject_id = info['subject_id']
+        if subject_id not in self.subject_r_inv_sqrt:
+            raise ValueError(f'Missing EA matrix for subject_id={subject_id}.')
+        return eeg_alignment(eeg, self.subject_r_inv_sqrt[subject_id])
+
+
+def prepare_subject_fold(dataset_name: str,
+                         dataset,
+                         info: dict,
+                         fold_id: int,
+                         seed: int = 42,
+                         n_splits: int | None = None,
+                         split_path: str | None = None,
+                         use_ea: bool = True):
     if n_splits is None:
         n_splits = get_default_n_splits(dataset_name)
     split_path = build_or_load_subject_splits(
@@ -225,6 +237,14 @@ def prepare_subject_ea_fold(dataset_name: str,
     val_dataset = _subset_dataset(dataset, val_info)
     test_dataset = _subset_dataset(dataset, test_info)
 
+    if not use_ea:
+        return (
+            CachedEEGDataset(train_dataset),
+            CachedEEGDataset(val_dataset),
+            CachedEEGDataset(test_dataset),
+            split_path,
+        )
+
     subject_r_inv_sqrt = fit_subject_r_inv_sqrt(train_dataset)
     _validate_subject_coverage(val_dataset, subject_r_inv_sqrt, 'Validation')
     _validate_subject_coverage(test_dataset, subject_r_inv_sqrt, 'Test')
@@ -237,22 +257,62 @@ def prepare_subject_ea_fold(dataset_name: str,
     )
 
 
-def iter_subject_ea_folds(dataset_name: str,
-                          dataset,
-                          info: dict,
-                          seed: int = 42,
-                          n_splits: int | None = None,
-                          split_path: str | None = None):
+def prepare_subject_ea_fold(dataset_name: str,
+                            dataset,
+                            info: dict,
+                            fold_id: int,
+                            seed: int = 42,
+                            n_splits: int | None = None,
+                            split_path: str | None = None,
+                            use_ea: bool = True):
+    return prepare_subject_fold(
+        dataset_name=dataset_name,
+        dataset=dataset,
+        info=info,
+        fold_id=fold_id,
+        seed=seed,
+        n_splits=n_splits,
+        split_path=split_path,
+        use_ea=use_ea,
+    )
+
+
+def iter_subject_folds(dataset_name: str,
+                       dataset,
+                       info: dict,
+                       seed: int = 42,
+                       n_splits: int | None = None,
+                       split_path: str | None = None,
+                       use_ea: bool = True):
     if n_splits is None:
         n_splits = get_default_n_splits(dataset_name)
     for fold_id in range(n_splits):
-        train_dataset, val_dataset, test_dataset, split_path = prepare_subject_ea_fold(
+        train_dataset, val_dataset, test_dataset, split_path = prepare_subject_fold(
             dataset_name=dataset_name,
             dataset=dataset,
             info=info,
             fold_id=fold_id,
             seed=seed,
             n_splits=n_splits,
-            split_path=split_path
+            split_path=split_path,
+            use_ea=use_ea,
         )
         yield fold_id, train_dataset, val_dataset, test_dataset, split_path
+
+
+def iter_subject_ea_folds(dataset_name: str,
+                          dataset,
+                          info: dict,
+                          seed: int = 42,
+                          n_splits: int | None = None,
+                          split_path: str | None = None,
+                          use_ea: bool = True):
+    yield from iter_subject_folds(
+        dataset_name=dataset_name,
+        dataset=dataset,
+        info=info,
+        seed=seed,
+        n_splits=n_splits,
+        split_path=split_path,
+        use_ea=use_ea,
+    )
