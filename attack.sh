@@ -1,4 +1,4 @@
-target_pid=1009279
+target_pid=505395
 while kill -0 $target_pid 2> /dev/null; do
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] PID $target_pid 仍在运行..."
   sleep 30
@@ -14,10 +14,10 @@ commands=(
     # "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack cw" 
     # "python -u attack.py --dataset thubenchmark --model eegnet --fold 0 --attack autoattack"
 
-    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy clean --fold 0 --attack autoattack --eps 0.1"
-    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy madry --fold 0 --attack autoattack --eps 0.1"
-    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy fbf --fold 0 --attack autoattack --eps 0.1"
-    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy trades --fold 0 --attack autoattack --eps 0.1"
+    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy clean --fold 0 --attack autoattack --eps 0.1"
+    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy madry --fold 0 --attack autoattack --eps 0.1"
+    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy fbf --fold 0 --attack autoattack --eps 0.1"
+    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy trades --fold 0 --attack autoattack --eps 0.1"
 
     # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy clean --fold 0 --attack fgsm --eps 0.1"
     # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy madry --fold 0 --attack fgsm --eps 0.1"
@@ -34,20 +34,20 @@ commands=(
     # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy fbf --fold 0 --attack cw --eps 0.1"
     # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy trades --fold 0 --attack cw --eps 0.1"
 
-    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy clean --fold 0 --attack autoattack --eps 0.05"
-    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy madry --fold 0 --attack autoattack --eps 0.05"
-    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy fbf --fold 0 --attack autoattack --eps 0.05"
-    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy trades --fold 0 --attack autoattack --eps 0.05"
+    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy clean --fold 0 --attack autoattack --eps 0.05"
+    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy madry --fold 0 --attack autoattack --eps 0.05"
+    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy fbf --fold 0 --attack autoattack --eps 0.05"
+    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy trades --fold 0 --attack autoattack --eps 0.05"
 
     # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy clean --fold 0 --attack autoattack --eps 0.01"
     # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy madry --fold 0 --attack autoattack --eps 0.01"
     # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy fbf --fold 0 --attack autoattack --eps 0.01"
     # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy trades --fold 0 --attack autoattack --eps 0.01"
 
-    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy clean --fold 0 --attack autoattack --eps 0.03"
-    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy madry --fold 0 --attack autoattack --eps 0.03"
-    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy fbf --fold 0 --attack autoattack --eps 0.03"
-    "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy trades --fold 0 --attack autoattack --eps 0.03"
+    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy clean --fold 0 --attack autoattack --eps 0.03"
+    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy madry --fold 0 --attack autoattack --eps 0.03"
+    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy fbf --fold 0 --attack autoattack --eps 0.03"
+    # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy trades --fold 0 --attack autoattack --eps 0.03"
 
     # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy clean --fold 0 --attack fgsm --eps 0.05"
     # "python -u attack.py --dataset thubenchmark --model eegnet --at_strategy madry --fold 0 --attack fgsm --eps 0.05"

@@ -321,60 +321,60 @@ if __name__ == '__main__':
             torch.save((ad_data, labels), adv_output_path)
         logging.info(f'Saved adversarial data: {adv_output_path}')
 
-    if args.at_strategy != 'clean':
-        logging.info("Test model on 512 random samples for adversarial training")
-        test_data = []
-        test_label = []
-        for data, target in test_loader:
-            test_data.append(data.detach().cpu())
-            test_label.append(target.detach().cpu())
-        test_data = torch.cat(test_data, dim=0)
-        test_label = torch.cat(test_label, dim=0)
-        available_sample_num = min(test_data.size(0), ad_data.size(0), labels.size(0))
-        eval_sample_num = min(512, available_sample_num)
-        selected_indices, selection_seed = select_random_indices(
-            dataset_size=available_sample_num,
-            sample_num=eval_sample_num,
-            seed=args.seed,
-            fold=args.fold,
-        )
-        selected_index_tensor = torch.as_tensor(selected_indices, dtype=torch.long)
-        logging.info(
-            f'Selected {len(selected_indices)} random test samples without replacement; '
-            f'selection_seed: {selection_seed}'
-        )
-        logging.info(f'Source index preview: {selected_indices[:20]}')
+    # if args.at_strategy != 'clean':
+    logging.info("Test model on 512 random samples for adversarial training")
+    test_data = []
+    test_label = []
+    for data, target in test_loader:
+        test_data.append(data.detach().cpu())
+        test_label.append(target.detach().cpu())
+    test_data = torch.cat(test_data, dim=0)
+    test_label = torch.cat(test_label, dim=0)
+    available_sample_num = min(test_data.size(0), ad_data.size(0), labels.size(0))
+    eval_sample_num = min(512, available_sample_num)
+    selected_indices, selection_seed = select_random_indices(
+        dataset_size=available_sample_num,
+        sample_num=eval_sample_num,
+        seed=args.seed,
+        fold=args.fold,
+    )
+    selected_index_tensor = torch.as_tensor(selected_indices, dtype=torch.long)
+    logging.info(
+        f'Selected {len(selected_indices)} random test samples without replacement; '
+        f'selection_seed: {selection_seed}'
+    )
+    logging.info(f'Source index preview: {selected_indices[:20]}')
 
-        test_dataset = torch.utils.data.TensorDataset(
-            test_data[selected_index_tensor],
-            test_label[selected_index_tensor],
-        )
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset,
-            batch_size=args.batch_size,
-            shuffle=False,
-            collate_fn=eeg_classification_collate,
-        )
+    test_dataset = torch.utils.data.TensorDataset(
+        test_data[selected_index_tensor],
+        test_label[selected_index_tensor],
+    )
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=eeg_classification_collate,
+    )
 
-        ad_dataset = torch.utils.data.TensorDataset(
-            ad_data[selected_index_tensor],
-            labels[selected_index_tensor],
-        )
-        ad_loader = torch.utils.data.DataLoader(
-            ad_dataset,
-            batch_size=args.batch_size,
-            shuffle=False,
-            collate_fn=eeg_classification_collate,
-        )
-        ad_evaluate_acc, ad_evaluate_loss = evaluate(model, ad_loader)
+    ad_dataset = torch.utils.data.TensorDataset(
+        ad_data[selected_index_tensor],
+        labels[selected_index_tensor],
+    )
+    ad_loader = torch.utils.data.DataLoader(
+        ad_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=eeg_classification_collate,
+    )
+    ad_evaluate_acc, ad_evaluate_loss = evaluate(model, ad_loader)
 
-        logging.info(f'After Attack - Test Accuracy on {eval_sample_num} random samples: {ad_evaluate_acc*100:.2f}%, Test Loss: {ad_evaluate_loss:.4f}')
-        test_evaluate_acc, test_evaluate_loss = evaluate(model, test_loader)
-        logging.info(f'Before Attack - Test Accuracy on {eval_sample_num} random samples: {test_evaluate_acc*100:.2f}%, Test Loss: {test_evaluate_loss:.4f}')
-
-            
+    logging.info(f'After Attack - Test Accuracy on {eval_sample_num} random samples: {ad_evaluate_acc*100:.2f}%, Test Loss: {ad_evaluate_loss:.4f}')
+    test_evaluate_acc, test_evaluate_loss = evaluate(model, test_loader)
+    logging.info(f'Before Attack - Test Accuracy on {eval_sample_num} random samples: {test_evaluate_acc*100:.2f}%, Test Loss: {test_evaluate_loss:.4f}')
 
         
-        
 
-        
+    
+    
+
+    

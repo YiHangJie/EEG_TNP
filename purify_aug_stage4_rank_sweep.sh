@@ -9,6 +9,8 @@ set -euo pipefail
 #   DRY_RUN=1 RANKS_CSV=2,3,5,10,15,20,25,30,35,40 bash purify_aug_stage4_rank_sweep.sh
 #   RUN_TAG=puraug_rank5-40_n512_eps0p03 GPU_IDS=0,1 MAX_JOBS=2 bash purify_aug_stage4_rank_sweep.sh
 #   STAGE4_CONFIGS_CSV='PTR3d_8_2048_rank25_3d_interpolate.yaml,PTR3d_8_2048_rank30_3d_interpolate.yaml' bash purify_aug_stage4_rank_sweep.sh
+#   RANKS_CSV=25,30,35,40 TVFT_WEIGHTS_CSV=0.01,0.02,0.03,0.04,0.05 CONFIG_TEMPLATE='PTR3d_8_2048_rank{rank}_3d_interpolate_TVft{tvft}.yaml' bash purify_aug_stage4_rank_sweep.sh
+#   OUTPUT_TAG=stage4_rank_sweep bash purify_aug_stage4_rank_sweep.sh
 #   nohup bash purify_aug_stage4_rank_sweep.sh > logs/purify_aug_stage4_rank_sweep_$(date +%Y%m%d_%H%M%S).log 2>&1 &
 
 DATASET="${DATASET:-thubenchmark}"
@@ -31,7 +33,8 @@ RUN_TAG="${RUN_TAG:-puraug_rank25-30_n${SAMPLE_NUM}_eps${EPS//./p}}"
 MODEL_TAG="${MODEL_TAG:-auto}"
 CHECKPOINT_PATH="${CHECKPOINT_PATH:-auto}"
 AD_DATA_PATH="${AD_DATA_PATH:-auto}"
-OUTPUT_TAG="${OUTPUT_TAG:-stage4_rank_sweep}"
+# 默认不追加额外 output tag，使 stage4 sweep 的输出文件名与 purify_aug_pipeline.sh 对齐。
+OUTPUT_TAG="${OUTPUT_TAG:-none}"
 
 CONFIG_DIR="${CONFIG_DIR:-configs/${DATASET}}"
 CONFIG_GLOB="${CONFIG_GLOB:-PTR3d_8_2048_rank*_3d_interpolate.yaml}"
@@ -39,6 +42,7 @@ if [[ -z "${CONFIG_TEMPLATE:-}" ]]; then
   CONFIG_TEMPLATE='PTR3d_8_2048_rank{rank}_3d_interpolate.yaml'
 fi
 RANKS_CSV="${RANKS_CSV:-auto}"
+TVFT_WEIGHTS_CSV="${TVFT_WEIGHTS_CSV:-none}"
 STAGE4_CONFIGS_CSV="${STAGE4_CONFIGS_CSV:-auto}"
 
 OVERWRITE="${OVERWRITE:-0}"
@@ -172,7 +176,7 @@ fi
 if [[ "${RANKS_CSV}" == "auto" ]]; then
   case "${DATASET}" in
     thubenchmark)
-      RANKS_CSV="2,3,5,10,15,20,25,30,35,40"
+      RANKS_CSV="5,10,15,20,25,30,35,40"
       ;;
     bciciv2a)
       RANKS_CSV="5,10,15,20,25,30,35,40"
@@ -191,6 +195,14 @@ if [[ "${STAGE4_CONFIGS_CSV}" != "auto" ]]; then
   IFS=',' read -r -a configs <<< "${STAGE4_CONFIGS_CSV}"
 elif [[ -n "${RANKS_CSV}" ]]; then
   IFS=',' read -r -a ranks <<< "${RANKS_CSV}"
+  tvft_weights=()
+  if [[ "${TVFT_WEIGHTS_CSV}" != "none" ]]; then
+    if [[ "${CONFIG_TEMPLATE}" != *"{tvft}"* ]]; then
+      echo "CONFIG_TEMPLATE must contain {tvft} when TVFT_WEIGHTS_CSV is set." >&2
+      exit 1
+    fi
+    IFS=',' read -r -a tvft_weights <<< "${TVFT_WEIGHTS_CSV}"
+  fi
   for rank in "${ranks[@]}"; do
     rank="${rank//[[:space:]]/}"
     if [[ -z "${rank}" ]]; then
@@ -200,7 +212,23 @@ elif [[ -n "${RANKS_CSV}" ]]; then
       echo "Invalid rank in RANKS_CSV: ${rank}" >&2
       exit 1
     fi
-    configs+=("${CONFIG_TEMPLATE//\{rank\}/${rank}}")
+    if [[ "${#tvft_weights[@]}" -eq 0 ]]; then
+      configs+=("${CONFIG_TEMPLATE//\{rank\}/${rank}}")
+      continue
+    fi
+    for tvft_weight in "${tvft_weights[@]}"; do
+      tvft_weight="${tvft_weight//[[:space:]]/}"
+      if [[ -z "${tvft_weight}" ]]; then
+        continue
+      fi
+      if [[ ! "${tvft_weight}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        echo "Invalid TVft weight in TVFT_WEIGHTS_CSV: ${tvft_weight}" >&2
+        exit 1
+      fi
+      config_name="${CONFIG_TEMPLATE//\{rank\}/${rank}}"
+      config_name="${config_name//\{tvft\}/${tvft_weight}}"
+      configs+=("${config_name}")
+    done
   done
 else
   mapfile -t configs < <(find "${CONFIG_DIR}" -maxdepth 1 -type f -name "${CONFIG_GLOB}" -printf '%f\n' | sort -V)
@@ -246,6 +274,7 @@ echo "RUN_TAG=${RUN_TAG_SAFE}, MODEL_TAG=${MODEL_TAG}"
 echo "CHECKPOINT_PATH=${CHECKPOINT_PATH}"
 echo "AD_DATA_PATH=${AD_DATA_PATH}"
 echo "CONFIG_DIR=${CONFIG_DIR}"
+echo "TVFT_WEIGHTS_CSV=${TVFT_WEIGHTS_CSV}"
 echo "CONFIGS=${configs[*]}"
 echo "MAX_JOBS=${MAX_JOBS}, GPU_IDS=${gpu_ids[*]}, DRY_RUN=${DRY_RUN}, OVERWRITE=${OVERWRITE}"
 echo "======================================================"

@@ -14,22 +14,22 @@ commands=(
     # "python -u train_AT.py --dataset bciciv2a --model eegnet --at_strategy trades" 
     # "python -u train_AT.py --dataset bciciv2a --model eegnet --at_strategy clean"
 
-    # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy madry"
-    # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy fbf"
-    # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy trades" 
-    "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy clean"
+    "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy madry"
+    "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy fbf"
+    "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy trades" 
+    # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy clean"
 
-    # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy madry --epsilon 0.05"
-    # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy fbf --epsilon 0.05"
-    # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy trades --epsilon 0.05" 
+    "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy madry --epsilon 0.05"
+    "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy fbf --epsilon 0.05"
+    "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy trades --epsilon 0.05" 
 
     # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy madry --epsilon 0.01"
     # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy fbf --epsilon 0.01"
     # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy trades --epsilon 0.01" 
 
-    "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy madry --epsilon 0.03"
-    "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy fbf --epsilon 0.03"
-    "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy trades --epsilon 0.03" 
+    # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy madry --epsilon 0.03"
+    # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy fbf --epsilon 0.03"
+    # "python -u train_AT.py --dataset thubenchmark --model eegnet --at_strategy trades --epsilon 0.03" 
 )
 
 # Run each command in the array in the background, with at most max_jobs concurrent jobs
