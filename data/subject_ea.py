@@ -3,6 +3,7 @@ from copy import copy
 
 import numpy as np
 import pandas as pd
+import torch
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 
@@ -211,6 +212,42 @@ class SubjectEAAlignedDataset(CachedEEGDataset):
         return eeg_alignment(eeg, self.subject_r_inv_sqrt[subject_id])
 
 
+class SubjectIndexedCachedEEGDataset(CachedEEGDataset):
+    def __init__(self, dataset, subject_to_index, finalize_signal: bool = True):
+        super().__init__(dataset)
+        self.subject_to_index = subject_to_index
+        self.finalize_signal = finalize_signal
+
+    def __getitem__(self, index: int):
+        info = self.dataset.read_info(index)
+        eeg = _read_cached_eeg(self.dataset, index)
+        if self.finalize_signal:
+            signal = finalize_eeg_sample(eeg)
+        else:
+            # EA-in-forward 需要拿到未做单样本归一化的输入，保证顺序是 EA -> normalize。
+            signal = torch.from_numpy(np.asarray(eeg[np.newaxis, ...], dtype=np.float32))
+        label = info
+        if getattr(self.dataset, 'label_transform', None):
+            label = self.dataset.label_transform(y=info)['y']
+        subject_id = info['subject_id']
+        if subject_id not in self.subject_to_index:
+            raise ValueError(f'Missing subject index for subject_id={subject_id}.')
+        return signal, label, self.subject_to_index[subject_id]
+
+
+def _build_subject_to_index(subject_r_inv_sqrt):
+    """按稳定顺序给训练集中出现的 subject 建立矩阵索引。"""
+    subject_ids = sorted(subject_r_inv_sqrt.keys(), key=lambda item: str(item))
+    return {subject_id: index for index, subject_id in enumerate(subject_ids)}
+
+
+def _stack_ea_matrices(subject_r_inv_sqrt, subject_to_index):
+    ea_matrices = [None] * len(subject_to_index)
+    for subject_id, matrix in subject_r_inv_sqrt.items():
+        ea_matrices[subject_to_index[subject_id]] = torch.as_tensor(matrix, dtype=torch.float32)
+    return torch.stack(ea_matrices, dim=0)
+
+
 def prepare_subject_fold(dataset_name: str,
                          dataset,
                          info: dict,
@@ -254,6 +291,54 @@ def prepare_subject_fold(dataset_name: str,
         SubjectEAAlignedDataset(val_dataset, subject_r_inv_sqrt),
         SubjectEAAlignedDataset(test_dataset, subject_r_inv_sqrt),
         split_path,
+    )
+
+
+def prepare_subject_ea_forward_fold(dataset_name: str,
+                                    dataset,
+                                    info: dict,
+                                    fold_id: int,
+                                    seed: int = 42,
+                                    n_splits: int | None = None,
+                                    split_path: str | None = None):
+    """
+    构造 raw/no_ea split，并返回模型内 EA 所需的 subject 索引和固定矩阵。
+
+    EA 矩阵只从训练 split 拟合；样本本身不在 Dataset 层做 EA 变换，
+    而是返回 subject_index 供模型 forward 中查表。
+    """
+    if n_splits is None:
+        n_splits = get_default_n_splits(dataset_name)
+    split_path = build_or_load_subject_splits(
+        dataset_name=dataset_name,
+        info=dataset.info,
+        n_splits=n_splits,
+        seed=seed,
+        split_path=split_path
+    )
+
+    train_info = pd.read_csv(os.path.join(split_path, f'train_fold_{fold_id}.csv'))
+    val_info = pd.read_csv(os.path.join(split_path, f'val_fold_{fold_id}.csv'))
+    test_info = pd.read_csv(os.path.join(split_path, f'test_fold_{fold_id}.csv'))
+
+    train_dataset = _subset_dataset(dataset, train_info)
+    val_dataset = _subset_dataset(dataset, val_info)
+    test_dataset = _subset_dataset(dataset, test_info)
+
+    subject_r_inv_sqrt = fit_subject_r_inv_sqrt(train_dataset)
+    _validate_subject_coverage(val_dataset, subject_r_inv_sqrt, 'Validation')
+    _validate_subject_coverage(test_dataset, subject_r_inv_sqrt, 'Test')
+
+    subject_to_index = _build_subject_to_index(subject_r_inv_sqrt)
+    ea_matrices = _stack_ea_matrices(subject_r_inv_sqrt, subject_to_index)
+
+    return (
+        SubjectIndexedCachedEEGDataset(train_dataset, subject_to_index, finalize_signal=False),
+        SubjectIndexedCachedEEGDataset(val_dataset, subject_to_index, finalize_signal=False),
+        SubjectIndexedCachedEEGDataset(test_dataset, subject_to_index, finalize_signal=False),
+        split_path,
+        ea_matrices,
+        subject_to_index,
     )
 
 

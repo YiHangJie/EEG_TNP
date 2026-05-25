@@ -297,11 +297,16 @@ if __name__ == '__main__':
     timestamp = str(datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
     checkpoint_tag = f'aug_{safe_token(args.purified_aug_tag)}' if args.use_purified_aug else None
     aug_suffix = f'_{checkpoint_tag}' if checkpoint_tag else ''
-    logfile_directory = f'./log_train_AT/train_{args.dataset}_{args.model}_{args.at_strategy}_eps{args.epsilon}_{args.seed}_{args.lr}_{args.weight_decay}_{args.batch_size}{aug_suffix}_{timestamp}.log'
+    protocol_tag = get_protocol_tag(use_ea=args.use_ea)
+    protocol_short = 'ea' if args.use_ea else 'no_ea'
+    logfile_directory = (
+        f'./log_train_AT/train_{args.dataset}_{args.model}_{protocol_short}_{args.at_strategy}_'
+        f'eps{args.epsilon}_{args.seed}_{args.lr}_{args.weight_decay}_{args.batch_size}'
+        f'{aug_suffix}_{timestamp}.log'
+    )
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Training {args.dataset} with {args.model}')
     logging.info(args)
-    protocol_tag = get_protocol_tag(use_ea=args.use_ea)
     logging.info(f'Data protocol: {protocol_tag}, use_ea: {args.use_ea}')
     logging.info(f'Purified augmentation enabled: {args.use_purified_aug}, tag: {args.purified_aug_tag}')
     logging.info(

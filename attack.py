@@ -186,15 +186,20 @@ if __name__ == '__main__':
     seed_everything(args.seed)
     device = torch.device(f'cuda:{args.gpu_id}' if torch.cuda.is_available() else 'cpu')
 
+    protocol_tag = get_protocol_tag(use_ea=args.use_ea)
+    protocol_short = short_protocol_tag(args.use_ea)
+
     # set log file
     checkpoint_log_tag = os.path.splitext(os.path.basename(args.checkpoint_path))[0] if args.checkpoint_path else ''
     log_tag = safe_token(args.adv_output_tag or args.checkpoint_tag or checkpoint_log_tag or '')
     log_suffix = f'_{log_tag}' if log_tag != 'none' else ''
-    logfile_directory = f'./log_attack/attack_{args.dataset}_{args.model}_{args.at_strategy}_{args.attack}_{args.eps}_{args.seed}{log_suffix}.log'
+    logfile_directory = (
+        f'./log_attack/attack_{args.dataset}_{args.model}_{protocol_short}_{args.at_strategy}_'
+        f'{args.attack}_{args.eps}_{args.seed}{log_suffix}.log'
+    )
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Attacking {args.attack} on {args.dataset} with {args.model}')
     logging.info(args)
-    protocol_tag = get_protocol_tag(use_ea=args.use_ea)
     logging.info(f'Data protocol: {protocol_tag}, use_ea: {args.use_ea}')
 
     # load dataset

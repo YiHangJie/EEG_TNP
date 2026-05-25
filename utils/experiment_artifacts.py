@@ -45,6 +45,28 @@ def eeg_classification_collate(batch):
     return torch.stack(data_parts, dim=0), torch.tensor(label_parts, dtype=torch.long)
 
 
+def eeg_subject_classification_collate(batch):
+    """整理带 subject_index 的 EEG 分类 batch，供模型内 EA 查表使用。"""
+    data_parts = []
+    label_parts = []
+    subject_parts = []
+    for data, label, subject_index in batch:
+        data_parts.append(torch.as_tensor(data).float())
+        label_tensor = torch.as_tensor(label, dtype=torch.long).view(-1)
+        if label_tensor.numel() != 1:
+            raise ValueError(f'Expected scalar class label, got shape {tuple(label_tensor.shape)}.')
+        subject_tensor = torch.as_tensor(subject_index, dtype=torch.long).view(-1)
+        if subject_tensor.numel() != 1:
+            raise ValueError(f'Expected scalar subject index, got shape {tuple(subject_tensor.shape)}.')
+        label_parts.append(label_tensor.item())
+        subject_parts.append(subject_tensor.item())
+    return (
+        torch.stack(data_parts, dim=0),
+        torch.tensor(label_parts, dtype=torch.long),
+        torch.tensor(subject_parts, dtype=torch.long),
+    )
+
+
 def torch_load_cpu(path):
     try:
         return torch.load(path, map_location='cpu', weights_only=False)

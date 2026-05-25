@@ -4,16 +4,23 @@ import numpy as np
 import pandas as pd
 import torch
 
+from runtime_env import configure_runtime_env
+
+configure_runtime_env()
+
 from data.ea_utils import EA_R_inv_sqrt, eeg_alignment, finalize_eeg_sample
 from data.subject_ea import (
     CachedEEGDataset,
     SubjectEAAlignedDataset,
+    SubjectIndexedCachedEEGDataset,
     build_or_load_subject_splits,
     build_or_load_grouped_splits,
     fit_subject_r_inv_sqrt,
     prepare_subject_fold,
     prepare_subject_ea_fold,
+    prepare_subject_ea_forward_fold,
 )
+from models.eegnet_ea_forward import SubjectEAEEGNet
 
 
 class FakeLabelTransform:
@@ -241,3 +248,55 @@ def test_prepare_subject_fold_without_ea_returns_raw_dataset():
         assert train_signal.ndim == 3
         assert train_signal.shape[0] == 1
         assert train_label in (0, 1)
+
+
+def test_subject_indexed_dataset_can_return_unfinalized_signal():
+    dataset = _make_subject_dataset()
+    subject_to_index = {'s1': 0, 's2': 1}
+    indexed_dataset = SubjectIndexedCachedEEGDataset(dataset, subject_to_index, finalize_signal=False)
+
+    signal, label, subject_index = indexed_dataset[0]
+    info = dataset.read_info(0)
+    expected_signal = torch.from_numpy(
+        np.asarray(dataset.read_eeg(info['_record_id'], info['clip_id'])[np.newaxis, ...], dtype=np.float32)
+    )
+
+    assert torch.allclose(signal, expected_signal)
+    assert label in (0, 1)
+    assert subject_index == subject_to_index[info['subject_id']]
+
+
+def test_ea_forward_fold_uses_external_ea_normalization_order():
+    dataset = _make_subject_dataset()
+    info = {}
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        train_dataset, val_dataset, test_dataset, _, ea_matrices, subject_to_index = prepare_subject_ea_forward_fold(
+            dataset_name='dummy',
+            dataset=dataset,
+            info=info,
+            fold_id=0,
+            seed=5,
+            n_splits=3,
+            split_path=tmpdir,
+        )
+
+        signal, _, subject_index = test_dataset[0]
+        raw_info = test_dataset.dataset.read_info(0)
+        raw_eeg = test_dataset.dataset.read_eeg(raw_info['_record_id'], raw_info['clip_id'])
+        expected_signal = finalize_eeg_sample(
+            eeg_alignment(raw_eeg, ea_matrices[subject_index].numpy())
+        )
+
+        model = SubjectEAEEGNet(
+            ea_matrices=ea_matrices,
+            chunk_size=32,
+            num_electrodes=2,
+            num_classes=2,
+            kernel_1=1,
+            kernel_2=1,
+        )
+        actual_signal = model.apply_ea(signal.unsqueeze(0), torch.tensor([subject_index])).squeeze(0)
+
+        assert torch.allclose(actual_signal, expected_signal, atol=1e-5)
+        assert set(subject_to_index.keys()) == {'s1', 's2'}
