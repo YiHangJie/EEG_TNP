@@ -52,6 +52,12 @@ PURIFIED_CLEAN_RE = re.compile(
 )
 MSE_ADV_RE = re.compile(r"Mean mse of purified adversarial data:\s*([0-9.+eE-]+)")
 MSE_CLEAN_RE = re.compile(r"Mean mse of purified clean data:\s*([0-9.+eE-]+)")
+MEAN_PURIFICATION_TIME_ADV_RE = re.compile(
+    r"Purified adversarial data accuracy:.*?mean purification time:\s*([0-9.+eE-]+)"
+)
+MEAN_PURIFICATION_TIME_CLEAN_RE = re.compile(
+    r"Purified clean data accuracy:.*?mean purification time:\s*([0-9.+eE-]+)"
+)
 COMPRESSION_RE = re.compile(r"compression rate:\s*([0-9.+eE-]+)")
 SAMPLE_NUM_RE = re.compile(r"sample_num=(\d+)")
 CONFIG_IN_LOG_RE = re.compile(r"config='([^']+)'")
@@ -78,6 +84,8 @@ class LogRecord:
     clean_loss_after: Optional[float] = None
     mean_mse_adv: Optional[float] = None
     mean_mse_clean: Optional[float] = None
+    mean_purification_time_adv_sec: Optional[float] = None
+    mean_purification_time_clean_sec: Optional[float] = None
 
 
 def _to_float(value: Any) -> Optional[float]:
@@ -165,6 +173,8 @@ def parse_log_file(path: Path) -> LogRecord:
         clean_loss_after=clean_loss_after,
         mean_mse_adv=_extract_single(MSE_ADV_RE, content),
         mean_mse_clean=_extract_single(MSE_CLEAN_RE, content),
+        mean_purification_time_adv_sec=_extract_single(MEAN_PURIFICATION_TIME_ADV_RE, content),
+        mean_purification_time_clean_sec=_extract_single(MEAN_PURIFICATION_TIME_CLEAN_RE, content),
     )
 
     # If config is missing from filename, fall back to the value in the log.

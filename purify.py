@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import os
+import time
 from runtime_env import configure_runtime_env
 
 configure_runtime_env()
@@ -32,6 +33,7 @@ from TN.PTR import PTR
 from TN.PTR_3d import PTR_3d
 from TN.PTR_3d_fs import PTR_3d_fs
 from TN.PTR_tfs import PTR_tfs
+from TN.rank_growth import PTR_3d_rank_growth
 from TN.opt import *
 from TN.utils import get_TN_args
 from utils.experiment_artifacts import (
@@ -179,6 +181,12 @@ def evaluate(model, loader):
         loss /= len(loader.dataset)
     return accuracy, loss
 
+def resolve_config_path(args):
+    """解析净化配置路径，兼容旧的 config 文件名和脚本生成的临时绝对路径。"""
+    if os.path.isabs(args.config) or os.path.sep in args.config:
+        return args.config
+    return f'./configs/{args.dataset}/{args.config}'
+
 def fft_resample(x: torch.Tensor, target_len: int) -> torch.Tensor:
     """
     使用 FFT 对一维信号进行重采样（最后一个维度视为时间维）
@@ -207,7 +215,7 @@ def fft_resample(x: torch.Tensor, target_len: int) -> torch.Tensor:
 
 def interpolate(args, data, sampling_rate):
     data = data.clone()
-    config_path = f'./configs/{args.dataset}/{args.config}'
+    config_path = resolve_config_path(args)
     # init TN
     with open(config_path, "r", encoding="utf-8") as file:
         config = yaml.safe_load(file)
@@ -276,7 +284,7 @@ def interpolate(args, data, sampling_rate):
     return pre_data
 
 def inv_interpolate(args, pre_data, original_shape, strategy):
-    config_path = f'./configs/{args.dataset}/{args.config}'
+    config_path = resolve_config_path(args)
     # init TN
     with open(config_path, "r", encoding="utf-8") as file:
         config = yaml.safe_load(file)
@@ -314,8 +322,8 @@ def inv_interpolate(args, pre_data, original_shape, strategy):
     return data
 
 
-def purify(args, index, data, sampling_rate, device, logging):
-    config_path = f'./configs/{args.dataset}/{args.config}'
+def purify(args, index, data, sampling_rate, device, logging, classifier=None):
+    config_path = resolve_config_path(args)
     # resize
     pre_data = interpolate(args, data, sampling_rate)
     logging.info(f"original data shape: {data.shape}, Resized data shape: {pre_data.shape}")
@@ -333,11 +341,35 @@ def purify(args, index, data, sampling_rate, device, logging):
         'PTR_3d': PTR_3d,
         'PTR_3d_fs': PTR_3d_fs,
         'PTR_tfs': PTR_tfs,
+        'PTR_3d_rank_growth': PTR_3d_rank_growth,
     }
     TN = TN_dict[config.model]
     tn = TN(**TN_args)
     # purify
-    purified_data_resized, t, mse_history = tn.train(pre_data.clone().to(device), config, index, logging=logging)
+    if config.model == 'PTR_3d_rank_growth':
+        def rank_eval_callback(recon_resized):
+            """将 resized 重建还原到原始 EEG 空间，并计算稳定性所需指标。"""
+            purified = inv_interpolate(args, recon_resized, data.shape[-2:], config.strategy)
+            mse_to_input = torch.nn.functional.mse_loss(purified.cpu(), data.cpu()).item()
+            logits = None
+            if classifier is not None:
+                classifier.eval()
+                with torch.no_grad():
+                    logits = classifier(purified.unsqueeze(0).to(device)).detach().cpu().squeeze(0)
+            return {
+                'mse_to_input': mse_to_input,
+                'logits': logits,
+            }
+
+        purified_data_resized, t, mse_history = tn.train(
+            pre_data.clone().to(device),
+            config,
+            index,
+            logging=logging,
+            rank_eval_callback=rank_eval_callback,
+        )
+    else:
+        purified_data_resized, t, mse_history = tn.train(pre_data.clone().to(device), config, index, logging=logging)
     # purified_data_resized = pre_data
     # inverse resize
     purified_data = inv_interpolate(args, purified_data_resized, data.shape[-2:], config.strategy)
@@ -369,6 +401,7 @@ if __name__ == '__main__':
     # set log file
     import logging
     os.makedirs('./log_purify', exist_ok=True)
+    config_log_tag = safe_token(os.path.basename(args.config))
     explicit_artifact_mode = any([
         args.ad_data_path,
         args.checkpoint_path,
@@ -380,9 +413,9 @@ if __name__ == '__main__':
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         log_model_tag = safe_token(args.model_tag or args.output_tag or args.checkpoint_tag or '')
         log_tag_suffix = f'_{log_model_tag}' if log_model_tag != 'none' else ''
-        logfile_directory = f'./log_purify/purify_{args.dataset}_{args.model}_{args.at_strategy}{log_tag_suffix}_{args.attack}_eps{args.eps}_{args.seed}_{args.config}_{timestamp}.log'
+        logfile_directory = f'./log_purify/purify_{args.dataset}_{args.model}_{args.at_strategy}{log_tag_suffix}_{args.attack}_eps{args.eps}_{args.seed}_{config_log_tag}_{timestamp}.log'
     else:
-        logfile_directory = f'./log_purify/purify_{args.dataset}_{args.model}_{args.at_strategy}_{args.attack}_eps{args.eps}_{args.seed}_{args.config}.log'
+        logfile_directory = f'./log_purify/purify_{args.dataset}_{args.model}_{args.at_strategy}_{args.attack}_eps{args.eps}_{args.seed}_{config_log_tag}.log'
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Purifying {args.attack} on {args.dataset} with {args.model}')
     logging.info(args)
@@ -514,24 +547,47 @@ if __name__ == '__main__':
 
     purified_ad_data = None
     mses_ad = []
+    purification_times_ad = []
     if ad_data is not None:
         purified_ad_samples = []
         for i in range(sample_num):
-            tmp_purified_ad_data, mse = purify(args, i, ad_data[i], info['sampling_rate'], device, logging)
+            sample_start_time = time.perf_counter()
+            tmp_purified_ad_data, mse = purify(args, i, ad_data[i], info['sampling_rate'], device, logging, classifier=model)
+            purification_time = time.perf_counter() - sample_start_time
             purified_ad_samples.append(tmp_purified_ad_data)
             mses_ad.append(mse)
+            purification_times_ad.append(purification_time)
+            logging.info(
+                f'Adversarial data {i}, source_index: {selected_indices[i]}, '
+                f'purification time: {purification_time:.6f} seconds'
+            )
         purified_ad_data = torch.stack(purified_ad_samples, dim=0)
         logging.info('')
         logging.info('')
     
     purified_clean_data = []
     mses_clean = []
+    purification_times_clean = []
     for i in range(sample_num):
-        tmp_purified_clean_data, mse = purify(args, i, clean_data[i], info['sampling_rate'], device, logging)
+        sample_start_time = time.perf_counter()
+        tmp_purified_clean_data, mse = purify(args, i, clean_data[i], info['sampling_rate'], device, logging, classifier=model)
+        purification_time = time.perf_counter() - sample_start_time
         purified_clean_data.append(tmp_purified_clean_data)
         mses_clean.append(mse)
+        purification_times_clean.append(purification_time)
+        logging.info(
+            f'Clean data {i}, source_index: {selected_indices[i]}, '
+            f'purification time: {purification_time:.6f} seconds'
+        )
     logging.info('')
     logging.info('')
+
+    mean_ad_purification_time = (
+        float(np.mean(purification_times_ad)) if purification_times_ad else None
+    )
+    mean_clean_purification_time = (
+        float(np.mean(purification_times_clean)) if purification_times_clean else None
+    )
 
     purified_ad_accuracy = None
     purified_ad_loss = None
@@ -544,7 +600,11 @@ if __name__ == '__main__':
             collate_fn=eeg_classification_collate,
         )
         purified_ad_accuracy, purified_ad_loss = evaluate(model, purified_ad_data_dataloader)
-        logging.info(f'Purified adversarial data accuracy: {purified_ad_accuracy}, loss: {purified_ad_loss}')
+        logging.info(
+            f'Purified adversarial data accuracy: {purified_ad_accuracy}, '
+            f'loss: {purified_ad_loss}, '
+            f'mean purification time: {mean_ad_purification_time} seconds/sample'
+        )
     purified_clean_data = torch.stack(purified_clean_data, dim=0)
     purified_clean_data_dataset = torch.utils.data.TensorDataset(purified_clean_data, labels)
     purified_clean_data_dataloader = torch.utils.data.DataLoader(
@@ -554,7 +614,11 @@ if __name__ == '__main__':
         collate_fn=eeg_classification_collate,
     )
     purified_clean_accuracy, purified_clean_loss = evaluate(model, purified_clean_data_dataloader)
-    logging.info(f'Purified clean data accuracy: {purified_clean_accuracy}, loss: {purified_clean_loss}')
+    logging.info(
+        f'Purified clean data accuracy: {purified_clean_accuracy}, '
+        f'loss: {purified_clean_loss}, '
+        f'mean purification time: {mean_clean_purification_time} seconds/sample'
+    )
     if mses_ad:
         logging.info(f'Mean mse of purified adversarial data: {np.mean(mses_ad)}')
     else:
@@ -597,6 +661,8 @@ if __name__ == '__main__':
             'purified_clean_accuracy': purified_clean_accuracy,
             'purified_clean_loss': purified_clean_loss,
             'mean_clean_mse': float(np.mean(mses_clean)) if mses_clean else None,
+            'mean_clean_purification_time_sec': mean_clean_purification_time,
+            'clean_purification_times_sec': purification_times_clean,
         }
         if purified_ad_data is not None:
             ad_meta_out = dict(common_meta)
@@ -607,6 +673,8 @@ if __name__ == '__main__':
                 'purified_ad_accuracy': purified_ad_accuracy,
                 'purified_ad_loss': purified_ad_loss,
                 'mean_ad_mse': float(np.mean(mses_ad)) if mses_ad else None,
+                'mean_ad_purification_time_sec': mean_ad_purification_time,
+                'ad_purification_times_sec': purification_times_ad,
             })
             torch.save((purified_ad_data, labels, ad_meta_out), ad_output_path)
             logging.info(f'Saved purified adversarial data: {ad_output_path}')
