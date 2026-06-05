@@ -363,8 +363,1249 @@
 - **问题：**
   - 本实验只跑了 `sample_num=64`，用于调参观察，不直接等价于 `EXP-002` 的 `512` 样本统计。
   - 当前脚本记录的是 rank-growth 轨迹和分类稳定性，不直接输出净化后 accuracy；accuracy 仍需通过 `purify.py` 或读取 selected 重建样本另做评估。
+  - 本实验设置了 `rank_growth_js_threshold=0.02` 和 `rank_growth_max_mse_to_input=0.08`，因此属于真实早停策略评估，不适合作为“JS/MSE 随 rank 完整变化趋势”的诊断实验。高 rank 的 `evaluated_count` 会因为样本提前停止而变少，`js_by_rank.png` 后半段存在选择偏差。
 - **结论：**
   - `analyze_tr_rank_predictions.py --analysis_mode rank_growth` 可以用于后续 JS/MSE 阈值调参。
   - `js=0.02,mse=0.08` 在小样本轨迹分析中复现了 EXP-002 的核心现象：MSE gate 明显拒绝低 rank 稳定点，并把最终 rank 推向 `25/30`。
 - **下一步：**
-  - 继续用同一脚本 sweep `MSE=0.06/0.10` 与 `JS=0.005/0.01/0.02`，优先观察 selected rank 分布、selected MSE 和 MSE gate 拒绝次数。
+  - 使用 `--rank_growth_full_sweep` 重新设置完整 rank 诊断实验，关闭早停后再观察 JS/MSE 的 rank 趋势。
+  - 继续用同一脚本 sweep `MSE=0.06/0.10` 与 `JS=0.005/0.01/0.02`，但这类 sweep 应解释为停止策略评估，而不是完整趋势诊断。
+
+### EXP-004：rank growth full-sweep JS/MSE 诊断
+
+- **日期：** 2026-06-02
+- **状态：** 已完成
+- **相关 idea：** `IDEA-001`
+- **目的：**
+  - 修正 `EXP-003` 的早停选择偏差，强制每个样本完整跑完 `rank_growth_ranks=[5,10,15,20,25,30,35,40]`。
+  - 在不设置 JS/MSE 早停阈值的情况下，观察 clean/adv 的相邻 rank JS、MSE、top1 change 是否存在稳定差异，尤其验证 adv 是否在中高 rank 出现 JS 反弹。
+- **代码版本 / 分支：**
+  - 分支：`main`
+  - commit：`e99016a`
+  - working tree：新增 `analyze_tr_rank_predictions.py --rank_growth_full_sweep`，该模式会禁用早停并完整评估每个 rank。
+- **配置文件：**
+  - `configs/thubenchmark/PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml`
+  - full-sweep override：`rank_growth_js_threshold=-1.0`，`rank_growth_max_mse_to_input=None`
+- **命令：**
+  ```bash
+  SAMPLE_NUM=64
+  OUT_DIR="tensor_ring_rank_analysis/results_rank_growth_exp004_full_sweep_n${SAMPLE_NUM}"
+  LOG_FILE="logs/exp004_rank_growth_full_sweep_n${SAMPLE_NUM}_$(date +%Y%m%d_%H%M%S).log"
+
+  mkdir -p logs
+  setsid nohup conda run -n torch python tensor_ring_rank_analysis/analyze_tr_rank_predictions.py \
+    --analysis_mode rank_growth \
+    --rank_growth_full_sweep \
+    --dataset thubenchmark \
+    --model eegnet \
+    --no_ea \
+    --eps 0.03 \
+    --fold 0 \
+    --attack autoattack \
+    --at_strategy madry \
+    --consistency_version consistancy \
+    --consistency_tag consistancy_rank25-30_n512_eps0p03 \
+    --adv_model_tag consistancy_rank25-30_n512_eps0p03 \
+    --config PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml \
+    --checkpoint_path checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.03_42_fold0_consistancy_rank25-30_n512_eps0p03_best.pth \
+    --ad_data_path ad_data/thubenchmark_eegnet_no_ea_consistancy_rank25-30_n512_eps0p03_madry_autoattack_eps0.03_seed42_fold0.pth \
+    --sample_num "${SAMPLE_NUM}" \
+    --output_dir "${OUT_DIR}" \
+    > "${LOG_FILE}" 2>&1 &
+  ```
+- **关键设置：**
+  - 数据集/划分：`thubenchmark`，`fold=0`，`train_only_subject_no_ea_subject_split`
+  - 随机种子：`42`
+  - 模型：`eegnet`
+  - 攻击：`autoattack`，`eps=0.03`
+  - 对抗训练策略：`madry`
+  - 样本数：计划先用 `64`，与 `EXP-003` 对齐
+  - 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp004_full_sweep_n64/`
+  - 运行记录：`nohup` 后台父进程 PID `2123431`，Python 子进程 PID `2123440`，日志 `logs/exp004_rank_growth_full_sweep_n64_20260602_152924.log`
+- **指标：**
+  - 主指标：所有 rank 上 clean/adv 的 `js_mean`、`mse_mean`、`top1_change_rate`
+  - 次指标：sample-level JS rebound rate、paired adv-clean rebound score
+- **结果：**
+  - 进程已结束，结果文件写入 `tensor_ring_rank_analysis/results_rank_growth_exp004_full_sweep_n64/`。
+  - full-sweep 生效：`meta.json` 中 `rank_growth_full_sweep=True`，`rank_growth_js_threshold=-1.0`，`rank_growth_max_mse_to_input=None`。
+  - 所有 rank 的 `evaluated_count` 均为 `64`，clean/adv 都没有高 rank 缺失。
+  - aggregate JS 均值：
+
+    | source | 5->10 | 10->15 | 15->20 | 20->25 | 25->30 | 30->35 | 35->40 |
+    | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+    | clean | 0.137021 | 0.028420 | 0.015852 | 0.014313 | 0.004341 | 0.002103 | 0.002207 |
+    | adv | 0.126372 | 0.023216 | 0.012391 | 0.012016 | 0.004616 | 0.004140 | 0.003158 |
+
+  - aggregate MSE 均值随 rank 单调下降：
+    - clean：`0.460168 -> 0.231484 -> 0.150901 -> 0.106160 -> 0.075010 -> 0.053228 -> 0.038338 -> 0.027821`
+    - adv：`0.458448 -> 0.231631 -> 0.150967 -> 0.105780 -> 0.075135 -> 0.052973 -> 0.038295 -> 0.027943`
+  - 样本级 late rebound 统计：
+    - clean：late local increase `61/64`，mean late rebound `0.008495`
+    - adv：late local increase `60/64`，mean late rebound `0.007536`
+    - paired `adv-clean` late rebound 均值 `-0.000958`，adv 更大的样本数 `34/64`
+- **观察：**
+  - 与 `EXP-003` 的早停图不同，full-sweep 下 clean 和 adv 的 aggregate JS 都整体随 rank 增大而下降。
+  - adv 没有表现出稳定的中高 rank JS 反弹；`adv` 的 aggregate JS 从 `5->10` 到 `35->40` 全程下降。
+  - clean 在 `35->40` 有极小的 aggregate 回升 `0.000104`，量级很小，不构成主要趋势。
+  - 样本级局部回升在 clean/adv 中都很常见，但不是 adversarial-specific signal。
+- **问题：**
+  - 本实验仍是 `sample_num=64`，结论主要针对当前 fold/seed/eps/checkpoint。
+  - full-sweep 会把所有样本都跑到 rank40，因此其 selected rank 分布不再代表真实早停策略，只适合看轨迹形态。
+- **结论：**
+  - 早先基于 `EXP-003/js_by_rank.png` 得到的“adv 随 rank 增大 JS 先小后大”判断主要来自早停选择偏差，不应作为新 idea 的核心证据。
+  - 在 full-sweep 诊断下，clean/adv 的 JS 和 MSE 都呈现由粗到细逐步稳定的趋势，当前数据不支持“adv 特异性 JS 反弹”假设。
+- **下一步：**
+  - 若继续寻找 adversarial-specific rank-growth 信号，应转向 paired sample-level 指标或分类边界相关指标，而不是 aggregate adjacent-rank JS。
+  - 可在更大样本数或不同 seed/fold 上复查，但当前证据不支持优先投入该方向。
+
+### EXP-005：rank growth 新增恢复成分的高频能量占比诊断
+
+- **日期：** 2026-06-02
+- **状态：** 已完成
+- **相关 idea：** `IDEA-002`
+- **目的：**
+  - 验证 `IDEA-002` 的核心假设：随着 rank 从小到大增长，相邻 rank 新增恢复成分 `a_r = \hat{x}_r - \hat{x}_{r-1}` 的高频能量占比是否会在重构收益趋于饱和时升高。
+  - 判断高频能量占比能否作为 rank-growth 自适应停止信号，补充或替代当前的 JS/top1/MSE gate。
+  - 区分该信号是 clean 与 adversarial 共有的重构细化现象，还是对 adversarial 样本更敏感的扰动恢复信号。
+- **代码版本 / 分支：**
+  - 分支：`main`
+  - commit：`e99016a`
+  - working tree：新增 `analyze_tr_rank_predictions.py` 的 EXP-005 频域增量指标实现；该实现只在 `--enable_incremental_frequency_metrics` 开启时记录相邻 rank 的新增恢复成分频域指标，不改变默认 rank-growth 分析输出。
+- **配置文件：**
+  - `configs/thubenchmark/PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml`
+  - full-sweep override：`rank_growth_js_threshold=-1.0`，`rank_growth_max_mse_to_input=None`
+- **命令：**
+  ```bash
+  SAMPLE_NUM=64
+  OUT_DIR="tensor_ring_rank_analysis/results_rank_growth_exp005_hf_full_sweep_n${SAMPLE_NUM}"
+  LOG_FILE="logs/exp005_rank_growth_hf_full_sweep_n${SAMPLE_NUM}_$(date +%Y%m%d_%H%M%S).log"
+
+  mkdir -p logs
+  setsid nohup conda run -n torch python tensor_ring_rank_analysis/analyze_tr_rank_predictions.py \
+    --analysis_mode rank_growth \
+    --rank_growth_full_sweep \
+    --dataset thubenchmark \
+    --model eegnet \
+    --no_ea \
+    --eps 0.03 \
+    --fold 0 \
+    --attack autoattack \
+    --at_strategy madry \
+    --consistency_version consistancy \
+    --consistency_tag consistancy_rank25-30_n512_eps0p03 \
+    --adv_model_tag consistancy_rank25-30_n512_eps0p03 \
+    --config PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml \
+    --checkpoint_path checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.03_42_fold0_consistancy_rank25-30_n512_eps0p03_best.pth \
+    --ad_data_path ad_data/thubenchmark_eegnet_no_ea_consistancy_rank25-30_n512_eps0p03_madry_autoattack_eps0.03_seed42_fold0.pth \
+    --sample_num "${SAMPLE_NUM}" \
+    --enable_incremental_frequency_metrics \
+    --high_freq_cutoff_hz 30.0 \
+    --freq_energy_floor_hz 1.0 \
+    --output_dir "${OUT_DIR}" \
+    > "${LOG_FILE}" 2>&1 &
+  ```
+- **追加 rerun：rank 4-40 step 2 细粒度 full-sweep**
+  - 状态：运行中
+  - 启动时间：2026-06-02 20:53:00
+  - 目的：在 EXP-005 原始设置基础上，把 rank 序列从 `[5,10,15,20,25,30,35,40]` 改为 `range(4,42,2)`，支持更细粒度的 JS、频域增量和 paired-delta 分析。
+  - rank 序列：`[4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40]`
+  - 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp005_hf_full_sweep_r4-40_step2_n64/`
+  - 日志：`logs/exp005_rank_growth_hf_full_sweep_r4-40_step2_n64_20260602_205300.log`
+  - 后台父进程 PID：`2197186`
+  - 实时日志设置：`conda run --no-capture-output` + `python -u` + `> log 2>&1`
+  - 命令：
+
+    ```bash
+    setsid nohup conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/analyze_tr_rank_predictions.py \
+      --analysis_mode rank_growth \
+      --rank_growth_full_sweep \
+      --rank_growth_ranks 4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40 \
+      --dataset thubenchmark \
+      --model eegnet \
+      --no_ea \
+      --eps 0.03 \
+      --fold 0 \
+      --attack autoattack \
+      --at_strategy madry \
+      --consistency_version consistancy \
+      --consistency_tag consistancy_rank25-30_n512_eps0p03 \
+      --adv_model_tag consistancy_rank25-30_n512_eps0p03 \
+      --config PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml \
+      --checkpoint_path checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.03_42_fold0_consistancy_rank25-30_n512_eps0p03_best.pth \
+      --ad_data_path ad_data/thubenchmark_eegnet_no_ea_consistancy_rank25-30_n512_eps0p03_madry_autoattack_eps0.03_seed42_fold0.pth \
+      --sample_num 64 \
+      --enable_incremental_frequency_metrics \
+      --high_freq_cutoff_hz 30.0 \
+      --freq_energy_floor_hz 1.0 \
+      --output_dir tensor_ring_rank_analysis/results_rank_growth_exp005_hf_full_sweep_r4-40_step2_n64 \
+      > logs/exp005_rank_growth_hf_full_sweep_r4-40_step2_n64_20260602_205300.log 2>&1 &
+    ```
+- **关键设置：**
+  - 数据集/划分：`thubenchmark`，`fold=0`，`train_only_subject_no_ea_subject_split`
+  - 随机种子：`42`
+  - 模型：`eegnet`
+  - 攻击：`autoattack`，`eps=0.03`
+  - 对抗训练策略：`madry`
+  - rank 序列：`[5, 10, 15, 20, 25, 30, 35, 40]`
+  - 样本数：先用 `64` 做 full-sweep 指标诊断；若信号清晰，再扩展到 `512`
+  - 频域定义：在原始分类器输入空间 `(1, C, T)` 上对时间轴做 `rfft`；总能量默认统计 `>=1 Hz` 的频段，高频能量默认统计 `>=30 Hz` 的频段。
+  - 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp005_hf_full_sweep_n64/`
+  - 运行记录：`nohup` 后台 PID `2172313`，Python 子进程 PID `2172322`，日志 `logs/exp005_rank_growth_hf_full_sweep_n64_20260602_191503.log`
+  - 启动备注：第一次沙箱内 `nohup` 未保活，第二次沙箱外 `nohup` 实际已成功运行；后续误启动的 tmux 副本 `exp005_hf_20260602_191603` 已终止，避免重复写同一输出目录。
+  - 实现验证：`python -m py_compile tensor_ring_rank_analysis/analyze_tr_rank_predictions.py` 通过；`conda run -n torch python ... --help` 能显示新增参数；`sample_num=1, rank_growth_steps_per_rank=1, --no_visualize` smoke run 成功生成频域 CSV；基于 smoke 输出的 `--plot_only` 也成功生成 plots。
+- **新增输出指标：**
+  - `incremental_energy_total`：`a_r` 在有效频段内的总能量。
+  - `incremental_high_freq_energy`：`a_r` 在 `freq >= high_freq_cutoff_hz` 频段内的能量。
+  - `incremental_high_freq_ratio`：`incremental_high_freq_energy / incremental_energy_total`。
+  - `incremental_l2`：`a_r` 的时域 L2 能量，用于判断新增成分幅度。
+  - `reconstruction_gain_abs`：`mse(\hat{x}_{r-1}, x) - mse(\hat{x}_r, x)`。
+  - `reconstruction_gain_rel`：`reconstruction_gain_abs / mse(\hat{x}_{r-1}, x)`。
+  - `hf_stop_candidate`：探索性停止标记；当 `reconstruction_gain_rel` 较小且 `incremental_high_freq_ratio` 较高时，候选选择上一档 rank。
+- **指标：**
+  - 主指标：相邻 rank pair 上 clean/adv 的 `incremental_high_freq_ratio_mean/std` 与 `reconstruction_gain_rel_mean/std`
+  - 次指标：`incremental_l2_mean/std`，`hf_stop_candidate_count`，candidate rank 分布，clean/adv paired 差值
+  - 对照指标：`EXP-004` 已有的 `js_mean`、`mse_mean`、`top1_change_rate`
+- **结果：**
+  - 进程已结束，结果文件写入 `tensor_ring_rank_analysis/results_rank_growth_exp005_hf_full_sweep_n64/`。
+  - 输出文件：
+    - `rank_growth_incremental_frequency.csv`
+    - `rank_growth_incremental_frequency_summary.csv`
+    - `rank_growth_incremental_frequency_pair_delta.csv`
+    - `rank_growth_incremental_frequency_pair_delta_summary.csv`
+    - `rank_growth_pair_delta_bootstrap_rows.csv`
+    - `rank_growth_pair_delta_bootstrap_summary.csv`
+    - `rank_growth_pair_delta_bootstrap_meta.json`
+    - `rank_growth_history.csv`
+    - `rank_growth_summary.csv`
+    - `rank_growth_predictions.pt`
+    - `meta.json`
+    - `plots/`
+  - 追加离线 paired-delta/bootstrap 分析命令：
+
+    ```bash
+    conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/analyze_rank_growth_pair_delta.py \
+      --input_dir tensor_ring_rank_analysis/results_rank_growth_exp005_hf_full_sweep_n64 \
+      --output_prefix rank_growth_pair_delta_bootstrap \
+      --bootstrap_iters 5000 \
+      --ci 95 \
+      --seed 42 \
+      --plot_format png \
+      --plot_dpi 180 \
+      2>&1 | tee logs/exp005_pair_delta_bootstrap_20260602_203145.log
+    ```
+
+  - 追加图表：
+    - `plots/rank_growth_pair_delta_bootstrap_delta_hf_ratio_ci.png`
+    - `plots/rank_growth_pair_delta_bootstrap_delta_margin_ci.png`
+    - `plots/rank_growth_pair_delta_bootstrap_hf_up_margin_down_rate.png`
+  - `rank_growth_full_sweep=True`，所有 clean/adv 样本都完整评估到 `rank40`；因此 selected rank 在本诊断实验中均为 `40`，不代表真实早停策略。
+  - 高频占比与重构收益摘要：
+
+    | source | 5->10 HF ratio | 35->40 HF ratio | HF ratio increase | 5->10 rel gain | 35->40 rel gain | 5->10 L2 | 35->40 L2 |
+    | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+    | clean | 0.083405 | 0.224533 | 0.141128 | 0.501132 | 0.274017 | 23620.75 | 1419.04 |
+    | adv | 0.083231 | 0.223747 | 0.140516 | 0.499055 | 0.270161 | 23515.21 | 1413.20 |
+
+  - 相邻 rank 的平均高频占比随 rank 增大整体上升：
+    - clean：`0.083405 -> 0.156787 -> 0.166721 -> 0.174536 -> 0.191775 -> 0.211350 -> 0.224533`
+    - adv：`0.083231 -> 0.158284 -> 0.166493 -> 0.173505 -> 0.191362 -> 0.210415 -> 0.223747`
+  - 相邻 rank 的平均相对 MSE gain 随 rank 增大下降，但并未低到当前探索性停止阈值 `0.02`：
+    - clean：`0.501132 -> 0.354414 -> 0.304553 -> 0.300820 -> 0.293471 -> 0.280234 -> 0.274017`
+    - adv：`0.499055 -> 0.353799 -> 0.307542 -> 0.297601 -> 0.297724 -> 0.278238 -> 0.270161`
+  - `hf_stop_candidate_count` 在所有 rank pair、clean/adv 上均为 `0`，因为当前阈值要求 `reconstruction_gain_rel <= 0.02` 且 `incremental_high_freq_ratio >= 0.5`，实际高频占比最高约 `0.2245`，相对重构收益最低约 `0.2702`。
+  - paired adv-clean 差值很小：
+
+    | rank pair | delta HF ratio mean | adv HF ratio higher rate | delta rel gain mean | adv gain lower rate |
+    | --- | ---: | ---: | ---: | ---: |
+    | 5->10 | -0.000174 | 0.562500 | -0.002077 | 0.625000 |
+    | 10->15 | 0.001497 | 0.562500 | -0.000614 | 0.484375 |
+    | 15->20 | -0.000228 | 0.531250 | 0.002989 | 0.484375 |
+    | 20->25 | -0.001032 | 0.453125 | -0.003219 | 0.578125 |
+    | 25->30 | -0.000413 | 0.531250 | 0.004253 | 0.390625 |
+    | 30->35 | -0.000935 | 0.421875 | -0.001996 | 0.562500 |
+    | 35->40 | -0.000785 | 0.468750 | -0.003856 | 0.578125 |
+  - paired-delta/bootstrap 与 margin 联合分析：
+
+    | rank pair | delta HF mean | delta HF 95% CI | adv HF higher rate | delta margin mean | delta margin 95% CI | adv margin improve rate | corr HF-margin | HF up + margin down | HF up + top1 bad |
+    | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+    | 5->10 | -0.000174 | [-0.002679, 0.002298] | 0.562500 | -0.361217 | [-0.913571, 0.178385] | 0.734375 | -0.262346 | 0.343750 | 0.031250 |
+    | 10->15 | 0.001497 | [-0.001262, 0.004299] | 0.562500 | 0.312065 | [-0.079018, 0.694786] | 0.671875 | -0.124293 | 0.234375 | 0.000000 |
+    | 15->20 | -0.000228 | [-0.002982, 0.002327] | 0.531250 | -0.422184 | [-0.748333, -0.100358] | 0.531250 | -0.184134 | 0.375000 | 0.015625 |
+    | 20->25 | -0.001032 | [-0.003906, 0.001736] | 0.453125 | 0.169661 | [-0.095488, 0.458584] | 0.750000 | 0.183697 | 0.203125 | 0.000000 |
+    | 25->30 | -0.000413 | [-0.003103, 0.002340] | 0.531250 | -0.091277 | [-0.276988, 0.088409] | 0.625000 | -0.106273 | 0.296875 | 0.000000 |
+    | 30->35 | -0.000935 | [-0.003318, 0.001381] | 0.421875 | -0.021390 | [-0.183000, 0.145927] | 0.546875 | 0.086373 | 0.218750 | 0.000000 |
+    | 35->40 | -0.000785 | [-0.002836, 0.001262] | 0.468750 | -0.074218 | [-0.215059, 0.067143] | 0.734375 | 0.066476 | 0.218750 | 0.000000 |
+- **观察：**
+  - `IDEA-002` 中“新增恢复成分的高频占比会随 rank 增大升高”得到支持：clean 和 adv 都从约 `0.083` 单调升到约 `0.224`。
+  - 但这个趋势不是 adversarial-specific：clean/adv 曲线几乎重合，paired `adv-clean` 高频占比均值差都在约 `[-0.0010, 0.0015]` 范围内，且 adv 高频占比更高的样本比例围绕 `0.5` 波动。
+  - 追加 bootstrap 后，所有 rank pair 的 `delta_hf_ratio_mean` 95% CI 都跨过 `0`；`10->15` 仍是唯一较明显的正均值，但其区间 `[-0.001262, 0.004299]` 不支持稳定正效应。
+  - `delta_margin_mean` 只有 `15->20` 的 95% CI 完全低于 `0`，表示该段 adversarial 相对 clean 的 true-label margin 变化更差；但它并不伴随更高的 adversarial 高频占比均值，因此不能解释为“高频恢复导致 margin 变差”的稳定链条。
+  - `corr_delta_hf_margin` 绝对值整体较小，最大约 `0.262`；高频占比差和分类边界差没有形成强线性关系。
+  - `hf_up_top1_bad_rate` 基本为 `0`，说明相邻 rank 增长中“adv 高频占比上升且 top1 从对变错”的事件很少见。
+  - 高频占比升高主要发生在“新增成分总量变小”的背景下：`incremental_l2` 从约 `23500` 降到约 `1410`，绝对高频能量也从约 `3.0e6` 降到约 `4.7e5`。因此这里更准确的解释是：新增恢复成分越来越少，但其中高频比例越来越高。
+  - `reconstruction_gain_rel` 下降幅度有限，末端 `35->40` 仍约 `0.27`，说明当前 MSE 相对收益定义没有进入“收益很小”的区域；若要做停止准则，需要重新定义收益饱和指标或改用 absolute gain / classification-stability / robust acc proxy。
+  - 当前 `hf_stop_candidate` 阈值过严，在本实验中完全不触发，不适合作为实际 rank 选择规则。
+- **问题：**
+  - 已实现频域增量指标：rank callback 在启用开关时临时保存每档净化张量，计算完相邻 rank 指标后从持久化 trace 中移除大张量，避免显著增大 `.pt` 输出。
+  - 高频阈值 `30 Hz` 是先验诊断设置，不应直接视为最终停止阈值；如果结果对阈值敏感，需要追加 `20/25/30/35 Hz` sweep。
+  - full-sweep 会强制跑到 `rank40`，计算成本高；先跑 `sample_num=64`，避免直接启动长实验。
+  - 该实验只验证“高频占比是否是有信息量的诊断信号”，不直接证明用该信号停止能提升 `standard acc` 或 `robust acc`。
+- **结论：**
+  - `EXP-005` 部分支持 `IDEA-002`：rank 增长过程中新增恢复成分的高频占比确实上升。
+  - 但当前结果不支持“高频占比是 adversarial 样本特异的扰动恢复信号”：clean 和 adv 的高频占比、相对重构收益、L2 增量都高度接近。
+  - 追加 margin 与 bootstrap 分析后，仍不支持把 `10->15` 的局部正峰值解释为稳定的 adversarial-specific 高频细节恢复；它更像小样本 paired 差值波动。
+  - 暂不建议把 `incremental_high_freq_ratio` 单独作为 rank-growth 停止准则；更合理的用法是把它作为诊断特征，和 absolute reconstruction gain、分类稳定性、robust acc 或 paired clean/adv 差异共同分析。
+- **下一步：**
+  - 若继续探索高频停止规则，应先改用更合理的候选阈值，例如基于 `incremental_high_freq_ratio >= 0.20/0.22` 与 absolute MSE gain 或 absolute `incremental_l2` 的联合条件，而不是当前 `0.5/0.02`。
+  - 针对 `10->15` 的局部正峰值，追加更细 rank 网格实验，把粗粒度 `5->10->15->20` 拆成 `5,6,7,...,20`，确认峰值来自整个 `10->15` 区间还是集中在某个更窄 rank 段。
+  - 追加 `high_freq_cutoff_hz=20/25/35` 的小样本敏感性分析，确认高频占比单调上升是否依赖 `30 Hz` 阈值。
+  - 如果目标是 adversarial-specific 信号，应继续寻找 paired sample-level 分类边界指标，而不是只依赖 aggregate 高频占比。
+
+### EXP-006：rank 5-20 细粒度高频增量诊断
+
+- **日期：** 2026-06-02
+- **状态：** 已完成
+- **相关 idea：** `IDEA-002`
+- **目的：**
+  - 复查 `EXP-005` 中 `10->15` 的 paired adv-clean 高频占比局部正峰值。
+  - 将 rank 序列从粗粒度 `[5,10,15,20]` 拆成细粒度 `5,6,7,...,20`，判断对抗样本“多恢复高频细节”的现象是贯穿 `10->15`，还是集中在 `10->11/11->12/.../14->15` 的某个窄区间。
+  - 评估细粒度 rank 统计是否能提供更稳定的 adversarial-specific 信号。
+- **代码版本 / 分支：**
+  - 分支：`main`
+  - commit：`e99016a`
+  - working tree：新增 `tensor_ring_rank_analysis/analyze_tr_rank_predictions.py --rank_growth_ranks` 参数，允许命令行覆盖 YAML 中的 `rank_growth_ranks`，避免为每个细粒度 sweep 新建配置文件。
+- **配置文件：**
+  - 基础配置：`configs/thubenchmark/PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml`
+  - 计划 override：
+    - `rank_growth_ranks=5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20`
+    - `rank_growth_js_threshold=-1.0`
+    - `rank_growth_max_mse_to_input=None`
+- **命令：**
+  ```bash
+  SAMPLE_NUM=64
+  OUT_DIR="tensor_ring_rank_analysis/results_rank_growth_exp006_hf_fine_r5-20_n${SAMPLE_NUM}"
+  LOG_FILE="logs/exp006_rank_growth_hf_fine_r5-20_n${SAMPLE_NUM}_$(date +%Y%m%d_%H%M%S).log"
+
+  mkdir -p logs
+  setsid nohup conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/analyze_tr_rank_predictions.py \
+    --analysis_mode rank_growth \
+    --rank_growth_full_sweep \
+    --rank_growth_ranks 5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 \
+    --dataset thubenchmark \
+    --model eegnet \
+    --no_ea \
+    --eps 0.03 \
+    --fold 0 \
+    --attack autoattack \
+    --at_strategy madry \
+    --consistency_version consistancy \
+    --consistency_tag consistancy_rank25-30_n512_eps0p03 \
+    --adv_model_tag consistancy_rank25-30_n512_eps0p03 \
+    --config PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml \
+    --checkpoint_path checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.03_42_fold0_consistancy_rank25-30_n512_eps0p03_best.pth \
+    --ad_data_path ad_data/thubenchmark_eegnet_no_ea_consistancy_rank25-30_n512_eps0p03_madry_autoattack_eps0.03_seed42_fold0.pth \
+    --sample_num "${SAMPLE_NUM}" \
+    --enable_incremental_frequency_metrics \
+    --high_freq_cutoff_hz 30.0 \
+    --freq_energy_floor_hz 1.0 \
+    --output_dir "${OUT_DIR}" \
+    > "${LOG_FILE}" 2>&1 &
+  ```
+- **关键设置：**
+  - 数据集/划分：`thubenchmark`，`fold=0`，`train_only_subject_no_ea_subject_split`
+  - 随机种子：`42`
+  - 模型：`eegnet`
+  - 攻击：`autoattack`，`eps=0.03`
+  - 对抗训练策略：`madry`
+  - rank 序列：`range(5, 21)`，即 `5` 到 `20` 闭区间
+  - 样本数：先用 `64`，与 `EXP-005` 对齐
+  - 高频阈值：先固定 `30 Hz`，避免同时引入 cutoff 和 rank 网格两个变量
+  - 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp006_hf_fine_r5-20_n64/`
+  - 运行记录：`nohup` 后台 PID `2181454`，日志 `logs/exp006_rank_growth_hf_fine_r5-20_n64_20260602_194544.log`
+  - 实现验证：`python -m py_compile tensor_ring_rank_analysis/analyze_tr_rank_predictions.py` 通过；`conda run -n torch python ... --help` 能显示 `--rank_growth_ranks`；`sample_num=1, rank_growth_steps_per_rank=1, --rank_growth_ranks 5,6,7` smoke run 成功，`meta.json` 中 `rank_growth_ranks=[5,6,7]`，频域 summary 输出 `5->6` 和 `6->7`；基于 smoke 输出的 `--plot_only` 成功。
+- **指标：**
+  - 主指标：每个相邻 rank pair 的 `delta_incremental_high_freq_ratio_mean`、`adv_hf_ratio_higher_rate`
+  - 次指标：`delta_reconstruction_gain_rel_mean`、`delta_incremental_l2_mean`、`top1_change_rate`
+  - 重点区间：`10->11`、`11->12`、`12->13`、`13->14`、`14->15`
+- **结果：**
+  - 进程已结束，结果文件写入 `tensor_ring_rank_analysis/results_rank_growth_exp006_hf_fine_r5-20_n64/`。
+  - 输出文件：
+    - `rank_growth_incremental_frequency.csv`
+    - `rank_growth_incremental_frequency_summary.csv`
+    - `rank_growth_incremental_frequency_pair_delta.csv`
+    - `rank_growth_incremental_frequency_pair_delta_summary.csv`
+    - `rank_growth_history.csv`
+    - `rank_growth_summary.csv`
+    - `rank_growth_predictions.pt`
+    - `meta.json`
+    - `plots/`
+  - `meta.json` 确认 `rank_growth_ranks=[5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]`，`rank_growth_full_sweep=True`，`sample_num=64`。
+  - 细粒度 paired adv-clean 高频占比差值：
+
+    | rank pair | delta HF ratio mean | adv HF ratio higher rate | delta rel gain mean |
+    | --- | ---: | ---: | ---: |
+    | 5->6 | -0.000589 | 0.546875 | -0.000483 |
+    | 6->7 | -0.002634 | 0.500000 | 0.001479 |
+    | 7->8 | 0.000189 | 0.500000 | 0.000769 |
+    | 8->9 | 0.001372 | 0.562500 | -0.001766 |
+    | 9->10 | -0.001766 | 0.468750 | 0.001397 |
+    | 10->11 | -0.002113 | 0.437500 | 0.000569 |
+    | 11->12 | 0.001069 | 0.468750 | -0.004038 |
+    | 12->13 | -0.001983 | 0.500000 | -0.000752 |
+    | 13->14 | -0.002633 | 0.484375 | -0.000141 |
+    | 14->15 | -0.005575 | 0.468750 | -0.002016 |
+    | 15->16 | -0.002687 | 0.390625 | 0.000954 |
+    | 16->17 | -0.001405 | 0.468750 | 0.000252 |
+    | 17->18 | -0.002465 | 0.437500 | 0.001430 |
+    | 18->19 | 0.002659 | 0.578125 | -0.000778 |
+    | 19->20 | 0.001337 | 0.500000 | -0.000117 |
+
+  - `10->15` 重点区间中，只有 `11->12` 为正 `0.001069`，其余 `10->11/12->13/13->14/14->15` 均为负；五个细粒度 pair 的均值平均约 `-0.002247`。
+  - 最大正均值出现在 `18->19`，为 `0.002659`；最大负均值出现在 `14->15`，为 `-0.005575`。
+  - 所有细粒度 pair 的标准差约 `0.0157~0.0221`，远大于均值差，说明样本级波动仍然很大。
+- **观察：**
+  - `EXP-005` 中粗粒度 `10->15` 的 paired 正峰值没有在细粒度 `10..15` 内复现为连续正区间。
+  - `10->15` 内部更像是噪声主导的局部波动：`11->12` 有小幅正值，但 `14->15` 出现更明显负值，整体不支持“rank10 到 rank15 期间 adv 持续恢复更多高频细节”。
+  - 细粒度实验与粗粒度实验不是严格同一条优化路径：`rank_growth_ranks` 改成逐 rank 增长后，TN 优化会经历更多中间 rank block，因此不能把 `EXP-005` 的 `10->15` 直接数学分解为本实验的五个相邻 pair。不过作为更精细诊断，本实验没有支持该局部正峰值是稳定结构。
+  - `18->19` 和 `19->20` 出现正均值，但量级仍小、方差大，暂时也不能解释为稳定 adversarial-specific 信号。
+- **问题：**
+  - 细粒度 rank 会显著增加 full-sweep 计算量：每个样本从 8 个 rank block 增加到 16 个 rank block；`sample_num=64` 预计耗时约为 `EXP-005` 的两倍左右。
+  - 如果 `10->15` 的正峰值只由少数样本驱动，细粒度统计可能仍需要更大样本数或 bootstrap 置信区间。
+  - 已实现命令行 rank override；后续若要批量 cutoff sweep，可复用 `--rank_growth_ranks`，不需要复制 YAML。
+- **结论：**
+  - `EXP-006` 不支持 `EXP-005` 中 `10->15` 粗粒度正峰值是一个稳定、可定位的 adversarial-specific 高频恢复区间。
+  - 当前更合理的解释是：paired adv-clean 高频占比差值在细粒度 rank 上主要是小幅样本波动，尚未形成可靠的停止或诊断信号。
+  - 不建议继续围绕 `10->15` 单独设计 rank-growth 停止准则；若继续研究高频指标，应转向 cutoff 敏感性、bootstrap 置信区间或与分类边界指标联合。
+- **下一步：**
+  - 对 paired delta 增加 bootstrap 置信区间或可视化误差棒，避免仅凭均值折线判断局部峰值。
+  - 若继续做 cutoff sweep，应覆盖完整 `5..20` 区间，而不是只围绕 `10..15`。
+  - 可以考虑把高频占比与分类 top1 变化、confidence delta 或 margin delta 联合分析，寻找更接近 adversarial perturbation 的信号。
+
+### EXP-007：Optuna 离线寻优 rank-growth 早停/选 rank 规则
+
+- **日期：** 2026-06-03
+- **状态：** 已完成
+- **相关 idea：** `IDEA-003`
+- **目的：**
+  - 基于已有 rank-growth full-sweep 轨迹，离线重放不同 sample-wise rank selection 规则，避免每个 Optuna trial 重新运行 TN 净化。
+  - 验证 JS、净化前预测标签 margin 和 MSE 能否形成比当前手工阈值更严密的早停/选 rank 标准。
+  - 以 robust accuracy 为主目标，同时记录 clean accuracy、selected MSE 和平均 selected rank，避免单纯追求高 rank 或过拟合小样本。
+- **代码版本 / 分支：**
+  - 分支：`main`
+  - commit：`e99016a`
+  - working tree：新增 `tensor_ring_rank_analysis/optuna_rank_growth_selection.py`，只做离线 Optuna 调参，不修改 `purify.py` 和 `PTR_3d_rank_growth` 默认早停逻辑。
+- **配置文件：**
+  - 输入 full-sweep 目录：`tensor_ring_rank_analysis/results_rank_growth_exp005_hf_full_sweep_r4-40_step2_n64/`
+  - 输入轨迹文件：`rank_growth_predictions.pt`
+  - 原始 full-sweep 配置：`configs/thubenchmark/PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml`
+- **命令：**
+  ```bash
+  SAMPLE_NUM=64
+  OUT_DIR="tensor_ring_rank_analysis/results_rank_growth_exp007_optuna_selection_r4-40_step2_n64"
+  LOG_FILE="logs/exp007_optuna_rank_selection_r4-40_step2_n64_$(date +%Y%m%d_%H%M%S).log"
+
+  mkdir -p logs
+  setsid nohup conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/optuna_rank_growth_selection.py \
+    --input_dir tensor_ring_rank_analysis/results_rank_growth_exp005_hf_full_sweep_r4-40_step2_n64 \
+    --output_dir "${OUT_DIR}" \
+    --study_name exp007_optuna_rank_selection_r4_40_step2_n64 \
+    --n_trials 300 \
+    --seed 42 \
+    --tune_ratio 0.5 \
+    --selection_modes threshold,score \
+    --objective robust_priority \
+    --clean_weight 0.20 \
+    --mse_weight 0.10 \
+    --rank_weight 0.02 \
+    --plot_format png \
+    --plot_dpi 180 \
+    > "${LOG_FILE}" 2>&1 &
+  ```
+- **关键设置：**
+  - 数据集/划分：`thubenchmark`，`fold=0`，`train_only_subject_no_ea_subject_split`
+  - 随机种子：`42`
+  - 模型：`eegnet`
+  - 攻击：`autoattack`，`eps=0.03`
+  - 对抗训练策略：`madry`
+  - 输入 rank 序列：`4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40`
+  - 样本数：`64`
+  - tune/holdout 划分：按 `sample_id` 固定随机划分，`tune_ratio=0.5`
+  - rank selection 规则：
+    - `threshold`：首个满足 `JS <= js_threshold`、`MSE <= mse_threshold`、`margin >= margin_threshold` 的相邻 rank pair，选择前一个 rank；否则选择最大 rank。
+    - `score`：使用归一化特征 `alpha * JS + beta * MSE - gamma * Margin + delta * rank_norm`，选择分数最低 rank。
+  - margin 定义：以净化前预测类别为参考，计算净化后该类别 softmax 概率与最强其他类别概率的差，不使用 true label 参与 rank selection。
+  - 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp007_optuna_selection_r4-40_step2_n64/`
+  - 运行记录：正式运行已完成，日志 `logs/exp007_optuna_rank_selection_r4-40_step2_n64_20260603_195715.log`，输出写入 `tensor_ring_rank_analysis/results_rank_growth_exp007_optuna_selection_r4-40_step2_n64/`。
+  - 运行备注：当前执行环境首次 `setsid nohup` 子进程未保活，正式结果来自同参数前台等待完成命令；stdout/stderr 仍重定向到上述稳定日志文件。
+  - raw logits：输入 `.pt` 中没有 raw logits，脚本根据 meta 中 checkpoint/ad_data 路径轻量重算，`meta.json` 中 `raw_logits_recomputed=true`。
+- **指标：**
+  - 主指标：holdout 上的 adversarial selected accuracy。
+  - 次指标：holdout clean selected accuracy、selected MSE、平均 selected rank、tune/holdout objective gap、selected rank 分布。
+  - 诊断指标：`trials.csv` 中不同 selector 与参数的 objective、`selected_rows.csv` 中逐样本 selected rank/margin/MSE/JS。
+- **结果：**
+  - 进程已结束，退出码 `0`。
+  - 输出文件：
+    - `trials.csv`
+    - `best_config.json`
+    - `selected_rows.csv`
+    - `summary.csv`
+    - `meta.json`
+    - `plots/objective_history.png`
+    - `plots/selected_rank_distribution.png`
+  - 最优 trial：`272`，tune objective `1.0078534033349973`。
+  - 最优 selector：`score`。
+  - 最优参数：
+    - `alpha=0.18952655220538`
+    - `beta=1.9165340519262832`
+    - `gamma=0.0425660367878316`
+    - `delta=0.5821138968534183`
+  - selected accuracy / MSE / rank 摘要：
+
+    | split | source | count | accuracy | mean MSE | mean rank | objective |
+    | --- | --- | ---: | ---: | ---: | ---: | ---: |
+    | tune | clean | 32 | 0.906250 | 0.065946 | 22.937500 |  |
+    | tune | adv | 32 | 0.843750 | 0.066916 | 22.875000 |  |
+    | tune | all | 64 | 0.875000 | 0.066431 | 22.906250 | 1.007853 |
+    | holdout | clean | 32 | 0.968750 | 0.070229 | 23.375000 |  |
+    | holdout | adv | 32 | 0.906250 | 0.068233 | 23.812500 |  |
+    | holdout | all | 64 | 0.937500 | 0.069231 | 23.593750 | 1.082191 |
+    | all | clean | 64 | 0.937500 | 0.068088 | 23.156250 |  |
+    | all | adv | 64 | 0.875000 | 0.067575 | 23.343750 |  |
+    | all | all | 128 | 0.906250 | 0.067831 | 23.250000 | 1.045022 |
+
+  - selected rank 分布：
+
+    | rank | clean count | adv count | all count |
+    | ---: | ---: | ---: | ---: |
+    | 16 | 1 | 2 | 3 |
+    | 18 | 9 | 8 | 17 |
+    | 20 | 5 | 5 | 10 |
+    | 22 | 12 | 14 | 26 |
+    | 24 | 20 | 15 | 35 |
+    | 26 | 10 | 8 | 18 |
+    | 28 | 5 | 9 | 14 |
+    | 30 | 2 | 3 | 5 |
+- **观察：**
+  - 在本次 `n64` tune split 上，最优规则选择了 `score` selector，而不是 `threshold` selector。
+  - 最优 score 中 `beta` 权重最大，`delta` 次之，`alpha/gamma` 较小，说明本次小样本调参更偏向 MSE 保真和中等 rank 惩罚，JS 与净化前预测 margin 的直接贡献较弱。
+  - holdout adversarial selected accuracy 为 `0.90625`，高于 tune adversarial selected accuracy `0.84375`；这不是过拟合证据，但由于 holdout 只有 `32` 个样本，波动可能较大。
+  - clean 与 adversarial 的平均 selected rank 很接近：all split 上 clean 为 `23.15625`，adv 为 `23.34375`，当前最优规则没有明显把 adversarial 样本推到更高 rank。
+  - selected rank 主要集中在 `22/24/26`，没有大量退到最低 rank，也没有退化成全部选择最大 rank。
+- **问题：**
+  - 本实验只使用 `64` 个样本，其中 tune/holdout 各 `32` 个样本；结果只能视为离线规则可行性和候选参数，不足以作为最终策略。
+  - objective 基于 full-sweep 已保存 logits 做离线选择，没有生成真实 selected purified `.pth`，也没有通过 `purify.py` 重新评估完整 pipeline。
+  - 当前没有把最优规则和既有 `js=0.02,mse=0.08`、固定 rank25/30 在同一 `r4-40 step2 n64` 输入上做统一 baseline replay。
+- **结论：**
+  - `EXP-007` 证明离线 Optuna rank-selection 重放流程可运行，并能从 full-sweep 轨迹中导出可解释的候选选 rank 规则。
+  - 本次最优候选为 score 规则，倾向选择中高 rank、较低 MSE 的重建；在 `n64` holdout 上达到 adversarial selected accuracy `0.90625`，但该数值受小样本划分影响较大。
+  - 当前不应直接把该 Optuna 规则写入 `PTR_3d_rank_growth` 在线早停逻辑；更合理的是先补 baseline replay 和更大样本验证。
+- **下一步：**
+  - 在同一离线脚本中加入 baseline replay：固定 rank、现有 `JS+MSE gate`、纯 MSE gate、纯 JS gate，和 Optuna best 进行同表比较。
+  - 若 baseline replay 仍支持 Optuna score 规则，再规划 `sample_num=512` full-sweep 或复用已有更大 full-sweep 轨迹做正式验证。
+  - 后续若要接入在线净化，应把 feature normalization 统计、score 参数和 label-free margin 定义显式写入配置，避免隐式依赖 tune split。
+
+### EXP-008：单指标与两两组合 rank-selection ablation
+
+- **日期：** 2026-06-03
+- **状态：** 已完成（Completed）
+- **相关 idea：** `IDEA-003`
+- **目的：**
+  - 在 `EXP-007` 基础上追加离线 ablation，判断 JS、MSE、净化前预测标签 margin 单独或两两组合时对 sample-wise rank selection 的贡献。
+  - 比较 `JS-only`、`MSE-only`、`Margin-only`、`JS+MSE`、`MSE+Margin`、`JS+Margin` 与 `EXP-007` 的 `Full score` best。
+  - 继续复用已有 full-sweep 轨迹，不重新运行 TN 净化。
+- **代码版本 / 分支：**
+  - 分支：`main`
+  - commit：`e99016a`
+  - working tree：扩展 `tensor_ring_rank_analysis/optuna_rank_growth_selection.py`，新增 ablation selection modes、mode-wise Optuna 和 `mode_best_summary.csv`。
+- **配置文件：**
+  - 输入 full-sweep 目录：`tensor_ring_rank_analysis/results_rank_growth_exp005_hf_full_sweep_r4-40_step2_n64/`
+  - 输入轨迹文件：`rank_growth_predictions.pt`
+  - `Full score` 对照：`tensor_ring_rank_analysis/results_rank_growth_exp007_optuna_selection_r4-40_step2_n64/best_config.json`
+- **命令：**
+  ```bash
+  OUT_DIR="tensor_ring_rank_analysis/results_rank_growth_exp008_ablation_r4-40_step2_n64"
+  LOG_FILE="logs/exp008_rank_selection_ablation_r4-40_step2_n64_$(date +%Y%m%d_%H%M%S).log"
+
+  mkdir -p logs
+  conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/optuna_rank_growth_selection.py \
+    --input_dir tensor_ring_rank_analysis/results_rank_growth_exp005_hf_full_sweep_r4-40_step2_n64 \
+    --output_dir "${OUT_DIR}" \
+    --study_name exp008_rank_selection_ablation_r4_40_step2_n64 \
+    --n_trials 300 \
+    --seed 42 \
+    --tune_ratio 0.5 \
+    --selection_modes js_only,mse_only,margin_only,js_mse,mse_margin,js_margin \
+    --include_exp007_full_score tensor_ring_rank_analysis/results_rank_growth_exp007_optuna_selection_r4-40_step2_n64/best_config.json \
+    --objective robust_priority \
+    --clean_weight 0.20 \
+    --mse_weight 0.10 \
+    --rank_weight 0.02 \
+    --plot_format png \
+    --plot_dpi 180 \
+    > "${LOG_FILE}" 2>&1
+  ```
+- **实际运行：**
+  - 运行时间：2026-06-03
+  - 日志文件：`logs/exp008_rank_selection_ablation_r4-40_step2_n64_20260603_204525.log`
+  - 退出码：`0`
+- **关键设置：**
+  - 数据集/划分：`thubenchmark`，`fold=0`，`train_only_subject_no_ea_subject_split`
+  - 随机种子：`42`
+  - 模型：`eegnet`
+  - 攻击：`autoattack`，`eps=0.03`
+  - 对抗训练策略：`madry`
+  - 输入 rank 序列：`4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40`
+  - 样本数：`64`
+  - tune/holdout 划分：沿用 `EXP-007` 的 `seed=42`、`tune_ratio=0.5`
+  - Optuna：每个 ablation mode 单独 `300` trials；`Full score` 不重新调参，只复用 `EXP-007` best 参数。
+  - ablation selection modes：
+    - `js_only`：首个 `JS <= js_threshold` 的相邻 rank pair，选择前一个 rank。
+    - `mse_only`：首个 `MSE <= mse_threshold` 的 rank。
+    - `margin_only`：首个 `margin >= margin_threshold` 的 rank。
+    - `js_mse`：首个同时满足 `JS <= js_threshold` 和前一个 rank `MSE <= mse_threshold` 的相邻 rank pair。
+    - `mse_margin`：首个同时满足 `MSE <= mse_threshold` 和 `margin >= margin_threshold` 的 rank。
+    - `js_margin`：首个同时满足 `JS <= js_threshold` 和前一个 rank `margin >= margin_threshold` 的相邻 rank pair。
+  - 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp008_ablation_r4-40_step2_n64/`
+- **指标：**
+  - 主指标：各 selector 在 holdout 上的 adversarial selected accuracy。
+  - 次指标：holdout clean selected accuracy、selected MSE、平均 selected rank、tune/holdout objective gap。
+  - 诊断指标：`mode_best_summary.csv` 中各 mode 的 best trial 与参数，`summary.csv` 中各 selector 的 tune/holdout/all 指标，`selected_rows.csv` 中逐样本 selected rank。
+- **结果：**
+  - 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp008_ablation_r4-40_step2_n64/`
+  - 输出文件：`trials.csv`、`best_config.json`、`selected_rows.csv`、`summary.csv`、`mode_best_summary.csv`、`meta.json`、`plots/objective_history_*.png`、`plots/selected_rank_distribution_global_best.png`
+  - `trials.csv`：`1800` 行，即 `6` 个 ablation mode × 每个 mode `300` trials；`exp007_full_score` 只作为复用对照，不重新调参。
+  - `summary.csv`：`63` 行，即 `7` 个 selector × `tune/holdout/all` × `clean/adv/all`。
+  - `selected_rows.csv`：`896` 行，即 `7` 个 selector × `64` 个样本 × `clean/adv`。
+  - 全局最佳 selector：`exp007_full_score`，沿用 `EXP-007` 的 score 参数；best tune objective 为 `1.0078534033349973`。
+  - 各 selector 的 best 结果：
+
+    | selector | best trial | best objective | best params | holdout adv acc | holdout clean acc | holdout MSE | holdout rank | all adv acc | all clean acc | all MSE | all rank |
+    | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+    | `js_only` | 16 | 1.000802 | `js_threshold=1.084292e-05` | 0.90625 | 0.96875 | 0.082093 | 29.46875 | 0.87500 | 0.93750 | 0.095281 | 28.75000 |
+    | `mse_only` | 138 | 1.007776 | `mse_threshold=0.0684426` | 0.90625 | 0.96875 | 0.063658 | 24.75000 | 0.87500 | 0.93750 | 0.063607 | 24.15625 |
+    | `margin_only` | 251 | 1.000948 | `margin_threshold=0.999980` | 0.90625 | 0.96875 | 0.034698 | 38.15625 | 0.87500 | 0.93750 | 0.054624 | 36.01562 |
+    | `js_mse` | 134 | 1.007778 | `js_threshold=0.0472429, mse_threshold=0.0698950` | 0.90625 | 0.96875 | 0.064386 | 24.59375 | 0.87500 | 0.93750 | 0.064397 | 24.00000 |
+    | `mse_margin` | 277 | 1.007776 | `mse_threshold=0.0684070, margin_threshold=-0.518746` | 0.90625 | 0.96875 | 0.063426 | 24.78125 | 0.87500 | 0.93750 | 0.063491 | 24.17188 |
+    | `js_margin` | 91 | 1.000825 | `js_threshold=1.142011e-05, margin_threshold=0.357020` | 0.90625 | 0.96875 | 0.084132 | 29.09375 | 0.87500 | 0.93750 | 0.096448 | 28.51562 |
+    | `exp007_full_score` | - | 1.007853 | `alpha=0.189527, beta=1.916534, gamma=0.0425660, delta=0.582114` | 0.90625 | 0.96875 | 0.069231 | 23.59375 | 0.87500 | 0.93750 | 0.067831 | 23.25000 |
+- **观察：**
+  - 在本次 `n64` 离线 replay 中，`7` 个 selector 的 holdout adversarial selected accuracy 全部为 `0.90625`，holdout clean selected accuracy 全部为 `0.96875`；主指标没有区分出单指标、两两组合和 full score。
+  - objective 的差距主要来自 MSE 与 rank penalty。`exp007_full_score` 在 tune/all objective 上最高，原因是平均 rank 最低：holdout mean rank `23.59375`、all mean rank `23.25`。
+  - `mse_only`、`js_mse`、`mse_margin` 与 `exp007_full_score` 非常接近；holdout objective 只差约 `7e-5` 到 `8e-5`，说明在当前样本上 MSE gate 已能复现 full score 的大部分效果。
+  - `js_only` 和 `js_margin` 倾向选择更高 rank 或退到最大 rank，holdout/all MSE 高于 MSE 相关规则，objective 明显低于 full score。
+  - `margin_only` 的 holdout MSE 最低，为 `0.034698`，但平均 rank 达到 `38.15625`；`selected_rows.csv` 中 `112/128` 个 clean/adv rows 选择 rank `40`，更像是高 rank 保真对照，而不是有效早停规则。
+- **问题：**
+  - 所有 selector 的 selected accuracy 完全相同，说明 `n64` 样本对 accuracy 指标的分辨率不足；当前 ablation 主要能比较 MSE/rank trade-off，不能证明某个指标组合带来分类准确率优势。
+  - `mse_margin` 的 best margin threshold 为负值 `-0.518746`，实际约等于放松 margin 条件，主要仍由 MSE threshold 决定。
+  - 本实验仍是 full-sweep logits 的离线 replay，没有重新生成真实 selected purified `.pth`，也没有接入 `purify.py` 在线早停。
+- **结论：**
+  - `EXP-008` 支持一个保守判断：在当前 `n64` 设置下，MSE 是最有用的单指标；JS 和 margin 对 objective 的增益不明显。
+  - `EXP-007` full score 仍是全局最佳，但优势很小，更多体现在更低平均 rank，而不是更高 selected accuracy。
+  - 如果后续要简化在线规则，`mse_only` 或 `js_mse` 是比 full score 更容易实现和解释的候选，但需要更大样本确认。
+- **下一步：**
+  - 在 `n512` 或跨 seed/fold 上复跑同样的离线 ablation，重点看 accuracy 是否仍完全打平。
+  - 补一个 fixed-rank baseline replay，把固定 rank `22/24/26/30/40` 与 `mse_only`、`js_mse`、`exp007_full_score` 放到同一张表。
+  - 若更大样本仍显示 MSE 规则足够接近 full score，优先规划一个只含 `mse_threshold` 的在线早停版本，避免引入复杂 score 权重。
+
+### EXP-009：n512 rank growth full-sweep 轨迹分析（r5-40 step5）
+
+- **日期：** 2026-06-03
+- **状态：** 已完成
+- **相关 idea：** `IDEA-003`
+- **目的：**
+  - 将 `EXP-007/EXP-008` 的 `n64` 离线调参扩展到 `sample_num=512`，提高 accuracy 指标的分辨率。
+  - 使用较粗但标准的 rank 序列 `range(5, 45, 5)`，即 `5,10,15,20,25,30,35,40`，生成完整 full-sweep 轨迹。
+  - 为后续 `EXP-010` Optuna rank-selection 调参提供输入，不重新修改 `purify.py` 或 baseline 在线早停逻辑。
+- **代码版本 / 分支：**
+  - 分支：`main`
+  - commit：`e99016a`
+  - working tree：复用 `tensor_ring_rank_analysis/analyze_tr_rank_predictions.py --rank_growth_full_sweep --rank_growth_ranks`。
+- **配置文件：**
+  - 基础配置：`configs/thubenchmark/PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml`
+  - checkpoint：`checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.03_42_fold0_consistancy_rank25-30_n512_eps0p03_best.pth`
+  - adversarial data：`ad_data/thubenchmark_eegnet_no_ea_consistancy_rank25-30_n512_eps0p03_madry_autoattack_eps0.03_seed42_fold0.pth`
+- **命令：**
+  ```bash
+  SAMPLE_NUM=512
+  OUT_DIR="tensor_ring_rank_analysis/results_rank_growth_exp009_hf_full_sweep_r5-40_step5_n512"
+  LOG_FILE="logs/exp009_rank_growth_hf_full_sweep_r5-40_step5_n512_$(date +%Y%m%d_%H%M%S).log"
+
+  mkdir -p logs
+  setsid nohup conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/analyze_tr_rank_predictions.py \
+    --analysis_mode rank_growth \
+    --rank_growth_full_sweep \
+    --rank_growth_ranks 5,10,15,20,25,30,35,40 \
+    --dataset thubenchmark \
+    --model eegnet \
+    --no_ea \
+    --eps 0.03 \
+    --fold 0 \
+    --attack autoattack \
+    --at_strategy madry \
+    --consistency_version consistancy \
+    --consistency_tag consistancy_rank25-30_n512_eps0p03 \
+    --adv_model_tag consistancy_rank25-30_n512_eps0p03 \
+    --config PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml \
+    --checkpoint_path checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.03_42_fold0_consistancy_rank25-30_n512_eps0p03_best.pth \
+    --ad_data_path ad_data/thubenchmark_eegnet_no_ea_consistancy_rank25-30_n512_eps0p03_madry_autoattack_eps0.03_seed42_fold0.pth \
+    --sample_num "${SAMPLE_NUM}" \
+    --enable_incremental_frequency_metrics \
+    --high_freq_cutoff_hz 30.0 \
+    --freq_energy_floor_hz 1.0 \
+    --plot_format png \
+    --plot_dpi 180 \
+    --output_dir "${OUT_DIR}" \
+    > "${LOG_FILE}" 2>&1 &
+  ```
+- **实际运行：**
+  - 启动时间：2026-06-03 21:40:03
+  - 后台 pipeline PID：`84384`
+  - pipeline 状态日志：`logs/exp009_010_pipeline_r5-40_step5_n512_20260603_214003.log`（记录中预期存在；当前未在 `logs/` 下观察到该文件）
+  - `EXP-009` 实时日志：`logs/exp009_rank_growth_hf_full_sweep_r5-40_step5_n512_20260603_214003.log`
+  - `EXP-010` 预分配日志：`logs/exp010_optuna_rank_selection_r5-40_step5_n512_20260603_214003.log`
+  - 启动方式：沙箱内 `nohup` 无法保活后，改用沙箱外 `setsid nohup` 启动；`EXP-010` 会在 `EXP-009` 成功结束后自动运行。
+  - 运行确认：2026-06-03 21:40 左右日志进入 `clean rank-growth`，进度已到 `5/512`，日志持续增长。
+  - 完成时间：2026-06-03 23:42 左右；日志结尾显示结果已保存到输出目录。
+- **关键设置：**
+  - 数据集/划分：`thubenchmark`，`fold=0`，`train_only_subject_no_ea_subject_split`
+  - 随机种子：`42`
+  - 模型：`eegnet`
+  - 攻击：`autoattack`，`eps=0.03`
+  - 对抗训练策略：`madry`
+  - 样本数：`512`
+  - 输入 rank 序列：`5,10,15,20,25,30,35,40`
+  - full-sweep：开启；禁用早停并评估每个 rank。
+  - 频域增量指标：开启；沿用 `high_freq_cutoff_hz=30.0`、`freq_energy_floor_hz=1.0`。
+  - 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp009_hf_full_sweep_r5-40_step5_n512/`
+- **指标：**
+  - 主输入：`rank_growth_predictions.pt`，供 `EXP-010` 离线 Optuna replay 使用。
+  - 诊断指标：`rank_growth_summary.csv`、`rank_growth_history.csv`、`rank_growth_incremental_frequency_summary.csv` 中 clean/adv 的 JS、MSE、top1 change、高频增量趋势。
+  - 检查项：`meta.json` 中 `sample_num=512`、`rank_growth_full_sweep=True`、`rank_growth_ranks=[5,10,15,20,25,30,35,40]`。
+- **结果：**
+  - 输出文件已生成：
+    - `tensor_ring_rank_analysis/results_rank_growth_exp009_hf_full_sweep_r5-40_step5_n512/rank_growth_predictions.pt`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp009_hf_full_sweep_r5-40_step5_n512/rank_growth_history.csv`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp009_hf_full_sweep_r5-40_step5_n512/rank_growth_summary.csv`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp009_hf_full_sweep_r5-40_step5_n512/rank_growth_incremental_frequency_summary.csv`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp009_hf_full_sweep_r5-40_step5_n512/rank_growth_incremental_frequency_pair_delta_summary.csv`
+  - 固定 rank full-sweep 指标：
+
+    | rank | clean acc | adv acc | clean MSE | adv MSE |
+    | ---: | ---: | ---: | ---: | ---: |
+    | 5 | 0.654296875 | 0.607421875 | 0.466249215 | 0.466416900 |
+    | 10 | 0.796875000 | 0.792968750 | 0.236228291 | 0.236217403 |
+    | 15 | 0.855468750 | 0.824218750 | 0.154737043 | 0.154797028 |
+    | 20 | 0.865234375 | 0.837890625 | 0.108968614 | 0.108971995 |
+    | 25 | 0.880859375 | 0.830078125 | 0.077177534 | 0.077267562 |
+    | 30 | 0.898437500 | 0.830078125 | 0.054547436 | 0.054664118 |
+    | 35 | 0.916015625 | 0.835937500 | 0.039143459 | 0.039172390 |
+    | 40 | 0.910156250 | 0.835937500 | 0.028405062 | 0.028476913 |
+
+  - 高频增量占比随 rank 增大整体上升：
+
+    | rank pair | adv hf ratio | clean hf ratio | paired adv-clean delta |
+    | --- | ---: | ---: | ---: |
+    | 5->10 | 0.082801 | 0.083094 | -0.000292 |
+    | 10->15 | 0.158379 | 0.158367 | 0.000012 |
+    | 15->20 | 0.167139 | 0.167229 | -0.000089 |
+    | 20->25 | 0.173010 | 0.172429 | 0.000581 |
+    | 25->30 | 0.189939 | 0.189603 | 0.000336 |
+    | 30->35 | 0.209183 | 0.209443 | -0.000260 |
+    | 35->40 | 0.223626 | 0.223353 | 0.000272 |
+- **观察：**
+  - 固定 rank 的 adversarial accuracy 在 `rank20` 达到最高 `0.837890625`，`rank35/40` 为 `0.8359375`，继续提升 rank 没有带来 robust acc 单调提升。
+  - clean accuracy 在 `rank35` 达到最高 `0.916015625`，`rank40` 虽然 MSE 最低，但 clean acc 回落到 `0.91015625`。
+  - clean/adv MSE 都随 rank 单调下降，且两者数值几乎重合，说明 full-sweep 的重建保真趋势本身不是 adversarial-specific。
+  - 高频增量占比从约 `0.083` 升到约 `0.224`，复现了 `EXP-005` 的 rank 增长频谱趋势；但 paired `adv-clean` delta 全部接近 `0`，`adv_hf_ratio_higher_rate` 也围绕 `0.5` 波动，仍不支持高频占比作为 adversarial-specific 停止信号。
+  - 相邻 rank 的 top1 change rate 随 rank 增大总体下降；adv 的 `5->10` top1 change rate 为 `0.33203125`，到 `35->40` 降到 `0.029296875`。
+- **问题：**
+  - 本实验是离线 full-sweep 轨迹生成，不等同于在线早停净化效果；真正的 selector 结论依赖 `EXP-010` replay。
+  - 记录中预期的 pipeline 状态日志 `logs/exp009_010_pipeline_r5-40_step5_n512_20260603_214003.log` 当前未在 `logs/` 下观察到；但 EXP-009/010 各自日志和输出文件完整存在。
+  - 仍只覆盖 `thubenchmark fold0 seed42 sample_num=512 eps=0.03`，不能代表跨 fold/seed 稳定性。
+- **结论：**
+  - `EXP-009` 成功产出 `n512, ranks=5..40 step5` 的完整 full-sweep 输入，可用于 `EXP-010` 离线 rank selection。
+  - 固定 rank 结果显示 robust acc 与 clean/MSE 的最优 rank 不一致：robust 更偏 `rank20`，clean/MSE 更偏高 rank。
+  - 高频增量指标可作为 rank-growth 诊断特征，但本次 `n512` 结果再次显示它不具备明显 clean/adv 区分能力。
+- **下一步：**
+  - 使用本实验输出的 `rank_growth_predictions.pt` 运行并总结 `EXP-010`。
+
+### EXP-010：n512 rank-selection Optuna 调参与 ablation（r5-40 step5）
+
+- **日期：** 2026-06-03
+- **状态：** 已完成
+- **相关 idea：** `IDEA-003`
+- **目的：**
+  - 在 `EXP-009` 的 `n512, ranks=5..40 step5` full-sweep 轨迹上重新调参，观察样本量上升后 selector 的 accuracy、MSE 与 rank trade-off 是否分化。
+  - 同时评估 `threshold`、`score`、单指标规则和两两组合规则；保留 `EXP-007` best full score 作为跨 rank-grid/样本量迁移对照。
+- **代码版本 / 分支：**
+  - 分支：`main`
+  - commit：`e99016a`
+  - working tree：复用 `tensor_ring_rank_analysis/optuna_rank_growth_selection.py`。
+- **配置文件：**
+  - 输入 full-sweep 目录：`tensor_ring_rank_analysis/results_rank_growth_exp009_hf_full_sweep_r5-40_step5_n512/`
+  - 输入轨迹文件：`rank_growth_predictions.pt`
+  - 迁移对照：`tensor_ring_rank_analysis/results_rank_growth_exp007_optuna_selection_r4-40_step2_n64/best_config.json`
+- **命令：**
+  ```bash
+  OUT_DIR="tensor_ring_rank_analysis/results_rank_growth_exp010_optuna_selection_r5-40_step5_n512"
+  LOG_FILE="logs/exp010_optuna_rank_selection_r5-40_step5_n512_$(date +%Y%m%d_%H%M%S).log"
+
+  mkdir -p logs
+  conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/optuna_rank_growth_selection.py \
+    --input_dir tensor_ring_rank_analysis/results_rank_growth_exp009_hf_full_sweep_r5-40_step5_n512 \
+    --output_dir "${OUT_DIR}" \
+    --study_name exp010_optuna_rank_selection_r5_40_step5_n512 \
+    --n_trials 300 \
+    --seed 42 \
+    --tune_ratio 0.5 \
+    --selection_modes threshold,score,js_only,mse_only,margin_only,js_mse,mse_margin,js_margin \
+    --include_exp007_full_score tensor_ring_rank_analysis/results_rank_growth_exp007_optuna_selection_r4-40_step2_n64/best_config.json \
+    --objective robust_priority \
+    --clean_weight 0.20 \
+    --mse_weight 0.10 \
+    --rank_weight 0.02 \
+    --plot_format png \
+    --plot_dpi 180 \
+    > "${LOG_FILE}" 2>&1
+  ```
+- **实际运行：**
+  - 排队时间：2026-06-03 21:40:03
+  - 后台 pipeline PID：`84384`
+  - pipeline 状态日志：`logs/exp009_010_pipeline_r5-40_step5_n512_20260603_214003.log`（记录中预期存在；当前未在 `logs/` 下观察到该文件）
+  - `EXP-010` 日志：`logs/exp010_optuna_rank_selection_r5-40_step5_n512_20260603_214003.log`
+  - 触发条件：只有 `EXP-009` 命令退出码为 `0` 时才会开始 Optuna；若 `EXP-009` 失败，本实验保持未运行。
+  - 完成时间：2026-06-03 23:42 左右；日志结尾显示结果已保存到输出目录。
+- **关键设置：**
+  - tune/holdout 划分：`seed=42`、`tune_ratio=0.5`
+  - Optuna：每个调参 selector 单独 `300` trials；共 `8` 个调参 selector，外加 `exp007_full_score` 固定迁移对照。
+  - true label：只用于 objective 和 holdout evaluation，不进入 rank-selection 规则。
+  - 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp010_optuna_selection_r5-40_step5_n512/`
+- **指标：**
+  - 主指标：各 selector 在 holdout 上的 adversarial selected accuracy。
+  - 次指标：holdout clean selected accuracy、selected MSE、平均 selected rank、tune/holdout objective gap。
+  - 诊断指标：`mode_best_summary.csv`、`summary.csv`、`trials.csv`、`selected_rows.csv`。
+- **结果：**
+  - 输出文件已生成：
+    - `tensor_ring_rank_analysis/results_rank_growth_exp010_optuna_selection_r5-40_step5_n512/mode_best_summary.csv`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp010_optuna_selection_r5-40_step5_n512/summary.csv`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp010_optuna_selection_r5-40_step5_n512/trials.csv`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp010_optuna_selection_r5-40_step5_n512/selected_rows.csv`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp010_optuna_selection_r5-40_step5_n512/best_config.json`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp010_optuna_selection_r5-40_step5_n512/fixed_rank_selector_comparison.csv`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp010_optuna_selection_r5-40_step5_n512/plots/fixed_rank_selector_comparison.png`
+  - 各 selector 的 best 结果：
+
+    | selector | best trial | best params | holdout adv acc | holdout clean acc | holdout MSE | holdout rank | all adv acc | all clean acc | all MSE | all rank |
+    | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+    | `threshold` | 137 | `js=0.053533,mse=0.142338,margin=-0.682932` | 0.8359375 | 0.87890625 | 0.113238 | 19.25781 | 0.84765625 | 0.884765625 | 0.113463 | 19.43359 |
+    | `score` | 290 | `alpha=1.394142,beta=1.905168,gamma=0.040578,delta=0.882820` | 0.8359375 | 0.88671875 | 0.109311 | 19.60938 | 0.841796875 | 0.884765625 | 0.109180 | 19.83887 |
+    | `js_only` | 52 | `js=0.018455` | 0.83203125 | 0.89453125 | 0.280244 | 11.88477 | 0.841796875 | 0.888671875 | 0.283195 | 11.93848 |
+    | `mse_only` | 157 | `mse=0.109223` | 0.8359375 | 0.87890625 | 0.091114 | 22.12891 | 0.83984375 | 0.876953125 | 0.090733 | 22.34863 |
+    | `margin_only` | 190 | `margin=0.999986` | 0.84765625 | 0.91796875 | 0.063762 | 35.43945 | 0.8359375 | 0.91015625 | 0.064696 | 35.73242 |
+    | `js_mse` | 117 | `js=0.040303,mse=0.164277` | 0.8359375 | 0.890625 | 0.130659 | 17.37305 | 0.845703125 | 0.890625 | 0.129503 | 17.67090 |
+    | `mse_margin` | 204 | `mse=0.109562,margin=-0.229481` | 0.83203125 | 0.890625 | 0.089556 | 22.52930 | 0.837890625 | 0.88671875 | 0.089119 | 22.76367 |
+    | `js_margin` | 228 | `js=0.018449,margin=-0.799840` | 0.83203125 | 0.89453125 | 0.278516 | 12.04102 | 0.841796875 | 0.892578125 | 0.280104 | 12.19238 |
+    | `exp007_full_score` | - | `alpha=0.189527,beta=1.916534,gamma=0.042566,delta=0.582114` | 0.828125 | 0.890625 | 0.073560 | 24.97070 | 0.828125 | 0.888671875 | 0.073842 | 25.08789 |
+
+  - 关键 rank 分布：
+    - `threshold`：主要选 `rank15/20/25`，全量分布 `{10:34, 15:366, 20:359, 25:222, 30:36, 35:4, 40:3}`。
+    - `js_mse`：平均 rank 最低的强候选之一，分布 `{10:79, 15:484, 20:329, 25:104, 30:23, 35:5}`。
+    - `margin_only`：`1024` 个 clean/adv rows 中 `860` 个选择 `rank40`，更像高 rank 保真对照。
+    - `exp007_full_score`：主要选 `rank20/25/30`，分布 `{15:21, 20:274, 25:427, 30:271, 35:30, 40:1}`。
+- **观察：**
+  - `n512` 相比 `EXP-008/n64` 已经能区分 selector 的 selected accuracy；不再是所有 selector 打平。
+  - 按 holdout adversarial accuracy 看，`margin_only` 最高 `0.84765625`，但它的平均 rank 为 `35.44`，且大量样本退到 `rank40`，不适合作为低成本早停规则。
+  - 按全量 adversarial accuracy 看，`threshold` 最高 `0.84765625`；`js_mse` 次高 `0.845703125`，但平均 rank 更低 `17.67`，比 `threshold` 的 `19.43` 更省。
+  - `mse_only` 的全量 MSE 更低 `0.090733`，但全量 adversarial accuracy 只有 `0.83984375`，说明单纯 MSE 门槛在本次 `n512` 上不是 robust acc 最优。
+  - `js_only` 和 `js_margin` 平均 rank 约 `12`，但 MSE 约 `0.28`，重建保真明显不足。
+  - `EXP-007` 的 full score 迁移到本次 `r5-40 step5 n512` 后全量 adversarial accuracy 只有 `0.828125`，低于 `threshold/js_mse/mse_only`，不能继续视为稳健候选。
+  - 与 `EXP-009` 固定 rank 对照相比，`threshold` 全量 adversarial accuracy `0.84765625` 高于固定 rank 最佳 `rank20=0.837890625`；`js_mse` 也高于固定 rank 最佳，同时平均 rank 低于 `20`。
+  - 已追加固定 `rank15/20/25/30/35/40` 与 `threshold/js_mse/mse_only` 的统一对照图；该图同时展示 clean/adv accuracy、mean rank 与 mean MSE，便于直接观察 robust acc 与保真/成本 trade-off。
+- **问题：**
+  - `threshold` 的 best margin threshold 为负值，实际 margin 条件很弱；该 selector 更接近 JS+MSE 的宽松联合阈值。
+  - `margin_only` 的 holdout adv/clean acc 最好，但依赖高 rank，不能证明 margin 是有效早停信号。
+  - 本实验仍是 full-sweep logits 的离线 replay，没有重新生成真实 selected purified `.pth`，也没有接入 `purify.py` 在线早停。
+  - 仍只覆盖 `thubenchmark fold0 seed42 sample_num=512 eps=0.03`，需要跨 seed/fold 或至少另一个攻击强度确认。
+- **结论：**
+  - `EXP-010` 改写了 `EXP-008` 的初步判断：`mse_only` 仍是有用的保真控制，但在 `n512` 上不是 robust acc 最优。
+  - 当前更值得继续在线化或复验的候选是 `threshold` 和 `js_mse`；其中 `threshold` 全量 adv acc 最高，`js_mse` 在接近的 adv acc 下平均 rank 更低。
+  - `EXP-007` full score 不应作为默认实现目标；其跨样本量/跨 rank-grid 迁移效果较差。
+  - `margin_only` 可作为高 rank 保真/clean acc 对照，但不适合作为 adaptive rank-selection 主规则。
+- **下一步：**
+  - 固定 rank `15/20/25/30/35/40` 与 `threshold/js_mse/mse_only` 的统一对照图已追加完成。
+  - 若要推进在线实现，优先做 `threshold` 和 `js_mse` 的显式配置开关，不改 baseline 默认行为。
+  - 在线实现前建议先补一个跨 seed/fold 或不同 `eps` 的 replay，确认 `threshold/js_mse` 优势不是本次 split 偶然结果。
+
+### EXP-011：预测熵 rank-selection Optuna 调参与 ablation（r5-40 step5 n512）
+
+- **日期：** 2026-06-04
+- **状态：** 已完成
+- **相关 idea：** `IDEA-004`
+- **目的：**
+  - 在 rank-growth full-sweep 轨迹中补充预测熵 `H(p_r) = -sum_c p_r(c) log p_r(c)`，用于衡量不同 rank 下分类器输出不确定性。
+  - 复用 `EXP-009` 的 `n512, ranks=5..40 step5` full-sweep logits，不重新运行长时间 TN 净化。
+  - 评估熵单指标、熵与 JS/MSE/margin 的组合，以及 `score_entropy` 是否优于 `EXP-010` 中的 `threshold/js_mse/mse_only` 强候选。
+- **代码版本 / 分支：**
+  - 分支：`main`
+  - commit：`e99016a`
+  - working tree：新增 rank-growth entropy 统计与 Optuna 熵 selector；未修改 `purify.py` 或 baseline 在线早停逻辑。
+- **输入：**
+  - full-sweep 输入目录：`tensor_ring_rank_analysis/results_rank_growth_exp009_hf_full_sweep_r5-40_step5_n512/`
+  - 输入轨迹文件：`rank_growth_predictions.pt`
+  - 数据集/划分：`thubenchmark fold0 seed42`
+  - 攻击：`autoattack eps=0.03`
+  - 模型来源：`consistancy_rank25-30_n512_eps0p03`
+- **实现变更：**
+  - `tensor_ring_rank_analysis/analyze_tr_rank_predictions.py`
+    - rank-growth `history_rows` 与新生成的 `.pt` trace 记录 `entropy`。
+    - `rank_growth_history.csv` 新增 `entropy`。
+    - `rank_growth_summary.csv` 新增 `entropy_mean`、`entropy_std`。
+    - rank-growth plots 新增 `entropy_by_rank.png` 和 clean/adv entropy trajectory heatmap。
+  - `tensor_ring_rank_analysis/optuna_rank_growth_selection.py`
+    - 从 `eval_records[*].logits` 动态计算 entropy，因此可直接兼容旧 `EXP-009` 的 `.pt`。
+    - 新增 selector：`entropy_only`、`js_entropy`、`mse_entropy`、`entropy_margin`、`js_mse_entropy`、`score_entropy`。
+    - 旧 selector 语义保持不变；输出 CSV 增加 `selected_entropy`、`mean_entropy`、`entropy_threshold`、`eta`。
+- **验证：**
+  - 语法检查通过：
+    ```bash
+    conda run -n torch --no-capture-output python -m py_compile \
+      tensor_ring_rank_analysis/analyze_tr_rank_predictions.py \
+      tensor_ring_rank_analysis/optuna_rank_growth_selection.py
+    ```
+  - rank-growth entropy smoke 通过：
+    - 输出目录：`tensor_ring_rank_analysis/results_smoke_exp011_entropy_rank_growth_20260604_131248/`
+    - 设置：`sample_num=1`，`rank_growth_ranks=5,10`，`rank_growth_steps_per_rank=1`，`--no_visualize`
+    - 验证：`rank_growth_history.csv` 包含 `entropy`，`rank_growth_summary.csv` 包含 `entropy_mean/entropy_std`。
+  - 追加 trace smoke 通过：
+    - 输出目录：`tensor_ring_rank_analysis/results_smoke_exp011_entropy_rank_growth_trace_20260604_131749/`
+    - 验证：`rank_growth_predictions.pt` 的 `traces[*].eval_records[*]` 和 `history_rows` 均包含 `entropy`。
+  - Optuna entropy selector smoke 通过：
+    - 输出目录：`tensor_ring_rank_analysis/results_smoke_exp011_entropy_optuna_20260604_131352/`
+    - 设置：`max_samples=8`，每个熵 selector `n_trials=2`
+    - 验证：`selected_rows.csv` 包含 `selected_entropy`，`summary.csv` 和 `fixed_rank_selector_comparison.csv` 包含 `mean_entropy`，`mode_best_summary.csv` 包含 `entropy_threshold/eta`。
+- **正式命令：**
+  ```bash
+  conda run -n torch --no-capture-output python -u \
+    tensor_ring_rank_analysis/optuna_rank_growth_selection.py \
+    --input_dir tensor_ring_rank_analysis/results_rank_growth_exp009_hf_full_sweep_r5-40_step5_n512 \
+    --output_dir tensor_ring_rank_analysis/results_rank_growth_exp011_entropy_optuna_selection_r5-40_step5_n512 \
+    --study_name exp011_entropy_optuna_selection_r5_40_step5_n512 \
+    --n_trials 300 \
+    --seed 42 \
+    --tune_ratio 0.5 \
+    --selection_modes threshold,score,js_only,mse_only,margin_only,js_mse,mse_margin,js_margin,entropy_only,js_entropy,mse_entropy,entropy_margin,js_mse_entropy,score_entropy \
+    --fixed_rank_baselines 15,20,25,30,35,40 \
+    --comparison_selectors threshold,js_mse,mse_only,entropy_only,js_mse_entropy,score_entropy \
+    --objective robust_priority \
+    --clean_weight 0.20 \
+    --mse_weight 0.10 \
+    --rank_weight 0.02 \
+    --plot_format png \
+    --plot_dpi 180
+  ```
+- **实际运行：**
+  - 日志：`logs/exp011_entropy_optuna_selection_r5-40_step5_n512_20260604_131428.log`
+  - 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp011_entropy_optuna_selection_r5-40_step5_n512/`
+  - 退出码：`0`
+  - 输出文件：
+    - `best_config.json`
+    - `trials.csv`
+    - `selected_rows.csv`
+    - `summary.csv`
+    - `mode_best_summary.csv`
+    - `fixed_rank_selector_comparison.csv`
+    - `meta.json`
+    - `plots/`
+- **结果：**
+  - tune objective 全局最佳 selector 为 `js_mse_entropy`：
+    - `js_threshold=0.059462126`
+    - `mse_threshold=0.143013170`
+    - `entropy_threshold=2.512311413`
+    - tune objective `1.019322397`
+  - 关键 selector 摘要：
+
+    | selector | holdout adv acc | holdout clean acc | holdout MSE | holdout entropy | holdout rank | all adv acc | all clean acc | all MSE | all entropy | all rank |
+    | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+    | `threshold` | 0.8359375 | 0.87890625 | 0.113238 | 0.449888 | 19.2578125 | 0.84765625 | 0.884765625 | 0.113463 | 0.457286 | 19.433594 |
+    | `js_mse` | 0.8359375 | 0.890625 | 0.130659 | 0.456377 | 17.373047 | 0.845703125 | 0.890625 | 0.129503 | 0.454352 | 17.670898 |
+    | `mse_only` | 0.8359375 | 0.87890625 | 0.091114 | 0.438933 | 22.128906 | 0.83984375 | 0.876953125 | 0.090733 | 0.441444 | 22.348633 |
+    | `entropy_only` | 0.84765625 | 0.91796875 | 0.041009 | 0.339794 | 38.134766 | 0.8359375 | 0.91015625 | 0.042455 | 0.339537 | 38.178711 |
+    | `js_entropy` | 0.83203125 | 0.89453125 | 0.280244 | 0.467851 | 11.884766 | 0.841796875 | 0.888671875 | 0.283484 | 0.455335 | 11.904297 |
+    | `mse_entropy` | 0.81640625 | 0.859375 | 0.118553 | 0.466234 | 18.632812 | 0.83203125 | 0.86328125 | 0.119509 | 0.468028 | 18.666992 |
+    | `entropy_margin` | 0.84765625 | 0.91796875 | 0.066027 | 0.339796 | 35.244141 | 0.8359375 | 0.91015625 | 0.067247 | 0.339540 | 35.463867 |
+    | `js_mse_entropy` | 0.828125 | 0.875 | 0.114400 | 0.448669 | 19.150391 | 0.845703125 | 0.876953125 | 0.115024 | 0.454288 | 19.228516 |
+    | `score_entropy` | 0.8359375 | 0.89453125 | 0.115518 | 0.359093 | 19.257812 | 0.845703125 | 0.890625 | 0.116645 | 0.350927 | 19.350586 |
+
+  - 关键 rank 分布：
+    - `threshold`：`{10:34, 15:366, 20:359, 25:222, 30:36, 35:4, 40:3}`
+    - `js_mse`：`{10:79, 15:484, 20:329, 25:104, 30:23, 35:5}`
+    - `mse_only`：`{10:2, 15:168, 20:385, 25:301, 30:152, 35:16}`
+    - `entropy_only`：`{5:17, 10:22, 15:8, 20:8, 25:11, 30:7, 35:3, 40:948}`
+    - `js_mse_entropy`：`{10:37, 15:377, 20:360, 25:218, 30:26, 35:1, 40:5}`
+    - `score_entropy`：`{10:13, 15:425, 20:377, 25:133, 30:48, 35:23, 40:5}`
+- **观察：**
+  - `js_mse_entropy` 在 tune objective 上最高，但 holdout adversarial accuracy 只有 `0.828125`，低于 `threshold/js_mse/mse_only` 的 `0.8359375`；全量 adversarial accuracy 为 `0.845703125`，与 `js_mse`、`score_entropy` 持平，低于 `threshold` 的 `0.84765625`。
+  - `entropy_only` 和 `entropy_margin` 的 holdout adv/clean acc 都较高，但平均 rank 分别达到 `38.13` 和 `35.24`；`entropy_only` 在 `1024` 个 clean/adv rows 中有 `948` 个选择 `rank40`，更像高 rank/低熵保真对照，不是低成本 adaptive 早停规则。
+  - `score_entropy` 相比普通 `score` 降低了 selected entropy，并在 all split 上达到 `0.845703125` adv acc，但没有超过 `threshold`；其 all mean rank `19.35` 也高于 `js_mse` 的 `17.67`。
+  - `js_entropy` 平均 rank 约 `11.90`，但 MSE 高到约 `0.283`，说明单靠 JS+entropy 容易过早停止，重建保真不足。
+  - `mse_entropy` 的 all adv acc 为 `0.83203125`，低于 `mse_only`，说明在当前搜索空间中加入 entropy 阈值反而收紧了有效样本选择。
+- **结论：**
+  - `IDEA-004` 的实现和离线调参流程可运行，预测熵可作为 rank-growth 不确定性诊断字段。
+  - 当前 `thubenchmark fold0 seed42 eps0.03 n512` 结果不支持把预测熵作为主 rank-selection 信号。
+  - 低熵本身倾向选择高 rank，因为高 rank 常带来更低熵和更低 MSE；这会退化成高 rank 保真策略，而不是低成本自适应 rank selection。
+  - 后续主候选仍应沿用 `EXP-010` 的 `threshold` 与 `js_mse`；entropy 可保留为辅助诊断或 `score_entropy` 的可选特征，但不应优先在线化。
+- **剩余问题：**
+  - 本实验仍是 full-sweep logits 的离线 replay，没有重新生成 selected purified `.pth`，也没有通过在线 `purify.py` 验证。
+  - 只覆盖 `thubenchmark fold0 seed42 eps=0.03`；若未来继续研究 entropy，应先做跨 seed/fold 或不同 eps 的 replay，而不是直接写入 baseline。
+
+### EXP-012：eps=0.1 rank-growth full pipeline 复验
+
+- **日期：** 2026-06-04
+- **状态：** 已完成
+- **相关 idea：** `IDEA-002`、`IDEA-003`、`IDEA-004`
+- **目的：**
+  - 将 `EXP-009/010/011` 的 rank-growth full-sweep、paired-delta/bootstrap、Optuna rank-selection pipeline 扩展到更强攻击 `eps=0.1`。
+  - 重点观察 `eps=0.1` 下 `threshold/js_mse`、entropy 相关 selector、固定 rank baseline 的 robust/clean trade-off 是否与 `eps=0.03` 一致。
+  - 使用 `analyze_rank_growth_pair_delta.py` 复查高频增量与 true-label margin 的 paired 差值，用 `optuna_rank_growth_selection.py` 做离线 rank selector 调参。
+- **输入与前置检查：**
+  - 当前仓库没有 eps=0.1 的 `rank_growth_predictions.pt`，因此先运行 `analyze_tr_rank_predictions.py` 生成 full-sweep 输入，再运行用户指定的两个离线脚本。
+  - eps=0.1 checkpoint 已存在：
+    `checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.1_42_fold0_consistancy_rank25-30_n512_eps0p1_best.pth`
+  - eps=0.1 adversarial data 已存在：
+    `ad_data/thubenchmark_eegnet_no_ea_consistancy_rank25-30_n512_eps0p1_madry_autoattack_eps0.1_seed42_fold0.pth`
+  - smoke 已通过：
+    - 输出目录：`tensor_ring_rank_analysis/results_smoke_exp012_eps0p1_rank_growth_20260604_133153/`
+    - 设置：`sample_num=1`，`rank_growth_ranks=5,10`，`rank_growth_steps_per_rank=1`
+- **关键设置：**
+  - 数据集/划分：`thubenchmark fold0 seed42`
+  - 攻击：`autoattack eps=0.1`
+  - 模型来源：`consistancy_rank25-30_n512_eps0p1`
+  - rank 序列：`5,10,15,20,25,30,35,40`
+  - 样本数：`512`
+  - full-sweep：开启；禁用 early stopping，完整评估所有 rank。
+  - 频域增量指标：开启；`high_freq_cutoff_hz=30.0`，`freq_energy_floor_hz=1.0`
+  - bootstrap：`5000` 次，`95% CI`
+  - Optuna：每个 selector `300` trials，`tune_ratio=0.5`，`seed=42`
+- **输出目录与日志：**
+  - full-sweep 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp012_hf_full_sweep_eps0p1_r5-40_step5_n512/`
+  - Optuna 输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp012_optuna_selection_eps0p1_r5-40_step5_n512/`
+  - 后台 pipeline PID：`74113`
+  - pipeline 日志：`logs/exp012_pipeline_eps0p1_r5-40_step5_n512_20260604_133222.log`
+  - full-sweep 日志：`logs/exp012_rank_growth_hf_full_sweep_eps0p1_r5-40_step5_n512_20260604_133222.log`
+  - paired-delta 日志：`logs/exp012_pair_delta_eps0p1_r5-40_step5_n512_20260604_133222.log`
+  - Optuna 日志：`logs/exp012_optuna_selection_eps0p1_r5-40_step5_n512_20260604_133222.log`
+  - 启动备注：沙箱内 `setsid nohup` 未保活且未生成日志；随后使用沙箱外提权启动，pipeline 日志确认已进入 full-sweep 阶段。
+  - 完成时间：`2026-06-04T15:37:21+08:00`，pipeline 日志打印 `EXP-012 pipeline complete`。
+- **命令：**
+  ```bash
+  FULL_OUT="tensor_ring_rank_analysis/results_rank_growth_exp012_hf_full_sweep_eps0p1_r5-40_step5_n512"
+  OPTUNA_OUT="tensor_ring_rank_analysis/results_rank_growth_exp012_optuna_selection_eps0p1_r5-40_step5_n512"
+
+  conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/analyze_tr_rank_predictions.py \
+    --analysis_mode rank_growth \
+    --rank_growth_full_sweep \
+    --rank_growth_ranks 5,10,15,20,25,30,35,40 \
+    --dataset thubenchmark \
+    --model eegnet \
+    --no_ea \
+    --eps 0.1 \
+    --fold 0 \
+    --attack autoattack \
+    --at_strategy madry \
+    --consistency_version consistancy \
+    --consistency_tag consistancy_rank25-30_n512_eps0p1 \
+    --adv_model_tag consistancy_rank25-30_n512_eps0p1 \
+    --config PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml \
+    --checkpoint_path checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.1_42_fold0_consistancy_rank25-30_n512_eps0p1_best.pth \
+    --ad_data_path ad_data/thubenchmark_eegnet_no_ea_consistancy_rank25-30_n512_eps0p1_madry_autoattack_eps0.1_seed42_fold0.pth \
+    --sample_num 512 \
+    --enable_incremental_frequency_metrics \
+    --high_freq_cutoff_hz 30.0 \
+    --freq_energy_floor_hz 1.0 \
+    --plot_format png \
+    --plot_dpi 180 \
+    --output_dir "${FULL_OUT}"
+
+  conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/analyze_rank_growth_pair_delta.py \
+    --input_dir "${FULL_OUT}" \
+    --output_prefix rank_growth_pair_delta_bootstrap \
+    --bootstrap_iters 5000 \
+    --ci 95 \
+    --seed 42 \
+    --plot_format png \
+    --plot_dpi 180
+
+  conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/optuna_rank_growth_selection.py \
+    --input_dir "${FULL_OUT}" \
+    --output_dir "${OPTUNA_OUT}" \
+    --study_name exp012_optuna_selection_eps0p1_r5_40_step5_n512 \
+    --n_trials 300 \
+    --seed 42 \
+    --tune_ratio 0.5 \
+    --selection_modes threshold,score,js_only,mse_only,margin_only,js_mse,mse_margin,js_margin,entropy_only,js_entropy,mse_entropy,entropy_margin,js_mse_entropy,score_entropy \
+    --fixed_rank_baselines 15,20,25,30,35,40 \
+    --comparison_selectors threshold,js_mse,mse_only,entropy_only,js_mse_entropy,score_entropy \
+    --objective robust_priority \
+    --clean_weight 0.20 \
+    --mse_weight 0.10 \
+    --rank_weight 0.02 \
+    --plot_format png \
+    --plot_dpi 180
+  ```
+- **结果：**
+  - full-sweep、paired-delta/bootstrap、Optuna 三个阶段均已完成，核心产物已落盘：
+    - `rank_growth_predictions.pt`
+    - `rank_growth_summary.csv`
+    - `rank_growth_pair_delta_bootstrap_summary.csv`
+    - `summary.csv`
+    - `mode_best_summary.csv`
+    - `fixed_rank_selector_comparison.csv`
+  - 固定 rank 对照（全量 clean/adv rows）：
+
+    | method | clean acc | adv acc | all acc | mean MSE | mean entropy |
+    |---|---:|---:|---:|---:|---:|
+    | rank15 | 0.816406 | 0.796875 | 0.806641 | 0.155501 | 0.941930 |
+    | rank20 | 0.843750 | 0.787109 | 0.815430 | 0.109655 | 0.887871 |
+    | rank25 | 0.841797 | 0.771484 | 0.806641 | 0.077825 | 0.864005 |
+    | rank30 | 0.863281 | 0.755859 | 0.809570 | 0.055167 | 0.847012 |
+    | rank35 | 0.871094 | 0.724609 | 0.797852 | 0.039663 | 0.824700 |
+    | rank40 | 0.888672 | 0.712891 | 0.800781 | 0.028898 | 0.807164 |
+
+  - 主要 Optuna selector（全量 clean/adv rows）：
+
+    | selector | clean acc | adv acc | all acc | mean rank | mean MSE | mean entropy | objective |
+    |---|---:|---:|---:|---:|---:|---:|---:|
+    | threshold | 0.832031 | 0.787109 | 0.809570 | 18.242188 | 0.136675 | 0.961077 | 0.932281 |
+    | score | 0.830078 | 0.798828 | 0.814453 | 15.317383 | 0.151396 | 0.929407 | 0.943809 |
+    | js_mse | 0.828125 | 0.796875 | 0.812500 | 15.292969 | 0.153875 | 0.944155 | 0.941231 |
+    | entropy_only | 0.871094 | 0.728516 | 0.799805 | 18.886719 | 0.242039 | 0.891775 | 0.870595 |
+    | js_mse_entropy | 0.833984 | 0.796875 | 0.815430 | 15.434570 | 0.154187 | 0.940915 | 0.942291 |
+    | score_entropy | 0.837891 | 0.794922 | 0.816406 | 16.074219 | 0.146392 | 0.840620 | 0.941533 |
+
+  - Optuna 全局最优按 tune objective 是 `score_entropy`，best trial `131`，tune objective `0.945337`；但其全量 adversarial accuracy 为 `0.794922`，没有超过 `score`、`js_mse`、`js_mse_entropy` 和固定 `rank15` 的 `0.796875~0.798828` 区间。
+  - paired bootstrap 显示 `25->30`、`30->35`、`35->40` 的 `delta_hf_ratio_mean` 95% CI 全为正，分别为 `[0.000510, 0.002443]`、`[0.000125, 0.001926]`、`[0.001095, 0.002804]`；同时这些 rank 段 `delta_margin_mean` 均为负，提示更高 rank 的新增高频能量与 true-label margin 下降同时出现。
+  - `entropy_only` 在 `eps=0.1` 下仍不是稳健主策略：clean acc 较高（`0.871094`），但 adv acc 降到 `0.728516`，更像偏高 rank/保真侧的诊断信号。
+- **结论：**
+  - `eps=0.1` 下，`threshold/js_mse` 不再复现 `eps=0.03` 上的明显优势；`score`、`js_mse`、`js_mse_entropy`、固定 `rank15` 的 robust accuracy 差距很小。
+  - 高 rank baseline 明显提升 clean acc、降低 MSE 和 entropy，但 robust acc 随 rank 增大下降；在线 rank-selection 不能简单追求高 rank 保真。
+  - 暂不把任何 selector 写入默认在线早停逻辑；下一步应做跨 seed/fold 或不同攻击强度的离线 replay，再决定是否实现显式配置开关。
+
+### EXP-013：eps=0.1 js_mse 在线早停计算开销复验
+
+- **日期：** 2026-06-04
+- **状态：** 已完成
+- **相关 idea：** `IDEA-003`
+- **目的：**
+  - 最后一次复验 adaptive rank：不再追求更高 robust accuracy，而是检查 `js_mse` 在线早停是否能显著降低计算时间开销。
+  - 使用 `EXP-012` 在 `eps=0.1` full-sweep 轨迹上得到的 `js_mse` 最优阈值，直接跑真实在线早停。
+  - 与 `EXP-012` full-sweep 运行时间做粗略对比：`EXP-012` full-sweep 日志从 `2026-06-04 13:34:29` 到 pipeline 记录 `15:37:01`，约 `2h02m32s`，其中 clean/adv 都完整评估到 `rank40`。
+- **关键设置：**
+  - 数据集/划分：`thubenchmark fold0 seed42`
+  - 攻击：`autoattack eps=0.1`
+  - 模型来源：`consistancy_rank25-30_n512_eps0p1`
+  - rank 序列：`5,10,15,20,25,30,35,40`
+  - 样本数：`512`
+  - 早停策略：在线 `js_mse`
+  - 阈值来源：`EXP-012` 的 `js_mse` Optuna best trial
+    - `rank_growth_js_threshold=0.036768744516209435`
+    - `rank_growth_max_mse_to_input=0.19581095691938585`
+  - 早停语义：当相邻 rank 的 top1 不变、`JS(rank_prev, rank_next) <= threshold`，且 `rank_prev` 的 `MSE <= threshold` 时，选择 `rank_prev` 并停止；这与离线 `js_mse` replay 的语义一致。
+- **验证：**
+  - smoke 已通过：
+    - 输出目录：`tensor_ring_rank_analysis/results_smoke_exp013_js_mse_early_stop_eps0p1_20260604_155842/`
+    - 设置：`sample_num=1`，`--no_visualize`
+    - `meta.json` 确认 `rank_growth_full_sweep=false`，且 JS/MSE 阈值正确写入。
+    - smoke 的 clean/adv 单样本均评估到 `rank20` 后选择 `rank15`。
+- **输出目录与日志：**
+  - 正式输出目录：`tensor_ring_rank_analysis/results_rank_growth_exp013_js_mse_early_stop_eps0p1_r5-40_step5_n512/`
+  - 正式运行方式：`tmux` session `exp013_js_mse_eps0p1`
+  - 正式启动时间：`2026-06-04T16:02:10+08:00`
+  - 正式日志：`logs/exp013_js_mse_early_stop_eps0p1_r5-40_step5_n512_20260604_160139.log`
+  - time 日志：`logs/exp013_js_mse_early_stop_time_eps0p1_r5-40_step5_n512_20260604_160139.txt`
+  - 启动备注：普通后台启动和 `setsid nohup` 在当前环境下未保活；最终使用 `tmux` 启动成功。
+  - 完成时间：`2026-06-04T17:11:21+08:00`，日志结尾显示 `status=0`。
+- **命令：**
+  ```bash
+  OUT="tensor_ring_rank_analysis/results_rank_growth_exp013_js_mse_early_stop_eps0p1_r5-40_step5_n512"
+  LOG="logs/exp013_js_mse_early_stop_eps0p1_r5-40_step5_n512_20260604_160139.log"
+  TIME_LOG="logs/exp013_js_mse_early_stop_time_eps0p1_r5-40_step5_n512_20260604_160139.txt"
+
+  tmux new-session -d -s exp013_js_mse_eps0p1 bash -lc '
+  cd /home/yhj/pythonProject/EEGAP
+  exec > "'"${LOG}"'" 2>&1
+  echo "[$(date -Is)] EXP-013 js_mse early-stop start"
+  /usr/bin/time -v -o "'"${TIME_LOG}"'" conda run -n torch --no-capture-output python -u \
+    tensor_ring_rank_analysis/analyze_tr_rank_predictions.py \
+    --analysis_mode rank_growth \
+    --rank_growth_ranks 5,10,15,20,25,30,35,40 \
+    --rank_growth_js_threshold 0.036768744516209435 \
+    --rank_growth_max_mse_to_input 0.19581095691938585 \
+    --dataset thubenchmark \
+    --model eegnet \
+    --no_ea \
+    --eps 0.1 \
+    --fold 0 \
+    --attack autoattack \
+    --at_strategy madry \
+    --consistency_version consistancy \
+    --consistency_tag consistancy_rank25-30_n512_eps0p1 \
+    --adv_model_tag consistancy_rank25-30_n512_eps0p1 \
+    --config PTR3d_rank_growth_8_2048_r5-40_3d_interpolate.yaml \
+    --checkpoint_path checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.1_42_fold0_consistancy_rank25-30_n512_eps0p1_best.pth \
+    --ad_data_path ad_data/thubenchmark_eegnet_no_ea_consistancy_rank25-30_n512_eps0p1_madry_autoattack_eps0.1_seed42_fold0.pth \
+    --sample_num 512 \
+    --output_dir "'"${OUT}"'" \
+    --plot_format png \
+    --plot_dpi 180
+  STATUS=$?
+  echo "[$(date -Is)] EXP-013 js_mse early-stop finished status=${STATUS}"
+  exit ${STATUS}
+  '
+  ```
+- **指标：**
+  - 总墙钟时间：读取 `TIME_LOG` 的 `Elapsed (wall clock) time`。
+  - 与 `EXP-012` full-sweep 约 `2h02m32s` 的时间比值。
+  - `rank_growth_summary.csv` 中 clean/adv 的 `selected_count`、`evaluated_count` 和 `mean rank`。
+  - selected rows 的 clean/adv accuracy、mean MSE、mean entropy，用于确认时间下降是否伴随明显性能损失。
+- **结果：**
+  - 任务已完成，退出状态 `0`。
+  - `/usr/bin/time -v` 记录的墙钟时间为 `1:09:11`；相对 `EXP-012` full-sweep 约 `2:02:32`，耗时约为 `56.5%`，粗略加速约 `1.77x`。
+  - 输出文件已生成：
+    - `tensor_ring_rank_analysis/results_rank_growth_exp013_js_mse_early_stop_eps0p1_r5-40_step5_n512/rank_growth_history.csv`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp013_js_mse_early_stop_eps0p1_r5-40_step5_n512/rank_growth_summary.csv`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp013_js_mse_early_stop_eps0p1_r5-40_step5_n512/rank_growth_predictions.pt`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp013_js_mse_early_stop_eps0p1_r5-40_step5_n512/meta.json`
+    - `tensor_ring_rank_analysis/results_rank_growth_exp013_js_mse_early_stop_eps0p1_r5-40_step5_n512/plots/`
+  - selected rows 汇总：
+
+    | source | count | acc | mean rank | mean MSE | mean entropy |
+    | --- | ---: | ---: | ---: | ---: | ---: |
+    | clean | 512 | 0.837890625 | 15.791016 | 0.149130628 | 0.919332704 |
+    | adv | 512 | 0.781250000 | 15.830078 | 0.150320173 | 0.960024727 |
+    | all | 1024 | 0.809570312 | 15.810547 | 0.149725401 | 0.939678715 |
+
+  - selected rank 分布：
+
+    | rank | clean count | adv count |
+    | ---: | ---: | ---: |
+    | 10 | 96 | 93 |
+    | 15 | 274 | 274 |
+    | 20 | 116 | 121 |
+    | 25 | 19 | 17 |
+    | 30 | 6 | 6 |
+    | 40 | 1 | 1 |
+
+  - 平均每个样本评估 rank 数：clean `4.156250`，adv `4.164062`；相比 full-sweep 每个样本固定 `8` 个 rank block，评估块数量大约减半。
+- **观察：**
+  - 在线 `js_mse` 早停确实显著降低了计算量，selected rank 主要集中在 `rank10/15/20`，极少数样本评估到 `rank40`。
+  - 与 `EXP-012` 离线 replay 相比，本实验全量 adv acc 为 `0.78125`，低于 `EXP-012` 中 `score=0.798828`、`js_mse=0.796875`、`js_mse_entropy=0.796875` 和固定 `rank15=0.796875`。
+  - 当前在线早停语义选择的是满足稳定条件时的前一档 rank；这有利于减少计算和 rank，但在 `eps=0.1` 下会牺牲一部分 robust accuracy。
+- **问题：**
+  - 本实验只覆盖 `thubenchmark fold0 seed42 eps=0.1 sample_num=512`。
+  - 结果来自真实在线早停轨迹，不能直接与 full-sweep 离线 selector 完全等价；二者在优化路径和停止时机上仍可能有差异。
+- **结论：**
+  - `js_mse` 在线早停可以作为降低计算成本的候选策略，但在当前 `eps=0.1` 设置下不是 robust accuracy 最优方案。
+  - 暂不建议把该在线早停写入默认净化逻辑；若后续使用，应通过显式配置开关暴露，并把它定位为 speed/compute-oriented 选项。
+- **下一步：**
+  - 若继续推进在线 adaptive rank，应优先比较 `score`、`js_mse_entropy` 或更保守的 rank 选择语义，而不是只复用当前 `js_mse` 早停。
+  - 在跨 seed/fold 或不同 eps 的离线 replay 完成前，不修改 baseline 默认行为。

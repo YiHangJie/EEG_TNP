@@ -22,9 +22,11 @@
 - 新 idea 应优先通过新模块、新配置文件、实验分支或显式配置开关实现。
 - 不要覆盖 baseline 行为。除非用户明确要求，否则应保持已有 baseline 可复现。
 - 每次实现或测试 idea 后，应更新 `docs/EXPERIMENTS.md`，长实验都通过 nohup 挂到后台运行。
+- 运行实验的命令必须确保日志文件实时写入，便于跟踪和管理实验进度；使用 `conda run` 时应优先加 `--no-capture-output`，Python 入口应优先使用 `python -u`，并把 stdout/stderr 明确重定向到稳定的日志文件。
 - 如果实验结果影响后续研究方向，应更新 `docs/DECISIONS.md`。
 - 不要编造实验结果。没有实际运行的实验，结果必须写为 `Pending`。
 - 除非用户明确要求，不要运行长时间训练任务。
+- 用户要求时，根据现实情况更新`docs/方法进展梳理.md`，以体现最新的进展。
 
 ## 文档地图
 
@@ -33,6 +35,7 @@
 - `docs/CODEMAP.md`：描述仓库结构和安全修改点。
 - `docs/DECISIONS.md`：记录重要研究决策。
 - `docs/PROMPTS.md`：保存可复用的 Codex 提示词。
+- `docs/方法进展梳理.md`：从撰写论文（或做 presentation）的角度去梳理这个研究的整体底层逻辑。
 - 实验相关文档统一放在 `docs/` 目录下。
 
 ## 代码修改规则

@@ -315,12 +315,26 @@ def parse_args():
     parser.add_argument("--analysis_mode", type=str, default="tensorly_tr",
                         choices=["tensorly_tr", "rank_growth"],
                         help="tensorly_tr keeps the legacy TensorLy TR sweep; rank_growth runs PTR_3d_rank_growth.")
+    parser.add_argument("--rank_growth_ranks", type=parse_rank_list, default=None,
+                        help="override rank_growth_ranks for rank_growth analysis, e.g. 5,6,7,8.")
     parser.add_argument("--rank_growth_steps_per_rank", type=int, default=None,
                         help="override rank_growth_steps_per_rank for rank_growth analysis.")
     parser.add_argument("--rank_growth_js_threshold", type=float, default=None,
                         help="override rank_growth_js_threshold for rank_growth analysis.")
     parser.add_argument("--rank_growth_max_mse_to_input", type=float, default=None,
                         help="override rank_growth_max_mse_to_input for rank_growth analysis.")
+    parser.add_argument("--rank_growth_full_sweep", action="store_true",
+                        help="disable rank-growth early stopping and evaluate every configured rank.")
+    parser.add_argument("--enable_incremental_frequency_metrics", action="store_true",
+                        help="compute adjacent-rank frequency metrics for rank_growth analysis.")
+    parser.add_argument("--high_freq_cutoff_hz", type=float, default=30.0,
+                        help="lower bound in Hz for high-frequency incremental energy.")
+    parser.add_argument("--freq_energy_floor_hz", type=float, default=1.0,
+                        help="lower bound in Hz for total frequency energy, excluding slow drift/DC.")
+    parser.add_argument("--hf_stop_gain_rel_threshold", type=float, default=0.02,
+                        help="exploratory stop flag threshold for small relative reconstruction gain.")
+    parser.add_argument("--hf_stop_ratio_threshold", type=float, default=0.5,
+                        help="exploratory stop flag threshold for high-frequency energy ratio.")
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--gpu_id", type=int, default=0)
     parser.add_argument("--batch_size", type=int, default=32)
@@ -610,12 +624,18 @@ def predict_for_source(source_type, samples, labels, ranks, model, purify_args, 
 def build_rank_growth_config(config, args):
     """复制 YAML 配置并应用 rank growth 分析用 override，避免修改原配置文件。"""
     config = dict(config)
+    if args.rank_growth_ranks is not None:
+        config["rank_growth_ranks"] = [int(rank) for rank in args.rank_growth_ranks]
     if args.rank_growth_steps_per_rank is not None:
         config["rank_growth_steps_per_rank"] = int(args.rank_growth_steps_per_rank)
     if args.rank_growth_js_threshold is not None:
         config["rank_growth_js_threshold"] = float(args.rank_growth_js_threshold)
     if args.rank_growth_max_mse_to_input is not None:
         config["rank_growth_max_mse_to_input"] = float(args.rank_growth_max_mse_to_input)
+    if args.rank_growth_full_sweep:
+        # 诊断 JS/MSE 随 rank 的完整变化时不能早停，否则高 rank 统计会有选择偏差。
+        config["rank_growth_js_threshold"] = -1.0
+        config["rank_growth_max_mse_to_input"] = None
     return config
 
 
@@ -625,6 +645,333 @@ def config_to_namespace(config):
     for key, value in config.items():
         setattr(cfg, key, value)
     return cfg
+
+
+def build_frequency_metric_options(args, sampling_rate):
+    """构造 EXP-005 频域增量指标配置；未启用时返回 None。"""
+    if not args.enable_incremental_frequency_metrics:
+        return None
+
+    sampling_rate = float(sampling_rate)
+    nyquist_hz = sampling_rate / 2.0
+    high_freq_cutoff_hz = float(args.high_freq_cutoff_hz)
+    freq_energy_floor_hz = float(args.freq_energy_floor_hz)
+    hf_stop_gain_rel_threshold = float(args.hf_stop_gain_rel_threshold)
+    hf_stop_ratio_threshold = float(args.hf_stop_ratio_threshold)
+
+    if sampling_rate <= 0:
+        raise ValueError(f"sampling_rate must be positive, got {sampling_rate}.")
+    if freq_energy_floor_hz < 0:
+        raise ValueError(f"--freq_energy_floor_hz must be non-negative, got {freq_energy_floor_hz}.")
+    if high_freq_cutoff_hz < 0 or high_freq_cutoff_hz > nyquist_hz:
+        raise ValueError(
+            f"--high_freq_cutoff_hz must be in [0, Nyquist={nyquist_hz}], "
+            f"got {high_freq_cutoff_hz}."
+        )
+    if freq_energy_floor_hz > nyquist_hz:
+        raise ValueError(
+            f"--freq_energy_floor_hz must not exceed Nyquist={nyquist_hz}, "
+            f"got {freq_energy_floor_hz}."
+        )
+    if hf_stop_gain_rel_threshold < 0:
+        raise ValueError(
+            f"--hf_stop_gain_rel_threshold must be non-negative, got {hf_stop_gain_rel_threshold}."
+        )
+    if not 0.0 <= hf_stop_ratio_threshold <= 1.0:
+        raise ValueError(f"--hf_stop_ratio_threshold must be in [0, 1], got {hf_stop_ratio_threshold}.")
+
+    return {
+        "sampling_rate": sampling_rate,
+        "nyquist_hz": nyquist_hz,
+        "high_freq_cutoff_hz": high_freq_cutoff_hz,
+        "freq_energy_floor_hz": freq_energy_floor_hz,
+        "hf_stop_gain_rel_threshold": hf_stop_gain_rel_threshold,
+        "hf_stop_ratio_threshold": hf_stop_ratio_threshold,
+    }
+
+
+def one_sided_power_weights(time_len, freqs):
+    """rfft 单边谱能量权重，用于近似 Parseval 能量比例。"""
+    weights = torch.ones_like(freqs)
+    if time_len <= 1:
+        return weights
+    if time_len % 2 == 0:
+        if weights.numel() > 2:
+            weights[1:-1] = 2.0
+    elif weights.numel() > 1:
+        weights[1:] = 2.0
+    return weights
+
+
+def compute_incremental_frequency_metrics(increment, options):
+    """计算相邻 rank 新增恢复成分在时间轴上的频域能量占比。"""
+    increment = increment.detach().cpu().float()
+    time_len = increment.shape[-1]
+    if time_len < 2:
+        raise ValueError(f"Frequency metrics require time_len >= 2, got {time_len}.")
+
+    sampling_rate = float(options["sampling_rate"])
+    freqs = torch.fft.rfftfreq(time_len, d=1.0 / sampling_rate)
+    total_mask = freqs >= float(options["freq_energy_floor_hz"])
+    high_mask = freqs >= float(options["high_freq_cutoff_hz"])
+    if not bool(total_mask.any()):
+        raise ValueError("No frequency bins remain after applying --freq_energy_floor_hz.")
+    if not bool(high_mask.any()):
+        raise ValueError("No frequency bins remain after applying --high_freq_cutoff_hz.")
+
+    spectrum = torch.fft.rfft(increment, dim=-1)
+    power = spectrum.real.pow(2) + spectrum.imag.pow(2)
+    weights = one_sided_power_weights(time_len, freqs)
+    view_shape = [1] * (power.dim() - 1) + [-1]
+    power = power * weights.view(*view_shape)
+
+    total_energy = float(power[..., total_mask].sum().item())
+    high_freq_energy = float(power[..., high_mask].sum().item())
+    high_freq_ratio = high_freq_energy / total_energy if total_energy > 0.0 else 0.0
+
+    return {
+        "incremental_energy_total": total_energy,
+        "incremental_high_freq_energy": high_freq_energy,
+        "incremental_high_freq_ratio": high_freq_ratio,
+        "incremental_l2": float(increment.pow(2).sum().item()),
+        "frequency_bin_count": int(total_mask.sum().item()),
+        "high_frequency_bin_count": int(high_mask.sum().item()),
+        "nyquist_hz": float(freqs[-1].item()),
+    }
+
+
+def logits_to_top1(logits):
+    probs = torch.softmax(logits, dim=-1)
+    confidence, top1 = probs.max(dim=-1)
+    return int(top1.item()), float(confidence.item())
+
+
+def logits_to_entropy(logits):
+    """计算分类 logits 对应的预测熵，用于 IDEA-004 的不确定性诊断。"""
+    probs = torch.softmax(logits, dim=-1).clamp_min(1e-12)
+    return float(-(probs * probs.log()).sum(dim=-1).item())
+
+
+def build_incremental_frequency_rows(
+    sample,
+    label,
+    source_type,
+    sample_id,
+    source_index,
+    eval_records,
+    options,
+):
+    """构建单样本相邻 rank 的频域增量指标行。"""
+    rows = []
+    sorted_records = sorted(eval_records, key=lambda record: int(record["rank"]))
+    for prev_record, next_record in zip(sorted_records[:-1], sorted_records[1:]):
+        prev_rank = int(prev_record["rank"])
+        next_rank = int(next_record["rank"])
+        increment = next_record["purified"] - prev_record["purified"]
+        frequency_metrics = compute_incremental_frequency_metrics(increment, options)
+
+        mse_prev = float(prev_record["mse_to_input"])
+        mse_next = float(next_record["mse_to_input"])
+        reconstruction_gain_abs = mse_prev - mse_next
+        reconstruction_gain_rel = reconstruction_gain_abs / max(abs(mse_prev), 1e-12)
+        top1_prev, confidence_prev = logits_to_top1(prev_record["logits"])
+        top1_next, confidence_next = logits_to_top1(next_record["logits"])
+        label_value = int(label.item())
+        hf_stop_candidate = (
+            reconstruction_gain_rel <= float(options["hf_stop_gain_rel_threshold"])
+            and frequency_metrics["incremental_high_freq_ratio"] >= float(options["hf_stop_ratio_threshold"])
+        )
+
+        rows.append({
+            "sample_id": sample_id,
+            "source_index": source_index,
+            "source_type": source_type,
+            "label": label_value,
+            "rank_prev": prev_rank,
+            "rank_next": next_rank,
+            "rank_pair": f"{prev_rank}->{next_rank}",
+            "mse_prev": mse_prev,
+            "mse_next": mse_next,
+            "reconstruction_gain_abs": float(reconstruction_gain_abs),
+            "reconstruction_gain_rel": float(reconstruction_gain_rel),
+            "incremental_l2": frequency_metrics["incremental_l2"],
+            "incremental_energy_total": frequency_metrics["incremental_energy_total"],
+            "incremental_high_freq_energy": frequency_metrics["incremental_high_freq_energy"],
+            "incremental_high_freq_ratio": frequency_metrics["incremental_high_freq_ratio"],
+            "high_freq_cutoff_hz": float(options["high_freq_cutoff_hz"]),
+            "freq_energy_floor_hz": float(options["freq_energy_floor_hz"]),
+            "frequency_bin_count": frequency_metrics["frequency_bin_count"],
+            "high_frequency_bin_count": frequency_metrics["high_frequency_bin_count"],
+            "nyquist_hz": frequency_metrics["nyquist_hz"],
+            "top1_prev": top1_prev,
+            "top1_next": top1_next,
+            "top1_changed": int(top1_prev != top1_next),
+            "confidence_prev": confidence_prev,
+            "confidence_next": confidence_next,
+            "correct_prev": int(top1_prev == label_value),
+            "correct_next": int(top1_next == label_value),
+            "hf_stop_gain_rel_threshold": float(options["hf_stop_gain_rel_threshold"]),
+            "hf_stop_ratio_threshold": float(options["hf_stop_ratio_threshold"]),
+            "hf_stop_candidate": int(hf_stop_candidate),
+            "hf_candidate_rank": prev_rank if hf_stop_candidate else "",
+        })
+    return rows
+
+
+def mean_std_from_values(values):
+    values = [float(value) for value in values if value not in (None, "")]
+    if not values:
+        return "", ""
+    values_np = np.asarray(values, dtype=float)
+    return float(values_np.mean()), float(values_np.std())
+
+
+def build_incremental_frequency_summary_rows(incremental_rows):
+    """按 source_type/rank_pair 汇总 EXP-005 频域增量指标。"""
+    grouped = defaultdict(list)
+    for row in incremental_rows:
+        grouped[(row["source_type"], int(row["rank_prev"]), int(row["rank_next"]))].append(row)
+
+    rows = []
+    for (source_type, rank_prev, rank_next), items in sorted(
+        grouped.items(),
+        key=lambda item: (item[0][0], item[0][1], item[0][2]),
+    ):
+        ratio_mean, ratio_std = mean_std_from_values(
+            row["incremental_high_freq_ratio"] for row in items
+        )
+        gain_rel_mean, gain_rel_std = mean_std_from_values(
+            row["reconstruction_gain_rel"] for row in items
+        )
+        l2_mean, l2_std = mean_std_from_values(row["incremental_l2"] for row in items)
+        total_energy_mean, total_energy_std = mean_std_from_values(
+            row["incremental_energy_total"] for row in items
+        )
+        high_energy_mean, high_energy_std = mean_std_from_values(
+            row["incremental_high_freq_energy"] for row in items
+        )
+        hf_stop_count = sum(int(row["hf_stop_candidate"]) for row in items)
+        top1_change_rate = float(np.mean([int(row["top1_changed"]) for row in items])) if items else ""
+        rows.append({
+            "source_type": source_type,
+            "rank_prev": rank_prev,
+            "rank_next": rank_next,
+            "rank_pair": f"{rank_prev}->{rank_next}",
+            "count": len(items),
+            "incremental_high_freq_ratio_mean": ratio_mean,
+            "incremental_high_freq_ratio_std": ratio_std,
+            "reconstruction_gain_rel_mean": gain_rel_mean,
+            "reconstruction_gain_rel_std": gain_rel_std,
+            "incremental_l2_mean": l2_mean,
+            "incremental_l2_std": l2_std,
+            "incremental_energy_total_mean": total_energy_mean,
+            "incremental_energy_total_std": total_energy_std,
+            "incremental_high_freq_energy_mean": high_energy_mean,
+            "incremental_high_freq_energy_std": high_energy_std,
+            "hf_stop_candidate_count": hf_stop_count,
+            "hf_stop_candidate_rate": hf_stop_count / len(items) if items else "",
+            "top1_change_rate": top1_change_rate,
+        })
+    return rows
+
+
+def build_incremental_frequency_pair_delta_rows(incremental_rows):
+    """构建同一 source_index 上 adv-clean 的 paired 差值，减少样本难度混杂。"""
+    grouped = defaultdict(dict)
+    for row in incremental_rows:
+        key = (
+            int(row["sample_id"]),
+            int(row["source_index"]),
+            int(row["rank_prev"]),
+            int(row["rank_next"]),
+        )
+        grouped[key][row["source_type"]] = row
+
+    rows = []
+    for (sample_id, source_index, rank_prev, rank_next), source_rows in sorted(grouped.items()):
+        clean_row = source_rows.get("clean")
+        adv_row = source_rows.get("adv")
+        if clean_row is None or adv_row is None:
+            continue
+
+        clean_ratio = float(clean_row["incremental_high_freq_ratio"])
+        adv_ratio = float(adv_row["incremental_high_freq_ratio"])
+        clean_gain_rel = float(clean_row["reconstruction_gain_rel"])
+        adv_gain_rel = float(adv_row["reconstruction_gain_rel"])
+        clean_l2 = float(clean_row["incremental_l2"])
+        adv_l2 = float(adv_row["incremental_l2"])
+        rows.append({
+            "sample_id": sample_id,
+            "source_index": source_index,
+            "rank_prev": rank_prev,
+            "rank_next": rank_next,
+            "rank_pair": f"{rank_prev}->{rank_next}",
+            "clean_incremental_high_freq_ratio": clean_ratio,
+            "adv_incremental_high_freq_ratio": adv_ratio,
+            "delta_incremental_high_freq_ratio": adv_ratio - clean_ratio,
+            "clean_reconstruction_gain_rel": clean_gain_rel,
+            "adv_reconstruction_gain_rel": adv_gain_rel,
+            "delta_reconstruction_gain_rel": adv_gain_rel - clean_gain_rel,
+            "clean_incremental_l2": clean_l2,
+            "adv_incremental_l2": adv_l2,
+            "delta_incremental_l2": adv_l2 - clean_l2,
+            "adv_hf_ratio_higher": int(adv_ratio > clean_ratio),
+            "adv_gain_rel_lower": int(adv_gain_rel < clean_gain_rel),
+            "clean_hf_stop_candidate": int(clean_row["hf_stop_candidate"]),
+            "adv_hf_stop_candidate": int(adv_row["hf_stop_candidate"]),
+        })
+    return rows
+
+
+def build_incremental_frequency_pair_delta_summary_rows(pair_delta_rows):
+    """按 rank pair 汇总 adv-clean paired 差值。"""
+    grouped = defaultdict(list)
+    for row in pair_delta_rows:
+        grouped[(int(row["rank_prev"]), int(row["rank_next"]))].append(row)
+
+    rows = []
+    for (rank_prev, rank_next), items in sorted(grouped.items()):
+        ratio_delta_mean, ratio_delta_std = mean_std_from_values(
+            row["delta_incremental_high_freq_ratio"] for row in items
+        )
+        gain_delta_mean, gain_delta_std = mean_std_from_values(
+            row["delta_reconstruction_gain_rel"] for row in items
+        )
+        l2_delta_mean, l2_delta_std = mean_std_from_values(row["delta_incremental_l2"] for row in items)
+        adv_only_stop_count = sum(
+            int(row["adv_hf_stop_candidate"]) == 1 and int(row["clean_hf_stop_candidate"]) == 0
+            for row in items
+        )
+        clean_only_stop_count = sum(
+            int(row["clean_hf_stop_candidate"]) == 1 and int(row["adv_hf_stop_candidate"]) == 0
+            for row in items
+        )
+        both_stop_count = sum(
+            int(row["clean_hf_stop_candidate"]) == 1 and int(row["adv_hf_stop_candidate"]) == 1
+            for row in items
+        )
+        rows.append({
+            "rank_prev": rank_prev,
+            "rank_next": rank_next,
+            "rank_pair": f"{rank_prev}->{rank_next}",
+            "count": len(items),
+            "delta_incremental_high_freq_ratio_mean": ratio_delta_mean,
+            "delta_incremental_high_freq_ratio_std": ratio_delta_std,
+            "adv_hf_ratio_higher_rate": float(np.mean([
+                int(row["adv_hf_ratio_higher"]) for row in items
+            ])) if items else "",
+            "delta_reconstruction_gain_rel_mean": gain_delta_mean,
+            "delta_reconstruction_gain_rel_std": gain_delta_std,
+            "adv_gain_rel_lower_rate": float(np.mean([
+                int(row["adv_gain_rel_lower"]) for row in items
+            ])) if items else "",
+            "delta_incremental_l2_mean": l2_delta_mean,
+            "delta_incremental_l2_std": l2_delta_std,
+            "both_hf_stop_candidate_count": both_stop_count,
+            "adv_only_hf_stop_candidate_count": adv_only_stop_count,
+            "clean_only_hf_stop_candidate_count": clean_only_stop_count,
+        })
+    return rows
 
 
 def rank_growth_reconstruct_and_trace(
@@ -639,6 +986,7 @@ def rank_growth_reconstruct_and_trace(
     strategy,
     sampling_rate,
     device,
+    frequency_metric_options=None,
 ):
     """运行一次 PTR_3d_rank_growth，并返回该样本每个 rank block 的评估轨迹。"""
     sample = sample.detach().cpu().float()
@@ -664,11 +1012,15 @@ def rank_growth_reconstruct_and_trace(
         mse_to_input = torch.nn.functional.mse_loss(purified, sample).item()
         with torch.no_grad():
             logits = model(purified.unsqueeze(0).to(device)).detach().cpu().squeeze(0)
+        entropy = logits_to_entropy(logits)
         eval_records.append({
             "rank": rank,
             "mse_to_input": float(mse_to_input),
             "logits": logits,
+            "entropy": entropy,
         })
+        if frequency_metric_options is not None:
+            eval_records[-1]["purified"] = purified
         return {
             "mse_to_input": mse_to_input,
             "logits": logits,
@@ -690,6 +1042,7 @@ def rank_growth_reconstruct_and_trace(
         eval_row = eval_by_rank[rank]
         probs = torch.softmax(eval_row["logits"], dim=-1)
         confidence, top1 = probs.max(dim=-1)
+        entropy = float(eval_row.get("entropy", logits_to_entropy(eval_row["logits"])))
         rows.append({
             "sample_id": sample_id,
             "source_index": source_index,
@@ -700,6 +1053,7 @@ def rank_growth_reconstruct_and_trace(
             "js_to_prev": history_row["js_to_prev"],
             "top1": int(top1.item()),
             "confidence": float(confidence.item()),
+            "entropy": entropy,
             "correct": int(top1.item() == int(label.item())),
             "mse_rel_delta_to_prev": history_row["mse_rel_delta_to_prev"],
             "top1_unchanged": history_row["top1_unchanged"],
@@ -709,17 +1063,33 @@ def rank_growth_reconstruct_and_trace(
             "loss": history_row["loss"],
             "selected": rank == selected_rank,
         })
-    return rows, eval_records, selected_rank
+    incremental_rows = []
+    if frequency_metric_options is not None:
+        incremental_rows = build_incremental_frequency_rows(
+            sample=sample,
+            label=label,
+            source_type=source_type,
+            sample_id=sample_id,
+            source_index=source_index,
+            eval_records=eval_records,
+            options=frequency_metric_options,
+        )
+        for record in eval_records:
+            record.pop("purified", None)
+
+    return rows, eval_records, selected_rank, incremental_rows
 
 
 def predict_rank_growth_for_source(source_type, samples, labels, source_indices, model,
-                                   purify_args, config, strategy, sampling_rate, device):
+                                   purify_args, config, strategy, sampling_rate, device,
+                                   frequency_metric_options=None):
     """对 clean/adv 样本运行 rank growth，返回 per-rank 历史行和原始 logits trace。"""
     history_rows = []
+    incremental_rows = []
     traces = []
     iterator = tqdm(range(samples.size(0)), desc=f"{source_type} rank-growth", leave=False)
     for sample_id in iterator:
-        rows, eval_records, selected_rank = rank_growth_reconstruct_and_trace(
+        rows, eval_records, selected_rank, sample_incremental_rows = rank_growth_reconstruct_and_trace(
             sample=samples[sample_id],
             label=labels[sample_id],
             source_type=source_type,
@@ -731,15 +1101,17 @@ def predict_rank_growth_for_source(source_type, samples, labels, source_indices,
             strategy=strategy,
             sampling_rate=sampling_rate,
             device=device,
+            frequency_metric_options=frequency_metric_options,
         )
         history_rows.extend(rows)
+        incremental_rows.extend(sample_incremental_rows)
         traces.append({
             "sample_id": sample_id,
             "source_index": source_indices[sample_id],
             "selected_rank": selected_rank,
             "eval_records": eval_records,
         })
-    return history_rows, traces
+    return history_rows, traces, incremental_rows
 
 
 def build_rank_growth_summary_rows(history_rows):
@@ -754,6 +1126,7 @@ def build_rank_growth_summary_rows(history_rows):
         js_values = [float(row["js_to_prev"]) for row in items if row["js_to_prev"] is not None]
         mse_values = [float(row["mse_to_input"]) for row in items]
         confidence_values = [float(row["confidence"]) for row in items]
+        entropy_values = [float(row["entropy"]) for row in items if row.get("entropy") not in (None, "")]
         rows.append({
             "source_type": source_type,
             "rank": rank,
@@ -770,6 +1143,8 @@ def build_rank_growth_summary_rows(history_rows):
                 if row["top1_unchanged"] is not None
             ])) if any(row["top1_unchanged"] is not None for row in items) else "",
             "confidence_mean": float(np.mean(confidence_values)) if confidence_values else "",
+            "entropy_mean": float(np.mean(entropy_values)) if entropy_values else "",
+            "entropy_std": float(np.std(entropy_values)) if entropy_values else "",
             "rejected_by_mse_gate_count": sum(int(row["rejected_by_mse_gate"]) for row in items),
         })
     return rows
@@ -1220,6 +1595,67 @@ def plot_rank_growth_summary_metric(summary_rows, metric_key, ylabel, title, out
     save_figure(fig, output_path, dpi)
 
 
+def plot_incremental_frequency_summary_metric(summary_rows, metric_key, ylabel, title, output_path, dpi):
+    source_types = sorted({row["source_type"] for row in summary_rows})
+    rank_pairs = sorted({
+        (int(row["rank_prev"]), int(row["rank_next"]), row["rank_pair"])
+        for row in summary_rows
+    })
+    by_source_pair = {
+        (row["source_type"], int(row["rank_prev"]), int(row["rank_next"])): row
+        for row in summary_rows
+    }
+
+    fig, ax = plt.subplots(figsize=(8.8, 4.8))
+    x = np.arange(len(rank_pairs))
+    colors = {"clean": "#1f77b4", "adv": "#d62728"}
+    for source_type in source_types:
+        values = []
+        for rank_prev, rank_next, _ in rank_pairs:
+            row = by_source_pair.get((source_type, rank_prev, rank_next), {})
+            values.append(optional_float(row.get(metric_key)))
+        values_np = np.asarray([np.nan if value is None else value for value in values], dtype=float)
+        ax.plot(x, values_np, marker="o", linewidth=2, label=source_type,
+                color=colors.get(source_type))
+
+    ax.set_title(title)
+    ax.set_xlabel("Adjacent rank pair")
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(x)
+    ax.set_xticklabels([rank_pair for _, _, rank_pair in rank_pairs])
+    ax.grid(True, linestyle="--", linewidth=0.6, alpha=0.45)
+    ax.legend()
+    save_figure(fig, output_path, dpi)
+
+
+def plot_pair_delta_summary_metric(summary_rows, metric_key, ylabel, title, output_path, dpi):
+    rank_pairs = sorted({
+        (int(row["rank_prev"]), int(row["rank_next"]), row["rank_pair"])
+        for row in summary_rows
+    })
+    by_pair = {
+        (int(row["rank_prev"]), int(row["rank_next"])): row
+        for row in summary_rows
+    }
+    values = []
+    for rank_prev, rank_next, _ in rank_pairs:
+        row = by_pair.get((rank_prev, rank_next), {})
+        values.append(optional_float(row.get(metric_key)))
+    values_np = np.asarray([np.nan if value is None else value for value in values], dtype=float)
+
+    fig, ax = plt.subplots(figsize=(8.8, 4.8))
+    x = np.arange(len(rank_pairs))
+    ax.axhline(0.0, color="#4d4d4d", linewidth=1.0, linestyle="--")
+    ax.plot(x, values_np, marker="o", linewidth=2, color="#2ca02c")
+    ax.set_title(title)
+    ax.set_xlabel("Adjacent rank pair")
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(x)
+    ax.set_xticklabels([rank_pair for _, _, rank_pair in rank_pairs])
+    ax.grid(True, linestyle="--", linewidth=0.6, alpha=0.45)
+    save_figure(fig, output_path, dpi)
+
+
 def plot_rank_growth_selected_mse(history_rows, output_path, dpi):
     source_types = sorted({row["source_type"] for row in history_rows})
     values = []
@@ -1315,6 +1751,14 @@ def generate_rank_growth_visualizations(history_rows, summary_rows, output_dir, 
     )
     plot_rank_growth_summary_metric(
         summary_rows,
+        metric_key="entropy_mean",
+        ylabel="Prediction entropy",
+        title="Rank-growth prediction entropy by rank",
+        output_path=plots_dir / f"entropy_by_rank.{plot_format}",
+        dpi=dpi,
+    )
+    plot_rank_growth_summary_metric(
+        summary_rows,
         metric_key="rejected_by_mse_gate_count",
         ylabel="Rejected block count",
         title="MSE-gate rejections by rank",
@@ -1344,6 +1788,82 @@ def generate_rank_growth_visualizations(history_rows, summary_rows, output_dir, 
         dpi=dpi,
         cmap="plasma",
     )
+    plot_rank_growth_heatmap(
+        history_rows,
+        value_key="entropy",
+        title="entropy trajectory",
+        colorbar_label="Prediction entropy",
+        output_path=plots_dir / f"entropy_trajectory_heatmap.{plot_format}",
+        dpi=dpi,
+        cmap="viridis",
+    )
+
+
+def generate_incremental_frequency_visualizations(
+    incremental_rows,
+    incremental_summary_rows,
+    pair_delta_summary_rows,
+    output_dir,
+    plot_format,
+    dpi,
+):
+    """生成 EXP-005 频域增量诊断图。"""
+    if not incremental_rows or not incremental_summary_rows:
+        return
+
+    plots_dir = output_dir / "plots"
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_incremental_frequency_summary_metric(
+        incremental_summary_rows,
+        metric_key="incremental_high_freq_ratio_mean",
+        ylabel="High-frequency energy ratio",
+        title="Incremental high-frequency ratio by adjacent rank",
+        output_path=plots_dir / f"incremental_high_freq_ratio_by_rank_pair.{plot_format}",
+        dpi=dpi,
+    )
+    plot_incremental_frequency_summary_metric(
+        incremental_summary_rows,
+        metric_key="reconstruction_gain_rel_mean",
+        ylabel="Relative MSE gain",
+        title="Relative reconstruction gain by adjacent rank",
+        output_path=plots_dir / f"reconstruction_gain_rel_by_rank_pair.{plot_format}",
+        dpi=dpi,
+    )
+    plot_incremental_frequency_summary_metric(
+        incremental_summary_rows,
+        metric_key="incremental_l2_mean",
+        ylabel="Incremental L2 energy",
+        title="Incremental L2 energy by adjacent rank",
+        output_path=plots_dir / f"incremental_l2_by_rank_pair.{plot_format}",
+        dpi=dpi,
+    )
+    plot_incremental_frequency_summary_metric(
+        incremental_summary_rows,
+        metric_key="hf_stop_candidate_rate",
+        ylabel="Candidate rate",
+        title="Exploratory HF-stop candidate rate",
+        output_path=plots_dir / f"hf_stop_candidate_rate_by_rank_pair.{plot_format}",
+        dpi=dpi,
+    )
+
+    if pair_delta_summary_rows:
+        plot_pair_delta_summary_metric(
+            pair_delta_summary_rows,
+            metric_key="delta_incremental_high_freq_ratio_mean",
+            ylabel="Adv - clean high-frequency ratio",
+            title="Paired high-frequency ratio delta",
+            output_path=plots_dir / f"paired_delta_high_freq_ratio_by_rank_pair.{plot_format}",
+            dpi=dpi,
+        )
+        plot_pair_delta_summary_metric(
+            pair_delta_summary_rows,
+            metric_key="delta_reconstruction_gain_rel_mean",
+            ylabel="Adv - clean relative MSE gain",
+            title="Paired reconstruction gain delta",
+            output_path=plots_dir / f"paired_delta_reconstruction_gain_rel_by_rank_pair.{plot_format}",
+            dpi=dpi,
+        )
 
 
 def to_jsonable(value):
@@ -1413,6 +1933,25 @@ def main():
             plot_format=args.plot_format,
             dpi=args.plot_dpi,
         )
+        incremental_path = output_dir / "rank_growth_incremental_frequency.csv"
+        incremental_summary_path = output_dir / "rank_growth_incremental_frequency_summary.csv"
+        pair_delta_summary_path = output_dir / "rank_growth_incremental_frequency_pair_delta_summary.csv"
+        if incremental_path.exists() and incremental_summary_path.exists():
+            incremental_rows = read_csv_rows(incremental_path)
+            incremental_summary_rows = read_csv_rows(incremental_summary_path)
+            pair_delta_summary_rows = (
+                read_csv_rows(pair_delta_summary_path)
+                if pair_delta_summary_path.exists()
+                else []
+            )
+            generate_incremental_frequency_visualizations(
+                incremental_rows=incremental_rows,
+                incremental_summary_rows=incremental_summary_rows,
+                pair_delta_summary_rows=pair_delta_summary_rows,
+                output_dir=output_dir,
+                plot_format=args.plot_format,
+                dpi=args.plot_dpi,
+            )
         print(f"Saved rank-growth plots to: {output_dir / 'plots'}")
         return
 
@@ -1458,6 +1997,7 @@ def main():
     adv_samples = data_payload["x_adv"][selected_positions]
 
     sampling_rate = info["sampling_rate"]
+    frequency_metric_options = build_frequency_metric_options(args, sampling_rate)
     model = load_classifier(checkpoint_path, info, device)
 
     probe_pre_data = interpolate(purify_args, clean_samples[0], sampling_rate).detach().cpu().float()
@@ -1470,9 +2010,10 @@ def main():
 
         rank_growth_config = build_rank_growth_config(config, args)
         history_rows = []
+        incremental_rows = []
         traces = {}
         for source_type, samples in (("clean", clean_samples), ("adv", adv_samples)):
-            source_rows, source_traces = predict_rank_growth_for_source(
+            source_rows, source_traces, source_incremental_rows = predict_rank_growth_for_source(
                 source_type=source_type,
                 samples=samples,
                 labels=labels,
@@ -1483,11 +2024,21 @@ def main():
                 strategy=strategy,
                 sampling_rate=sampling_rate,
                 device=device,
+                frequency_metric_options=frequency_metric_options,
             )
             history_rows.extend(source_rows)
+            incremental_rows.extend(source_incremental_rows)
             traces[source_type] = source_traces
 
         summary_rows = build_rank_growth_summary_rows(history_rows)
+        incremental_summary_rows = []
+        pair_delta_rows = []
+        pair_delta_summary_rows = []
+        if frequency_metric_options is not None:
+            incremental_summary_rows = build_incremental_frequency_summary_rows(incremental_rows)
+            pair_delta_rows = build_incremental_frequency_pair_delta_rows(incremental_rows)
+            pair_delta_summary_rows = build_incremental_frequency_pair_delta_summary_rows(pair_delta_rows)
+
         meta = {
             "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
             "analysis_mode": args.analysis_mode,
@@ -1515,11 +2066,14 @@ def main():
             "config_path": str(config_path),
             "strategy": strategy,
             "sample_num": args.sample_num,
+            "rank_growth_full_sweep": args.rank_growth_full_sweep,
             "rank_growth_ranks": rank_growth_config.get("rank_growth_ranks"),
             "rank_growth_steps_per_rank": rank_growth_config.get("rank_growth_steps_per_rank"),
             "rank_growth_js_threshold": rank_growth_config.get("rank_growth_js_threshold"),
             "rank_growth_max_mse_to_input": rank_growth_config.get("rank_growth_max_mse_to_input"),
             "rank_growth_lr_decay_factor": rank_growth_config.get("rank_growth_lr_decay_factor"),
+            "enable_incremental_frequency_metrics": args.enable_incremental_frequency_metrics,
+            "incremental_frequency_options": frequency_metric_options,
             "pre_data_shape": tuple(probe_pre_data.shape),
             "input_shape": tuple(clean_samples.shape[1:]),
             "selected_positions": selected_positions.tolist(),
@@ -1533,6 +2087,26 @@ def main():
                 "predictions": "rank_growth_predictions.pt",
                 "history": "rank_growth_history.csv",
                 "summary": "rank_growth_summary.csv",
+                "incremental_frequency": (
+                    "rank_growth_incremental_frequency.csv"
+                    if frequency_metric_options is not None
+                    else None
+                ),
+                "incremental_frequency_summary": (
+                    "rank_growth_incremental_frequency_summary.csv"
+                    if frequency_metric_options is not None
+                    else None
+                ),
+                "incremental_frequency_pair_delta": (
+                    "rank_growth_incremental_frequency_pair_delta.csv"
+                    if frequency_metric_options is not None
+                    else None
+                ),
+                "incremental_frequency_pair_delta_summary": (
+                    "rank_growth_incremental_frequency_pair_delta_summary.csv"
+                    if frequency_metric_options is not None
+                    else None
+                ),
                 "meta": "meta.json",
             },
         }
@@ -1543,6 +2117,10 @@ def main():
                 "source_indices": selected_source_indices,
                 "labels": labels,
                 "history_rows": history_rows,
+                "incremental_frequency_rows": incremental_rows,
+                "incremental_frequency_summary_rows": incremental_summary_rows,
+                "incremental_frequency_pair_delta_rows": pair_delta_rows,
+                "incremental_frequency_pair_delta_summary_rows": pair_delta_summary_rows,
                 "traces": traces,
                 "meta": meta,
             },
@@ -1561,6 +2139,7 @@ def main():
                 "js_to_prev",
                 "top1",
                 "confidence",
+                "entropy",
                 "correct",
                 "mse_rel_delta_to_prev",
                 "top1_unchanged",
@@ -1586,9 +2165,118 @@ def main():
                 "js_std",
                 "top1_change_rate",
                 "confidence_mean",
+                "entropy_mean",
+                "entropy_std",
                 "rejected_by_mse_gate_count",
             ],
         )
+        if frequency_metric_options is not None:
+            write_csv(
+                output_dir / "rank_growth_incremental_frequency.csv",
+                incremental_rows,
+                [
+                    "sample_id",
+                    "source_index",
+                    "source_type",
+                    "label",
+                    "rank_prev",
+                    "rank_next",
+                    "rank_pair",
+                    "mse_prev",
+                    "mse_next",
+                    "reconstruction_gain_abs",
+                    "reconstruction_gain_rel",
+                    "incremental_l2",
+                    "incremental_energy_total",
+                    "incremental_high_freq_energy",
+                    "incremental_high_freq_ratio",
+                    "high_freq_cutoff_hz",
+                    "freq_energy_floor_hz",
+                    "frequency_bin_count",
+                    "high_frequency_bin_count",
+                    "nyquist_hz",
+                    "top1_prev",
+                    "top1_next",
+                    "top1_changed",
+                    "confidence_prev",
+                    "confidence_next",
+                    "correct_prev",
+                    "correct_next",
+                    "hf_stop_gain_rel_threshold",
+                    "hf_stop_ratio_threshold",
+                    "hf_stop_candidate",
+                    "hf_candidate_rank",
+                ],
+            )
+            write_csv(
+                output_dir / "rank_growth_incremental_frequency_summary.csv",
+                incremental_summary_rows,
+                [
+                    "source_type",
+                    "rank_prev",
+                    "rank_next",
+                    "rank_pair",
+                    "count",
+                    "incremental_high_freq_ratio_mean",
+                    "incremental_high_freq_ratio_std",
+                    "reconstruction_gain_rel_mean",
+                    "reconstruction_gain_rel_std",
+                    "incremental_l2_mean",
+                    "incremental_l2_std",
+                    "incremental_energy_total_mean",
+                    "incremental_energy_total_std",
+                    "incremental_high_freq_energy_mean",
+                    "incremental_high_freq_energy_std",
+                    "hf_stop_candidate_count",
+                    "hf_stop_candidate_rate",
+                    "top1_change_rate",
+                ],
+            )
+            write_csv(
+                output_dir / "rank_growth_incremental_frequency_pair_delta.csv",
+                pair_delta_rows,
+                [
+                    "sample_id",
+                    "source_index",
+                    "rank_prev",
+                    "rank_next",
+                    "rank_pair",
+                    "clean_incremental_high_freq_ratio",
+                    "adv_incremental_high_freq_ratio",
+                    "delta_incremental_high_freq_ratio",
+                    "clean_reconstruction_gain_rel",
+                    "adv_reconstruction_gain_rel",
+                    "delta_reconstruction_gain_rel",
+                    "clean_incremental_l2",
+                    "adv_incremental_l2",
+                    "delta_incremental_l2",
+                    "adv_hf_ratio_higher",
+                    "adv_gain_rel_lower",
+                    "clean_hf_stop_candidate",
+                    "adv_hf_stop_candidate",
+                ],
+            )
+            write_csv(
+                output_dir / "rank_growth_incremental_frequency_pair_delta_summary.csv",
+                pair_delta_summary_rows,
+                [
+                    "rank_prev",
+                    "rank_next",
+                    "rank_pair",
+                    "count",
+                    "delta_incremental_high_freq_ratio_mean",
+                    "delta_incremental_high_freq_ratio_std",
+                    "adv_hf_ratio_higher_rate",
+                    "delta_reconstruction_gain_rel_mean",
+                    "delta_reconstruction_gain_rel_std",
+                    "adv_gain_rel_lower_rate",
+                    "delta_incremental_l2_mean",
+                    "delta_incremental_l2_std",
+                    "both_hf_stop_candidate_count",
+                    "adv_only_hf_stop_candidate_count",
+                    "clean_only_hf_stop_candidate_count",
+                ],
+            )
         with open(output_dir / "meta.json", "w", encoding="utf-8") as file:
             json.dump(to_jsonable(meta), file, ensure_ascii=False, indent=2)
 
@@ -1596,6 +2284,14 @@ def main():
             generate_rank_growth_visualizations(
                 history_rows=history_rows,
                 summary_rows=summary_rows,
+                output_dir=output_dir,
+                plot_format=args.plot_format,
+                dpi=args.plot_dpi,
+            )
+            generate_incremental_frequency_visualizations(
+                incremental_rows=incremental_rows,
+                incremental_summary_rows=incremental_summary_rows,
+                pair_delta_summary_rows=pair_delta_summary_rows,
                 output_dir=output_dir,
                 plot_format=args.plot_format,
                 dpi=args.plot_dpi,

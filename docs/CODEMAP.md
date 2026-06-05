@@ -71,7 +71,13 @@
 - `tensor_ring_rank_analysis/analyze_tr_rank_predictions.py`
   - 分析 Tensor Ring rank 与预测表现相关的实验脚本。
   - 默认 `--analysis_mode tensorly_tr` 保留旧的 TensorLy 普通 TR sweep；`--analysis_mode rank_growth` 会直接运行 `PTR_3d_rank_growth` 并记录动态 rank 轨迹。
+  - rank-growth 诊断趋势时应使用 `--rank_growth_full_sweep`，禁用早停以避免高 rank 统计缺失。
   - 会读取 checkpoint、paired cache 或 adversarial data，并写入 `tensor_ring_rank_analysis/results*`。
+
+- `tensor_ring_rank_analysis/analyze_rank_growth_pair_delta.py`
+  - 对 `rank_growth` 输出做离线 paired-delta 分析，不重新运行净化。
+  - 读取 `rank_growth_predictions.pt` 和 `rank_growth_incremental_frequency.csv`，联合统计高频占比变化、true-label margin 变化、bootstrap 置信区间、相关系数和分类边界恶化率。
+  - 主要用于 `EXP-005` 这类 full-sweep 结果的追加诊断，输出 CSV、meta JSON 和误差棒图到原实验目录。
 
 - `trial_lowrank_analysis/analyze_trial_hosvd_lowrank.py`
   - 从 trial/time/channel/frequency 等视角分析 clean、adv、perturbation 的低秩谱。
