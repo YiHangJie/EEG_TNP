@@ -40,7 +40,7 @@ from data.subject_ea import prepare_subject_fold
 from models.model_args import get_model_args
 from purify import interpolate, inv_interpolate
 from TN.opt import Config
-from TN.rank_growth import PTR_3d_rank_growth
+from TN.rank_growth import PTR_3d_rank_growth, PTR_3d_rank_soft_mask
 from TN.utils import get_TN_args
 from utils.experiment_artifacts import eeg_classification_collate, load_tensor_payload, safe_token, short_protocol_tag
 
@@ -313,8 +313,8 @@ def parse_args():
     parser.add_argument("--sample_num", type=int, default=DEFAULT_SAMPLE_NUM)
     parser.add_argument("--ranks", type=parse_rank_list, default=parse_rank_list(DEFAULT_RANKS))
     parser.add_argument("--analysis_mode", type=str, default="tensorly_tr",
-                        choices=["tensorly_tr", "rank_growth"],
-                        help="tensorly_tr keeps the legacy TensorLy TR sweep; rank_growth runs PTR_3d_rank_growth.")
+                        choices=["tensorly_tr", "rank_growth", "rank_soft_mask"],
+                        help="tensorly_tr keeps the legacy TensorLy TR sweep; rank_growth runs PTR_3d_rank_growth; rank_soft_mask runs PTR_3d_rank_soft_mask once per sample.")
     parser.add_argument("--rank_growth_ranks", type=parse_rank_list, default=None,
                         help="override rank_growth_ranks for rank_growth analysis, e.g. 5,6,7,8.")
     parser.add_argument("--rank_growth_steps_per_rank", type=int, default=None,
@@ -325,6 +325,12 @@ def parse_args():
                         help="override rank_growth_max_mse_to_input for rank_growth analysis.")
     parser.add_argument("--rank_growth_full_sweep", action="store_true",
                         help="disable rank-growth early stopping and evaluate every configured rank.")
+    parser.add_argument("--rank_soft_mask_init_rank", type=float, default=None,
+                        help="override rank_soft_mask_init_rank for rank_soft_mask analysis.")
+    parser.add_argument("--rank_soft_mask_temperature", type=float, default=None,
+                        help="override rank_soft_mask_temperature for rank_soft_mask analysis.")
+    parser.add_argument("--rank_soft_mask_weight", type=float, default=None,
+                        help="override rank_soft_mask_weight for rank_soft_mask analysis.")
     parser.add_argument("--enable_incremental_frequency_metrics", action="store_true",
                         help="compute adjacent-rank frequency metrics for rank_growth analysis.")
     parser.add_argument("--high_freq_cutoff_hz", type=float, default=30.0,
@@ -636,6 +642,18 @@ def build_rank_growth_config(config, args):
         # 诊断 JS/MSE 随 rank 的完整变化时不能早停，否则高 rank 统计会有选择偏差。
         config["rank_growth_js_threshold"] = -1.0
         config["rank_growth_max_mse_to_input"] = None
+    return config
+
+
+def build_rank_soft_mask_config(config, args):
+    """复制 YAML 配置并应用 soft-rank mask 分析用 override。"""
+    config = dict(config)
+    if args.rank_soft_mask_init_rank is not None:
+        config["rank_soft_mask_init_rank"] = float(args.rank_soft_mask_init_rank)
+    if args.rank_soft_mask_temperature is not None:
+        config["rank_soft_mask_temperature"] = float(args.rank_soft_mask_temperature)
+    if args.rank_soft_mask_weight is not None:
+        config["rank_soft_mask_weight"] = float(args.rank_soft_mask_weight)
     return config
 
 
@@ -1112,6 +1130,150 @@ def predict_rank_growth_for_source(source_type, samples, labels, source_indices,
             "eval_records": eval_records,
         })
     return history_rows, traces, incremental_rows
+
+
+def rank_soft_mask_reconstruct_and_eval(
+    sample,
+    label,
+    source_type,
+    sample_id,
+    source_index,
+    model,
+    purify_args,
+    config,
+    strategy,
+    sampling_rate,
+    device,
+):
+    """运行一次 PTR_3d_rank_soft_mask，并返回该样本的 soft-rank 指标。"""
+    sample = sample.detach().cpu().float()
+    pre_data = interpolate(purify_args, sample, sampling_rate).detach().cpu().float()
+    cfg = config_to_namespace(config)
+    cfg.device_type = "gpu" if torch.cuda.is_available() else "cpu"
+    tn_args = get_TN_args(cfg, pre_data.clone(), sampling_rate, None, cfg.device_type)
+    tn = PTR_3d_rank_soft_mask(**tn_args)
+
+    recon_resized, train_time, mse_history = tn.train(
+        pre_data.clone().to(device),
+        cfg,
+        target_index=sample_id,
+        logging=None,
+    )
+    purified = inv_interpolate(
+        purify_args,
+        recon_resized.detach().cpu().float(),
+        original_shape=sample.shape[-2:],
+        strategy=strategy,
+    ).detach().cpu().float()
+    mse_to_input = torch.nn.functional.mse_loss(purified, sample).item()
+    with torch.no_grad():
+        logits = model(purified.unsqueeze(0).to(device)).detach().cpu().squeeze(0)
+    probs = torch.softmax(logits, dim=-1)
+    confidence, top1 = probs.max(dim=-1)
+    stats = tn.get_soft_mask_stats()
+    row = {
+        "sample_id": sample_id,
+        "source_index": source_index,
+        "source_type": source_type,
+        "label": int(label.item()),
+        "correct": int(top1.item() == int(label.item())),
+        "mse_to_input": float(mse_to_input),
+        "top1": int(top1.item()),
+        "confidence": float(confidence.item()),
+        "entropy": logits_to_entropy(logits),
+        "effective_rank": float(stats["effective_rank"]),
+        "rho": float(stats["rho"]),
+        "rank_cost": float(stats["rank_cost"]),
+        "rank_soft_mask_weight": float(stats["rank_soft_mask_weight"]),
+        "rank_soft_mask_temperature": float(stats["rank_soft_mask_temperature"]),
+        "rank_soft_mask_init_rank": float(stats["rank_soft_mask_init_rank"]),
+        "train_time": float(train_time),
+        "effective_params_num": float(tn.count_parameters()),
+    }
+    trace = {
+        "sample_id": sample_id,
+        "source_index": source_index,
+        "logits": logits,
+        "gates": stats["gates"],
+        "row": row,
+        "mse_history": mse_history,
+    }
+    return row, trace
+
+
+def predict_rank_soft_mask_for_source(source_type, samples, labels, source_indices, model,
+                                      purify_args, config, strategy, sampling_rate, device):
+    """对 clean/adv 样本运行 soft-rank mask PTR，返回逐样本指标和 trace。"""
+    rows = []
+    traces = []
+    iterator = tqdm(range(samples.size(0)), desc=f"{source_type} rank-soft-mask", leave=False)
+    for sample_id in iterator:
+        row, trace = rank_soft_mask_reconstruct_and_eval(
+            sample=samples[sample_id],
+            label=labels[sample_id],
+            source_type=source_type,
+            sample_id=sample_id,
+            source_index=source_indices[sample_id],
+            model=model,
+            purify_args=purify_args,
+            config=config,
+            strategy=strategy,
+            sampling_rate=sampling_rate,
+            device=device,
+        )
+        rows.append(row)
+        traces.append(trace)
+    return rows, traces
+
+
+def build_rank_soft_mask_summary_rows(rows):
+    """按 source_type 聚合 soft-rank mask 指标。"""
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[row["source_type"]].append(row)
+
+    summary_rows = []
+    for source_type, items in sorted(grouped.items()):
+        count = len(items)
+        correct_values = [int(row["correct"]) for row in items]
+        mse_values = [float(row["mse_to_input"]) for row in items]
+        confidence_values = [float(row["confidence"]) for row in items]
+        entropy_values = [float(row["entropy"]) for row in items]
+        rank_values = [float(row["effective_rank"]) for row in items]
+        rho_values = [float(row["rho"]) for row in items]
+        rank_cost_values = [float(row["rank_cost"]) for row in items]
+        train_times = [float(row["train_time"]) for row in items]
+        summary_rows.append({
+            "source_type": source_type,
+            "count": count,
+            "accuracy": float(np.mean(correct_values)) if correct_values else "",
+            "mse_mean": float(np.mean(mse_values)) if mse_values else "",
+            "mse_std": float(np.std(mse_values)) if mse_values else "",
+            "confidence_mean": float(np.mean(confidence_values)) if confidence_values else "",
+            "entropy_mean": float(np.mean(entropy_values)) if entropy_values else "",
+            "effective_rank_mean": float(np.mean(rank_values)) if rank_values else "",
+            "effective_rank_std": float(np.std(rank_values)) if rank_values else "",
+            "rho_mean": float(np.mean(rho_values)) if rho_values else "",
+            "rank_cost_mean": float(np.mean(rank_cost_values)) if rank_cost_values else "",
+            "train_time_mean": float(np.mean(train_times)) if train_times else "",
+        })
+    if rows:
+        all_items = list(rows)
+        summary_rows.append({
+            "source_type": "all",
+            "count": len(all_items),
+            "accuracy": float(np.mean([int(row["correct"]) for row in all_items])),
+            "mse_mean": float(np.mean([float(row["mse_to_input"]) for row in all_items])),
+            "mse_std": float(np.std([float(row["mse_to_input"]) for row in all_items])),
+            "confidence_mean": float(np.mean([float(row["confidence"]) for row in all_items])),
+            "entropy_mean": float(np.mean([float(row["entropy"]) for row in all_items])),
+            "effective_rank_mean": float(np.mean([float(row["effective_rank"]) for row in all_items])),
+            "effective_rank_std": float(np.std([float(row["effective_rank"]) for row in all_items])),
+            "rho_mean": float(np.mean([float(row["rho"]) for row in all_items])),
+            "rank_cost_mean": float(np.mean([float(row["rank_cost"]) for row in all_items])),
+            "train_time_mean": float(np.mean([float(row["train_time"]) for row in all_items])),
+        })
+    return summary_rows
 
 
 def build_rank_growth_summary_rows(history_rows):
@@ -1679,6 +1841,42 @@ def plot_rank_growth_selected_mse(history_rows, output_path, dpi):
     save_figure(fig, output_path, dpi)
 
 
+def plot_rank_soft_mask_effective_rank(rows, output_path, dpi):
+    source_types = sorted({row["source_type"] for row in rows})
+    values = []
+    labels = []
+    for source_type in source_types:
+        source_values = [
+            float(row["effective_rank"])
+            for row in rows
+            if row["source_type"] == source_type
+        ]
+        if source_values:
+            values.append(source_values)
+            labels.append(source_type)
+
+    fig, ax = plt.subplots(figsize=(7.6, 4.8))
+    ax.boxplot(values, labels=labels, showmeans=True)
+    ax.set_title("Soft-mask effective rank distribution")
+    ax.set_xlabel("Source")
+    ax.set_ylabel("Effective rank")
+    ax.grid(True, axis="y", linestyle="--", linewidth=0.6, alpha=0.45)
+    save_figure(fig, output_path, dpi)
+
+
+def generate_rank_soft_mask_visualizations(rows, output_dir, plot_format, dpi):
+    """生成 soft-rank mask 的基础诊断图。"""
+    if not rows:
+        return
+    plots_dir = output_dir / "plots"
+    plots_dir.mkdir(parents=True, exist_ok=True)
+    plot_rank_soft_mask_effective_rank(
+        rows,
+        output_path=plots_dir / f"effective_rank_distribution.{plot_format}",
+        dpi=dpi,
+    )
+
+
 def plot_rank_growth_heatmap(history_rows, value_key, title, colorbar_label,
                              output_path, dpi, cmap="viridis"):
     grouped, source_types, ranks, _ = group_rank_growth_history(history_rows)
@@ -1887,6 +2085,13 @@ def prepare_output_dir(output_dir, overwrite, analysis_mode):
             "rank_growth_summary.csv",
             "meta.json",
         ]
+    elif analysis_mode == "rank_soft_mask":
+        target_files = [
+            "rank_soft_mask_predictions.pt",
+            "rank_soft_mask_rows.csv",
+            "rank_soft_mask_summary.csv",
+            "meta.json",
+        ]
     else:
         target_files = [
             "rank_predictions.pt",
@@ -2001,6 +2206,148 @@ def main():
     model = load_classifier(checkpoint_path, info, device)
 
     probe_pre_data = interpolate(purify_args, clean_samples[0], sampling_rate).detach().cpu().float()
+    if args.analysis_mode == "rank_soft_mask":
+        if config.get("model") != "PTR_3d_rank_soft_mask":
+            raise ValueError(
+                "--analysis_mode rank_soft_mask requires a PTR_3d_rank_soft_mask config, "
+                f"got model={config.get('model')} from {config_path}."
+            )
+
+        rank_soft_mask_config = build_rank_soft_mask_config(config, args)
+        rows = []
+        traces = {}
+        for source_type, samples in (("clean", clean_samples), ("adv", adv_samples)):
+            source_rows, source_traces = predict_rank_soft_mask_for_source(
+                source_type=source_type,
+                samples=samples,
+                labels=labels,
+                source_indices=selected_source_indices,
+                model=model,
+                purify_args=purify_args,
+                config=rank_soft_mask_config,
+                strategy=strategy,
+                sampling_rate=sampling_rate,
+                device=device,
+            )
+            rows.extend(source_rows)
+            traces[source_type] = source_traces
+
+        summary_rows = build_rank_soft_mask_summary_rows(rows)
+        meta = {
+            "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
+            "analysis_mode": args.analysis_mode,
+            "dataset": args.dataset,
+            "model": "eegnet",
+            "eps": args.eps,
+            "fold": args.fold,
+            "pair_sample_num": args.pair_sample_num,
+            "consistency_version": args.consistency_version,
+            "consistency_rank_tag": args.consistency_rank_tag,
+            "consistency_tag": resolved_consistency_tag,
+            "pair_kind": resolved_pair_kind,
+            "data_source": "pair" if pair_path else "ad_data",
+            "checkpoint_lr": args.checkpoint_lr,
+            "checkpoint_weight_decay": args.checkpoint_weight_decay,
+            "pair_path": pair_path,
+            "ad_data_path": ad_data_path,
+            "ad_data_dir": args.ad_data_dir,
+            "adv_model_tag": resolved_adv_model_tag,
+            "attack": args.attack,
+            "at_strategy": args.at_strategy,
+            "use_ea": args.use_ea,
+            "checkpoint_path": checkpoint_path,
+            "config": config_name,
+            "config_path": str(config_path),
+            "strategy": strategy,
+            "sample_num": args.sample_num,
+            "rank_soft_mask_init_rank": rank_soft_mask_config.get("rank_soft_mask_init_rank"),
+            "rank_soft_mask_temperature": rank_soft_mask_config.get("rank_soft_mask_temperature"),
+            "rank_soft_mask_weight": rank_soft_mask_config.get("rank_soft_mask_weight"),
+            "max_rank": rank_soft_mask_config.get("max_rank"),
+            "pre_data_shape": tuple(probe_pre_data.shape),
+            "input_shape": tuple(clean_samples.shape[1:]),
+            "selected_positions": selected_positions.tolist(),
+            "source_indices": selected_source_indices,
+            "sampling_rate": sampling_rate,
+            "device": str(device),
+            "visualize": not args.no_visualize,
+            "input_meta": data_payload["meta"],
+            "pair_meta": data_payload["meta"],
+            "outputs": {
+                "predictions": "rank_soft_mask_predictions.pt",
+                "rows": "rank_soft_mask_rows.csv",
+                "summary": "rank_soft_mask_summary.csv",
+                "meta": "meta.json",
+            },
+        }
+
+        torch.save(
+            {
+                "selected_positions": selected_positions,
+                "source_indices": selected_source_indices,
+                "labels": labels,
+                "rows": rows,
+                "summary_rows": summary_rows,
+                "traces": traces,
+                "meta": meta,
+            },
+            output_dir / "rank_soft_mask_predictions.pt",
+        )
+        write_csv(
+            output_dir / "rank_soft_mask_rows.csv",
+            rows,
+            [
+                "sample_id",
+                "source_index",
+                "source_type",
+                "label",
+                "correct",
+                "mse_to_input",
+                "top1",
+                "confidence",
+                "entropy",
+                "effective_rank",
+                "rho",
+                "rank_cost",
+                "rank_soft_mask_weight",
+                "rank_soft_mask_temperature",
+                "rank_soft_mask_init_rank",
+                "train_time",
+                "effective_params_num",
+            ],
+        )
+        write_csv(
+            output_dir / "rank_soft_mask_summary.csv",
+            summary_rows,
+            [
+                "source_type",
+                "count",
+                "accuracy",
+                "mse_mean",
+                "mse_std",
+                "confidence_mean",
+                "entropy_mean",
+                "effective_rank_mean",
+                "effective_rank_std",
+                "rho_mean",
+                "rank_cost_mean",
+                "train_time_mean",
+            ],
+        )
+        with open(output_dir / "meta.json", "w", encoding="utf-8") as file:
+            json.dump(to_jsonable(meta), file, ensure_ascii=False, indent=2)
+
+        if not args.no_visualize:
+            generate_rank_soft_mask_visualizations(
+                rows=rows,
+                output_dir=output_dir,
+                plot_format=args.plot_format,
+                dpi=args.plot_dpi,
+            )
+
+        print(f"Saved rank-soft-mask analysis results to: {output_dir}")
+        return
+
     if args.analysis_mode == "rank_growth":
         if config.get("model") != "PTR_3d_rank_growth":
             raise ValueError(

@@ -15,6 +15,7 @@
 - `train_AT.py`
   - 对抗训练入口。
   - 支持 `madry`、`fbf`、`trades`、`clean` 策略。
+  - 支持 `--fold` 指定 subject split fold；默认 `fold0`。
   - 可通过 `--use_purified_aug` 和 `--purified_aug_paths` 拼接训练集净化增强样本。
   - 日志写入 `log_train_AT/`，checkpoint 通过 `utils.experiment_artifacts.build_checkpoint_path` 命名并写入 `checkpoints/`。
 
@@ -49,6 +50,7 @@
 
 - `train_AT_consistancy.py`
   - 使用 `train_pair_consistancy` 缓存进行 Madry AT + purified pair consistency 损失训练。
+  - 支持 `--fold` 指定 subject split fold；paired cache meta 会校验 fold 一致性。
   - 支持 CE 和 KL 对齐损失；日志写入 `log_train_AT/`，checkpoint 写入 `checkpoints/`。
 
 - `train_AT_consistency2.py`
@@ -58,7 +60,7 @@
 - `train_AT_ea_forward.py`
   - EA-in-forward 特殊训练入口。
   - 使用 raw/no_ea 输入，将 subject-wise EA 放到模型 forward 中执行。
-  - 当前只支持 `eegnet_ea_forward` 和 `madry`。
+  - 当前支持 `eegnet_ea_forward`、`conformer_ea_forward` 和 `madry`。
 
 - `attack_ea_forward.py`
   - EA-in-forward 模型的 subject-aware 攻击入口。
@@ -71,6 +73,7 @@
 - `tensor_ring_rank_analysis/analyze_tr_rank_predictions.py`
   - 分析 Tensor Ring rank 与预测表现相关的实验脚本。
   - 默认 `--analysis_mode tensorly_tr` 保留旧的 TensorLy 普通 TR sweep；`--analysis_mode rank_growth` 会直接运行 `PTR_3d_rank_growth` 并记录动态 rank 轨迹。
+  - `--analysis_mode rank_soft_mask` 会运行 `PTR_3d_rank_soft_mask`，记录单次 soft-rank 净化的 effective rank、MSE 和分类指标。
   - rank-growth 诊断趋势时应使用 `--rank_growth_full_sweep`，禁用早停以避免高 rank 统计缺失。
   - 会读取 checkpoint、paired cache 或 adversarial data，并写入 `tensor_ring_rank_analysis/results*`。
 
@@ -78,6 +81,10 @@
   - 对 `rank_growth` 输出做离线 paired-delta 分析，不重新运行净化。
   - 读取 `rank_growth_predictions.pt` 和 `rank_growth_incremental_frequency.csv`，联合统计高频占比变化、true-label margin 变化、bootstrap 置信区间、相关系数和分类边界恶化率。
   - 主要用于 `EXP-005` 这类 full-sweep 结果的追加诊断，输出 CSV、meta JSON 和误差棒图到原实验目录。
+
+- `tensor_ring_rank_analysis/summarize_exp015_results.py`
+  - 汇总 `EXP-015` 矩阵 runner 的 `planned_tasks.csv` 与产物 meta，输出 `summary.csv`。
+  - 主方法读取 `purified_data/attacked/` 的 JS_MSE rank-growth 净化结果；baseline 读取 `ad_data/` 的攻击结果。
 
 - `trial_lowrank_analysis/analyze_trial_hosvd_lowrank.py`
   - 从 trial/time/channel/frequency 等视角分析 clean、adv、perturbation 的低秩谱。
@@ -89,6 +96,7 @@
   - `purify_aug_pipeline.sh`：clean/ad train purification augmentation 端到端流程。
   - `purify_aug_consistancy_pipeline.sh`：旧拼写 consistancy 的 paired augmentation + AT 流程。
   - `purify_aug_consistency2_pipeline.sh`：consistency2 paired augmentation + AT 流程。
+  - `TN/rank_growth/run_exp015_full_test.sh`：`EXP-015` 跨 dataset/model/seed/fold/eps 的主方法与 baseline 矩阵 runner，日志集中写入 `logs/exp015/<run_id>/`。
   - 这些脚本可能启动长时间任务，除非用户明确要求，不要直接运行。
 
 ## 数据读取
@@ -144,8 +152,8 @@
   - 如果新增分类模型，通常需要在这里补充参数规则，并同步更新入口脚本中的 `model_dict`。
 
 - `models/eegnet_ea_forward.py`
-  - 定义 `SubjectEAEEGNet`。
-  - 在模型 forward 中根据 `subject_ids` 查 EA 矩阵，执行 `R^{-1/2} @ X`，再做归一化并交给 EEGNet backbone。
+  - 定义通用 EA-in-forward wrapper，以及 `SubjectEAEEGNet`、`SubjectEAConformer`。
+  - 在模型 forward 中根据 `subject_ids` 查 EA 矩阵，执行 `R^{-1/2} @ X`，再做归一化并交给 EEGNet 或 Conformer backbone。
 
 - `TN/`
   - Tensor Network 净化模型与工具目录。
@@ -155,6 +163,7 @@
     - `TN.PTR_3d_fs.PTR_3d_fs`
     - `TN.PTR_tfs.PTR_tfs`
     - `TN.rank_growth.PTR_3d_rank_growth`
+    - `TN.rank_growth.PTR_3d_rank_soft_mask`
   - `TN/opt.py` 定义 YAML config 的默认 `Config` 和 `yaml_config_parser`。
   - `TN/utils.py` 提供 TN 参数构造和若干通用工具。
   - TODO：新增或修改 TN 架构前，应进一步阅读对应模型文件的训练接口和 shape 约定。

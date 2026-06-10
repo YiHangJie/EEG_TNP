@@ -13,7 +13,7 @@ import torch
 
 from data.load import load_bciciv2a, load_m3cv, load_seediv, load_thubenchmark
 from data.subject_ea import RAW_PROTOCOL_TAG, prepare_subject_ea_forward_fold
-from models.eegnet_ea_forward import SubjectEAEEGNet
+from models.eegnet_ea_forward import SubjectEAConformer, SubjectEAEEGNet
 from models.model_args import get_model_args
 from utils.experiment_artifacts import build_checkpoint_path, eeg_subject_classification_collate, safe_token
 
@@ -32,7 +32,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='thubenchmark',
                         choices=['seediv', 'm3cv', 'bciciv2a', 'thubenchmark'])
-    parser.add_argument('--model', type=str, default='eegnet_ea_forward', choices=['eegnet_ea_forward'])
+    parser.add_argument('--model', type=str, default='eegnet_ea_forward',
+                        choices=['eegnet_ea_forward', 'conformer_ea_forward'])
     parser.add_argument('--at_strategy', type=str, default='madry', choices=['madry'])
     parser.add_argument('--fold', type=int, default=0)
     parser.add_argument('--epsilon', type=float, default=0.03)
@@ -45,6 +46,8 @@ def parse_args():
     parser.add_argument('--no_pgd_random_start', dest='pgd_random_start', action='store_false')
     parser.add_argument('--epochs', type=int, default=1000)
     parser.add_argument('--batch_size', type=int, default=128)
+    parser.add_argument('--train_sample_num', type=int, default=None,
+                        help='optional random subset size for training smoke tests; default uses full train split')
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--weight_decay', type=float, default=0.0001)
     parser.add_argument('--patience', type=int, default=20)
@@ -136,9 +139,31 @@ def evaluate(model, loader, device):
 
 
 def create_model(args, info, ea_matrices, device):
-    model_args = get_model_args('eegnet', args.dataset, info)
-    model = SubjectEAEEGNet(ea_matrices=ea_matrices, **model_args)
+    model_map = {
+        'eegnet_ea_forward': ('eegnet', SubjectEAEEGNet),
+        'conformer_ea_forward': ('conformer', SubjectEAConformer),
+    }
+    base_model, model_cls = model_map[args.model]
+    model_args = get_model_args(base_model, args.dataset, info)
+    model = model_cls(ea_matrices=ea_matrices, **model_args)
     return model.to(device)
+
+
+def maybe_subset_train_dataset(train_dataset, args, logger):
+    """仅用于 smoke：从训练 split 中抽一个稳定子集，full 默认不启用。"""
+    if args.train_sample_num is None:
+        return train_dataset
+    if args.train_sample_num <= 0:
+        raise ValueError('--train_sample_num must be positive when provided.')
+    sample_num = min(args.train_sample_num, len(train_dataset))
+    selection_seed = args.seed + args.fold * 1000 + 17
+    rng = np.random.RandomState(selection_seed)
+    selected_indices = rng.choice(len(train_dataset), size=sample_num, replace=False).tolist()
+    logger.info(
+        f'Using train_sample_num={sample_num}; selection_seed={selection_seed}; '
+        f'source index preview: {selected_indices[:20]}'
+    )
+    return torch.utils.data.Subset(train_dataset, selected_indices)
 
 
 def checkpoint_path(args, fold):
@@ -213,6 +238,7 @@ def main():
         f'sample num in train set: {len(train_dataset)}, sample num in val set: {len(val_dataset)}, '
         f'sample num in test set: {len(test_dataset)}'
     )
+    train_dataset = maybe_subset_train_dataset(train_dataset, args, logging)
     logging.info(f'EA matrices shape: {tuple(ea_matrices.shape)}')
     logging.info(f'Subject to index: {subject_to_index}')
 

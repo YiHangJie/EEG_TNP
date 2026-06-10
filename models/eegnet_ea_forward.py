@@ -1,27 +1,17 @@
 import torch
 from torch import nn
-from torcheeg.models import EEGNet
+from torcheeg.models import Conformer, EEGNet
 
 
-class SubjectEAEEGNet(nn.Module):
+class SubjectEAClassifier(nn.Module):
     """
-    在 forward 中执行 subject-wise EA 的 EEGNet。
+    在 forward 中执行 subject-wise EA 的通用分类器包装器。
 
     输入保持 raw/no_ea EEG 张量 `[B, 1, C, T]`，`subject_ids` 是已经映射到
     `ea_matrices` 第一维的整数索引。EA 矩阵注册为 buffer，随 checkpoint 保存，
     但不作为可训练参数更新。
     """
-    def __init__(self,
-                 ea_matrices: torch.Tensor,
-                 chunk_size: int = 151,
-                 num_electrodes: int = 60,
-                 F1: int = 8,
-                 F2: int = 16,
-                 D: int = 2,
-                 num_classes: int = 2,
-                 kernel_1: int = 64,
-                 kernel_2: int = 16,
-                 dropout: float = 0.25):
+    def __init__(self, ea_matrices: torch.Tensor, backbone: nn.Module, num_electrodes: int):
         super().__init__()
         ea_matrices = torch.as_tensor(ea_matrices, dtype=torch.float32)
         if ea_matrices.dim() != 3:
@@ -33,17 +23,7 @@ class SubjectEAEEGNet(nn.Module):
             )
 
         self.register_buffer('ea_matrices', ea_matrices)
-        self.backbone = EEGNet(
-            chunk_size=chunk_size,
-            num_electrodes=num_electrodes,
-            F1=F1,
-            F2=F2,
-            D=D,
-            num_classes=num_classes,
-            kernel_1=kernel_1,
-            kernel_2=kernel_2,
-            dropout=dropout,
-        )
+        self.backbone = backbone
 
     @staticmethod
     def _normalize_after_ea(x: torch.Tensor) -> torch.Tensor:
@@ -75,3 +55,47 @@ class SubjectEAEEGNet(nn.Module):
     def forward(self, x: torch.Tensor, subject_ids: torch.Tensor) -> torch.Tensor:
         x = self.apply_ea(x, subject_ids)
         return self.backbone(x)
+
+
+class SubjectEAEEGNet(SubjectEAClassifier):
+    """在 forward 中执行 subject-wise EA 的 EEGNet。"""
+    def __init__(self,
+                 ea_matrices: torch.Tensor,
+                 chunk_size: int = 151,
+                 num_electrodes: int = 60,
+                 F1: int = 8,
+                 F2: int = 16,
+                 D: int = 2,
+                 num_classes: int = 2,
+                 kernel_1: int = 64,
+                 kernel_2: int = 16,
+                 dropout: float = 0.25):
+        backbone = EEGNet(
+            chunk_size=chunk_size,
+            num_electrodes=num_electrodes,
+            F1=F1,
+            F2=F2,
+            D=D,
+            num_classes=num_classes,
+            kernel_1=kernel_1,
+            kernel_2=kernel_2,
+            dropout=dropout,
+        )
+        super().__init__(ea_matrices=ea_matrices, backbone=backbone, num_electrodes=num_electrodes)
+
+
+class SubjectEAConformer(SubjectEAClassifier):
+    """在 forward 中执行 subject-wise EA 的 Conformer。"""
+    def __init__(self,
+                 ea_matrices: torch.Tensor,
+                 sampling_rate: int,
+                 num_electrodes: int,
+                 num_classes: int,
+                 **kwargs):
+        backbone = Conformer(
+            sampling_rate=sampling_rate,
+            num_electrodes=num_electrodes,
+            num_classes=num_classes,
+            **kwargs,
+        )
+        super().__init__(ea_matrices=ea_matrices, backbone=backbone, num_electrodes=num_electrodes)

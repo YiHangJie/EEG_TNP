@@ -33,7 +33,7 @@ from TN.PTR import PTR
 from TN.PTR_3d import PTR_3d
 from TN.PTR_3d_fs import PTR_3d_fs
 from TN.PTR_tfs import PTR_tfs
-from TN.rank_growth import PTR_3d_rank_growth
+from TN.rank_growth import PTR_3d_rank_growth, PTR_3d_rank_soft_mask
 from TN.opt import *
 from TN.utils import get_TN_args
 from utils.experiment_artifacts import (
@@ -342,6 +342,7 @@ def purify(args, index, data, sampling_rate, device, logging, classifier=None):
         'PTR_3d_fs': PTR_3d_fs,
         'PTR_tfs': PTR_tfs,
         'PTR_3d_rank_growth': PTR_3d_rank_growth,
+        'PTR_3d_rank_soft_mask': PTR_3d_rank_soft_mask,
     }
     TN = TN_dict[config.model]
     tn = TN(**TN_args)

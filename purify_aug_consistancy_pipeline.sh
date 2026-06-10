@@ -19,6 +19,7 @@ AT_STRATEGY="${AT_STRATEGY:-madry}"
 SEED="${SEED:-42}"
 FOLD="${FOLD:-0}"
 SAMPLE_NUM="${SAMPLE_NUM:-512}"
+ATTACK_SAMPLE_NUM="${ATTACK_SAMPLE_NUM:-}"
 RUN_TAG="${RUN_TAG:-consistancy_rank25-30_n${SAMPLE_NUM}_eps${EPS//./p}}"
 USE_EA="${USE_EA:-0}"
 OVERWRITE="${OVERWRITE:-0}"
@@ -35,6 +36,7 @@ TRAIN_ADV_CHECKPOINT_PATH="${TRAIN_ADV_CHECKPOINT_PATH:-}"
 
 EPOCHS="${EPOCHS:-400}"
 BATCH_SIZE="${BATCH_SIZE:-128}"
+TRAIN_SAMPLE_NUM="${TRAIN_SAMPLE_NUM:-}"
 CONSISTANCY_BATCH_SIZE="${CONSISTANCY_BATCH_SIZE:-}"
 LR="${LR:-0.001}"
 WEIGHT_DECAY="${WEIGHT_DECAY:-0.0001}"
@@ -103,6 +105,14 @@ if [[ ! "${POLL_SECONDS}" =~ ^[1-9][0-9]*$ ]]; then
 fi
 if [[ -n "${CONSISTANCY_BATCH_SIZE}" && ! "${CONSISTANCY_BATCH_SIZE}" =~ ^[1-9][0-9]*$ ]]; then
   echo "CONSISTANCY_BATCH_SIZE must be empty or a positive integer, got: ${CONSISTANCY_BATCH_SIZE}" >&2
+  exit 1
+fi
+if [[ -n "${TRAIN_SAMPLE_NUM}" && ! "${TRAIN_SAMPLE_NUM}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "TRAIN_SAMPLE_NUM must be empty or a positive integer, got: ${TRAIN_SAMPLE_NUM}" >&2
+  exit 1
+fi
+if [[ -n "${ATTACK_SAMPLE_NUM}" && ! "${ATTACK_SAMPLE_NUM}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "ATTACK_SAMPLE_NUM must be empty or a positive integer, got: ${ATTACK_SAMPLE_NUM}" >&2
   exit 1
 fi
 
@@ -198,6 +208,10 @@ consistancy_batch_args=()
 if [[ -n "${CONSISTANCY_BATCH_SIZE}" ]]; then
   consistancy_batch_args=(--consistancy_batch_size "${CONSISTANCY_BATCH_SIZE}")
 fi
+train_sample_args=()
+if [[ -n "${TRAIN_SAMPLE_NUM}" ]]; then
+  train_sample_args=(--train_sample_num "${TRAIN_SAMPLE_NUM}")
+fi
 
 echo "======================================================"
 echo "RUN_TAG=${RUN_TAG_SAFE}"
@@ -208,6 +222,8 @@ echo "TRAIN_ADV_ATTACK=${TRAIN_ADV_ATTACK}, TRAIN_ADV_EPS=${TRAIN_ADV_EPS}"
 echo "TRAIN_ADV_CHECKPOINT_PATH=${TRAIN_ADV_CHECKPOINT_PATH}"
 echo "CHECKPOINT_PATH=${checkpoint_path}"
 echo "ADV_DATA_PATH=${adv_data_path}"
+echo "TRAIN_SAMPLE_NUM=${TRAIN_SAMPLE_NUM:-full}"
+echo "ATTACK_SAMPLE_NUM=${ATTACK_SAMPLE_NUM:-full}"
 echo "CONSISTANCY_T=${CONSISTANCY_TEMPERATURE}, LAMBDA_PUR=${CONSISTANCY_LAMBDA_PUR}, LAMBDA_ADV=${CONSISTANCY_LAMBDA_ADV}"
 echo "PURIFY MAX_JOBS=${MAX_JOBS}, GPU_IDS=${gpu_ids[*]}"
 echo "======================================================"
@@ -280,9 +296,11 @@ if (( START_STAGE <= 2 )); then
     --dataset "${DATASET}" \
     --model "${MODEL}" \
     --at_strategy "${AT_STRATEGY}" \
+    --fold "${FOLD}" \
     --epsilon "${EPS}" \
     --epochs "${EPOCHS}" \
     --batch_size "${BATCH_SIZE}" \
+    "${train_sample_args[@]}" \
     "${consistancy_batch_args[@]}" \
     --lr "${LR}" \
     --weight_decay "${WEIGHT_DECAY}" \
@@ -311,6 +329,10 @@ if (( START_STAGE <= 3 )); then
   fi
 
   echo "[Stage 3] Attack consistancy model"
+  attack_sample_args=()
+  if [[ -n "${ATTACK_SAMPLE_NUM}" ]]; then
+    attack_sample_args=(--attack_sample_num "${ATTACK_SAMPLE_NUM}")
+  fi
   run_cmd python -u attack.py \
     --dataset "${DATASET}" \
     --model "${MODEL}" \
@@ -321,6 +343,7 @@ if (( START_STAGE <= 3 )); then
     --seed "${SEED}" \
     --gpu_id "${GPU_ID}" \
     "${EA_ARG}" \
+    "${attack_sample_args[@]}" \
     --checkpoint_path "${checkpoint_path}" \
     --save_adv \
     --adv_output_tag "${adv_tag}"

@@ -1,0 +1,37 @@
+model: PTR_3d_rank_growth
+strategy: 3d_interpolate
+lr: 0.008
+
+num_iterations: 2048
+max_batch_size: 262144
+
+seed: 42
+
+stage: 4
+payload_position: first_core
+iterations_for_upsampling:
+  - 256
+  - 512
+  - 1024
+
+max_rank: 40
+rank_growth_ranks:
+  - 5
+  - 10
+  - 15
+  - 20
+  - 25
+  - 30
+  - 35
+  - 40
+rank_growth_steps_per_rank: 512
+rank_growth_js_threshold: 0.0403031319472992
+rank_growth_max_mse_to_input: 0.1642765770602721
+rank_growth_lr_decay_factor: 1.0
+
+lr_decay_factor: 0.9
+lr_decay_factor_until_next_upsampling: 0.1
+warmup_steps: 50
+
+loss_fn_str: L2
+regularization_weight: 0.03

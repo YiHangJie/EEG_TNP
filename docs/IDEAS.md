@@ -130,3 +130,63 @@
   - `EXP-011`
 - **备注：**
   - 暂无。
+
+### IDEA-005：PTR_3d_rank_soft_mask 可微 soft-rank 净化
+
+- **状态：** 初步验证完成，暂不作为主候选
+- **动机：**
+  - 现有 `PTR_3d_rank_growth` 使用 hard prefix gate 逐档增加 rank，再通过外部早停规则选择 rank。该路径具备动态 rank 的结构基础，但仍需要离散 rank block 和后验选择，计算成本较高，且优化目标没有直接约束有效 rank。
+  - 将离散 `active_rank` 放松为可微 soft-prefix mask，可以在单次 PTR 优化中学习样本级 effective rank，为自适应 rank 分配提供更优雅的建模方式。
+- **核心假设：**
+  - 通过 `MSE reconstruction + effective-rank penalty` 的目标，soft-prefix gate 可以学习每个样本的最小充分 rank。
+  - 相比固定低 rank 或 hard early stopping，soft-rank 机制有机会在保持 robust accuracy 的同时降低 clean accuracy 损伤。
+- **方法：**
+  - 新增 `PTR_3d_rank_soft_mask`，保留 `max_rank` 的完整 TR 参数容器。
+  - 学习一个连续变量 `rho`，并用 `g_i = sigmoid((rho - i) / temperature)` 生成 soft-prefix rank mask。
+  - 对时间 bond 使用 `sqrt(g)` 施加 soft mask；空间 core 不加 mask，保持与 `PTR_3d_rank_growth` 相同的 rank 语义。
+  - 优化目标只包含重构 MSE 与 `effective_rank / max_rank` 低秩约束，不加入 classifier semantic risk、entropy、JS、margin、残差白化或高频惩罚。
+- **预期实现：**
+  - 新增 `TN/rank_growth/PTR_3d_rank_soft_mask.py`。
+  - 接入 `TN/rank_growth/__init__.py`、`TN/utils.py`、`purify.py`。
+  - 在 `tensor_ring_rank_analysis/analyze_tr_rank_predictions.py` 新增 `--analysis_mode rank_soft_mask`。
+  - 新增 `configs/thubenchmark/PTR3d_rank_soft_mask_8_2048_r40_3d_interpolate.yaml`。
+- **评估指标：**
+  - clean/adv accuracy、MSE、confidence、entropy。
+  - soft-mask 的 `effective_rank`、`rho`、`rank_cost`、近似有效参数量。
+  - 与 `EXP-009/010/011` 中固定 rank、`threshold`、`js_mse` 和 entropy selector 对照。
+- **风险：**
+  - 如果 rank penalty 太小，soft mask 可能退化到接近 `max_rank`。
+  - 如果 rank penalty 太大，effective rank 可能过低，导致 clean/robust accuracy 同时下降。
+  - 由于目标不包含 classifier-aware 项，不能理论保证 robust accuracy 不下降，需要用实验确认。
+- **相关实验：**
+  - `EXP-014`
+- **备注：**
+  - 初版重点验证 soft-rank allocation 是否可运行以及是否形成合理 rank-accuracy trade-off。
+  - `EXP-014` 显示 soft mask 可运行，rank penalty 能压低 effective rank，但 `MSE + rank cost` 目标没有学出足够清晰的样本级 rank allocation，也没有超过 `EXP-010/011` 的 hard rank-growth selector。
+
+### IDEA-006：进行对 PTR_3d_rank_growth+JS_MSE 的完整测试，包括不同的 dataset、模型、seed、fold、EPS
+
+- **状态：** 规划中
+- **动机：**
+  - 多维度的测试才能获得可信的结论。
+- **核心假设：**
+  - 多组重复性实验能观察性能的稳定性，不同的 dataset、模型观察方法的泛化性。
+- **方法：**
+  - 构建从训练、攻击、训练集净化、攻击样本净化、净化样本增强的对抗训练（consistancy）、攻击、净化（PTR_3d_rank_growth+JS_MSE）的全流程 sh 脚本。
+  - 新建一个存放 log 文件的文件夹。
+- **预期实现：**
+  - 数据集： thubenchmark、seediv
+  - 模型：EEGNet、Conformer
+  - seed：42、43、45
+  - fold：0、1、2
+  - 攻击：autoattack
+  - EPS：0.01、0.03、0.05
+- **评估指标：**
+  - clean/adv accuracy。
+- **风险：**
+  - 测试量较大，文件较多，要做好文件管理。
+- **相关实验：**
+  - `EXP-015`
+- **备注：**
+  - 也要补充用于对比的 baseline 性能的实验，就是普通的 Madry、TRADES、fbf、ABAT（train_AT_ea_forward.py）。
+  - baseline 方法都是 AT 方法，只需对抗训练、攻击测试即可。

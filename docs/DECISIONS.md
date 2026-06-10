@@ -260,3 +260,29 @@
   - `IDEA-003`
 - **相关实验：**
   - `EXP-013`
+
+### DEC-010：PTR_3d_rank_soft_mask 暂不作为主 rank-selection 路线
+
+- **日期：** 2026-06-05
+- **背景：**
+  - `IDEA-005` 实现了 `PTR_3d_rank_soft_mask`，将 hard prefix active rank 放松为可微 soft-prefix mask。
+  - `EXP-014` 在 `thubenchmark fold0 seed42 autoattack eps=0.03 sample_num=512` 上完成 `rank_soft_mask_weight=0.0/0.001/0.003/0.01` sweep。
+- **考虑过的选项：**
+  - 选项 A：把 soft-mask 作为后续主要动态 rank 架构，继续调 `rank_soft_mask_weight`。
+  - 选项 B：保留 soft-mask 作为可微 rank gate 原型，但不把 `MSE + rank cost` 版本作为主候选。
+  - 选项 C：完全放弃 soft-mask 代码路径，回到 hard rank-growth。
+- **最终选择：**
+  - 选择 B。
+- **原因：**
+  - `EXP-014` 中 rank penalty 可控，mean effective rank 随 lambda 从 `19.536` 降到 `17.715`，说明 soft gate 工程路径成立。
+  - 但 best soft-mask adversarial accuracy 为 `lambda=0.01` 的 `0.837891`，低于 `EXP-010/011` 的 `threshold=0.847656` 和 `js_mse=0.845703`。
+  - effective rank 的样本级分布较窄，且 clean/adv 均值几乎重合；rank 与 MSE 强相关，但与分类正确性相关很弱，说明当前目标主要学习重构难度而不是鲁棒净化所需 rank。
+  - 单纯继续 sweep 线性 rank penalty 不太可能产生论文级创新；需要更有结构的目标或机制，才能支撑“样本级动态 rank 分配”的研究主张。
+- **影响：**
+  - 保留 `PTR_3d_rank_soft_mask`、`rank_soft_mask` analysis mode 和 EXP-014 结果，作为后续可微 gate 改造的基线。
+  - 当前 accuracy-oriented 主线仍优先围绕 hard rank-growth selector，尤其是 `threshold/js_mse` 及其在线化、跨 seed/fold/eps 复验。
+  - 若继续 soft-mask，应优先改变优化目标或动态机制，而不是只调 `rank_soft_mask_weight`。
+- **相关 idea：**
+  - `IDEA-005`
+- **相关实验：**
+  - `EXP-014`

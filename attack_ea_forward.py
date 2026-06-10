@@ -21,7 +21,7 @@ from attack.pgd import PGD
 from attack.square import Square
 from data.load import load_bciciv2a, load_m3cv, load_seediv, load_thubenchmark
 from data.subject_ea import RAW_PROTOCOL_TAG, prepare_subject_ea_forward_fold
-from models.eegnet_ea_forward import SubjectEAEEGNet
+from models.eegnet_ea_forward import SubjectEAConformer, SubjectEAEEGNet
 from models.model_args import get_model_args
 from utils.experiment_artifacts import (
     build_checkpoint_path,
@@ -44,13 +44,16 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='thubenchmark',
                         choices=['seediv', 'm3cv', 'bciciv2a', 'thubenchmark'])
-    parser.add_argument('--model', type=str, default='eegnet_ea_forward', choices=['eegnet_ea_forward'])
+    parser.add_argument('--model', type=str, default='eegnet_ea_forward',
+                        choices=['eegnet_ea_forward', 'conformer_ea_forward'])
     parser.add_argument('--at_strategy', type=str, default='madry', choices=['madry'])
     parser.add_argument('--fold', type=int, default=0)
     parser.add_argument('--attack', type=str, default='autoattack',
                         choices=['fgsm', 'pgd', 'cw', 'autoattack'])
     parser.add_argument('--eps', type=float, default=0.03)
     parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--attack_sample_num', type=int, default=None,
+                        help='optional random subset size for attack smoke tests; default attacks the full test split')
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument('--use_ea', dest='use_ea', action='store_true', default=False,
@@ -230,8 +233,13 @@ class SubjectAwareAutoAttack:
 
 
 def create_model(args, info, ea_matrices, device):
-    model_args = get_model_args('eegnet', args.dataset, info)
-    model = SubjectEAEEGNet(ea_matrices=ea_matrices, **model_args)
+    model_map = {
+        'eegnet_ea_forward': ('eegnet', SubjectEAEEGNet),
+        'conformer_ea_forward': ('conformer', SubjectEAConformer),
+    }
+    base_model, model_cls = model_map[args.model]
+    model_args = get_model_args(base_model, args.dataset, info)
+    model = model_cls(ea_matrices=ea_matrices, **model_args)
     return model.to(device)
 
 
@@ -294,7 +302,7 @@ def main():
     log_tag = safe_token(args.adv_output_tag or args.checkpoint_tag or checkpoint_log_tag or 'ea_forward')
     log_path = (
         f'./log_attack/attack_ea_forward_{args.dataset}_{args.model}_{args.at_strategy}_'
-        f'{args.attack}_{args.eps}_{args.seed}_{log_tag}.log'
+        f'{args.attack}_{args.eps}_{args.seed}_fold{args.fold}_{log_tag}.log'
     )
     logging.basicConfig(
         filename=log_path,
@@ -322,6 +330,21 @@ def main():
     )
     logging.info(f'Dataset: {args.dataset}')
     logging.info(f'Split path: {split_path}')
+    if args.attack_sample_num is not None:
+        if args.attack_sample_num <= 0:
+            raise ValueError('--attack_sample_num must be positive when provided.')
+        attack_sample_num = min(args.attack_sample_num, len(test_dataset))
+        selected_indices, selection_seed = select_random_indices(
+            dataset_size=len(test_dataset),
+            sample_num=attack_sample_num,
+            seed=args.seed,
+            fold=args.fold,
+        )
+        test_dataset = torch.utils.data.Subset(test_dataset, selected_indices)
+        logging.info(
+            f'Using attack_sample_num={attack_sample_num}; selection_seed={selection_seed}; '
+            f'source index preview: {selected_indices[:20]}'
+        )
     logging.info(f'EA matrices shape: {tuple(ea_matrices.shape)}')
     logging.info(f'Subject to index: {subject_to_index}')
 
@@ -403,6 +426,7 @@ def main():
             'eps': args.eps,
             'checkpoint_path': checkpoint_path,
             'adv_output_tag': args.adv_output_tag,
+            'attack_sample_num': args.attack_sample_num,
             'clean_accuracy': evaluate_acc,
             'adv_accuracy': ad_evaluate_acc,
             'mse': mse.item(),

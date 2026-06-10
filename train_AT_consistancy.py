@@ -44,6 +44,7 @@ def parse_args():
                         choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
     parser.add_argument('--at_strategy', type=str, default='madry', choices=['madry'],
                         help='first consistancy version only supports Madry AT')
+    parser.add_argument('--fold', type=int, default=0, help='which subject split fold to train')
     parser.add_argument('--epsilon', type=float, default=0.1, help='max perturbation budget for adversarial training')
     parser.add_argument('--pgd_step_size', type=float, default=0.02, help='step size for PGD updates')
     parser.add_argument('--pgd_steps', type=int, default=10, help='number of PGD steps for adversarial examples')
@@ -56,6 +57,8 @@ def parse_args():
                         help='disable random start for PGD attacks')
     parser.add_argument('--epochs', type=int, default=400, help='number of epochs to train')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size for original training data')
+    parser.add_argument('--train_sample_num', type=int, default=None,
+                        help='optional random subset size for training smoke tests; default uses full train split')
     parser.add_argument('--consistancy_batch_size', type=int, default=None,
                         help='batch size for paired consistancy data; default equals --batch_size')
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
@@ -111,6 +114,23 @@ def clamp_tensor(x, clip_min=None, clip_max=None):
     lower = -float('inf') if clip_min is None else clip_min
     upper = float('inf') if clip_max is None else clip_max
     return torch.clamp(x, min=lower, max=upper)
+
+
+def maybe_subset_train_dataset(train_dataset, args, fold_index, logger):
+    """仅用于 smoke：从训练 split 中抽一个稳定子集，full 默认不启用。"""
+    if args.train_sample_num is None:
+        return train_dataset
+    if args.train_sample_num <= 0:
+        raise ValueError('--train_sample_num must be positive when provided.')
+    sample_num = min(args.train_sample_num, len(train_dataset))
+    selection_seed = args.seed + fold_index * 1000 + 17
+    rng = np.random.RandomState(selection_seed)
+    selected_indices = rng.choice(len(train_dataset), size=sample_num, replace=False).tolist()
+    logger.info(
+        f'Using train_sample_num={sample_num}; selection_seed={selection_seed}; '
+        f'source index preview: {selected_indices[:20]}'
+    )
+    return torch.utils.data.Subset(train_dataset, selected_indices)
 
 
 def pgd_adversarial_examples(model, x, y, epsilon, step_size, steps, criterion,
@@ -354,7 +374,7 @@ def main():
     log_suffix = f'_{checkpoint_tag}' if checkpoint_tag else ''
     logfile_directory = (
         f'./log_train_AT/train_consistancy_{args.dataset}_{args.model}_{args.at_strategy}_'
-        f'eps{args.epsilon}_{args.seed}_{args.lr}_{args.weight_decay}_{args.batch_size}'
+        f'eps{args.epsilon}_{args.seed}_fold{args.fold}_{args.lr}_{args.weight_decay}_{args.batch_size}'
         f'{log_suffix}_{timestamp}.log'
     )
     logging.basicConfig(
@@ -398,6 +418,7 @@ def main():
     accs = []
     losses = []
     best_models = []
+    ran_requested_fold = False
     for index, train_dataset, val_dataset, test_dataset, split_path in iter_subject_folds(
         dataset_name=args.dataset,
         dataset=dataset,
@@ -405,13 +426,15 @@ def main():
         seed=args.seed,
         use_ea=args.use_ea,
     ):
-        if index >= 1:
-            break
+        if index != args.fold:
+            continue
+        ran_requested_fold = True
         logging.info(f'Split path: {split_path}')
         logging.info(
             f'sample num in train set: {len(train_dataset)}, sample num in val set: {len(val_dataset)}, '
             f'sample num in test set: {len(test_dataset)}'
         )
+        train_dataset = maybe_subset_train_dataset(train_dataset, args, index, logging)
 
         pair_loader = None
         if args.use_consistancy_aug:
@@ -555,7 +578,10 @@ def main():
         logging.info(f'Test Acc: {test_acc:.4f}, Test Loss: {test_loss:.4f}')
         accs.append(test_acc)
         losses.append(test_loss)
+        break
 
+    if not ran_requested_fold:
+        raise ValueError(f'Requested fold {args.fold} was not produced by iter_subject_folds.')
     logging.info(f'Acc: {np.mean(accs):.4f}±{np.std(accs):.4f}, Loss: {np.mean(losses):.4f}±{np.std(losses):.4f}')
 
 

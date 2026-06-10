@@ -44,6 +44,8 @@ def parse_args():
     parser.add_argument('--attack', type=str, default='fgsm', choices=['fgsm', 'pgd', 'cw', 'autoattack'], help='choose attack')
     parser.add_argument('--eps', type=float, default=0.1, help='attack budget, default is 8/255')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
+    parser.add_argument('--attack_sample_num', type=int, default=None,
+                        help='optional random subset size for attack smoke tests; default attacks the full test split')
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--gpu_id', type=int, default=0, help='which gpu to use')
     parser.add_argument('--use_ea', dest='use_ea', action='store_true', default=False,
@@ -195,7 +197,7 @@ if __name__ == '__main__':
     log_suffix = f'_{log_tag}' if log_tag != 'none' else ''
     logfile_directory = (
         f'./log_attack/attack_{args.dataset}_{args.model}_{protocol_short}_{args.at_strategy}_'
-        f'{args.attack}_{args.eps}_{args.seed}{log_suffix}.log'
+        f'{args.attack}_{args.eps}_{args.seed}_fold{args.fold}{log_suffix}.log'
     )
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
     logging.info(f'Attacking {args.attack} on {args.dataset} with {args.model}')
@@ -220,6 +222,21 @@ if __name__ == '__main__':
         use_ea=args.use_ea,
     )
     logging.info(f'Split path: {split_path}')
+    if args.attack_sample_num is not None:
+        if args.attack_sample_num <= 0:
+            raise ValueError('--attack_sample_num must be positive when provided.')
+        attack_sample_num = min(args.attack_sample_num, len(test_dataset))
+        selected_indices, selection_seed = select_random_indices(
+            dataset_size=len(test_dataset),
+            sample_num=attack_sample_num,
+            seed=args.seed,
+            fold=args.fold,
+        )
+        test_dataset = torch.utils.data.Subset(test_dataset, selected_indices)
+        logging.info(
+            f'Using attack_sample_num={attack_sample_num}; selection_seed={selection_seed}; '
+            f'source index preview: {selected_indices[:20]}'
+        )
 
     # load model
     model_dict = {
@@ -316,6 +333,7 @@ if __name__ == '__main__':
                 'checkpoint_path': checkpoint_path,
                 'model_tag': model_tag,
                 'adv_output_tag': args.adv_output_tag,
+                'attack_sample_num': args.attack_sample_num,
                 'clean_accuracy': evaluate_acc,
                 'adv_accuracy': ad_evaluate_acc,
                 'mse': mse.item(),

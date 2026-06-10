@@ -1609,3 +1609,308 @@
 - **下一步：**
   - 若继续推进在线 adaptive rank，应优先比较 `score`、`js_mse_entropy` 或更保守的 rank 选择语义，而不是只复用当前 `js_mse` 早停。
   - 在跨 seed/fold 或不同 eps 的离线 replay 完成前，不修改 baseline 默认行为。
+
+### EXP-014：PTR_3d_rank_soft_mask 在 n512 eps=0.03 上的 rank penalty sweep
+
+- **日期：** 2026-06-05
+- **状态：** 已完成
+- **相关 idea：** `IDEA-005`
+- **目的：**
+  - 验证 `PTR_3d_rank_soft_mask` 是否能在单次优化中学习样本级 effective rank。
+  - 观察 `rank_soft_mask_weight` 对 clean/adv accuracy、MSE 与 effective rank 的影响。
+  - 与 `EXP-009/010/011` 的固定 rank、`threshold`、`js_mse` 和 entropy selector 结果对齐比较。
+- **代码版本 / 分支：**
+  - 分支：`main`
+  - working tree：包含 `IDEA-005` 相关实现。
+- **配置文件：**
+  - `configs/thubenchmark/PTR3d_rank_soft_mask_8_2048_r40_3d_interpolate.yaml`
+- **命令：**
+  ```bash
+  # smoke：sample_num=1，不作为正式结果
+  conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/analyze_tr_rank_predictions.py \
+    --analysis_mode rank_soft_mask \
+    --dataset thubenchmark \
+    --model eegnet \
+    --no_ea \
+    --eps 0.03 \
+    --fold 0 \
+    --attack autoattack \
+    --at_strategy madry \
+    --consistency_version consistancy \
+    --consistency_tag consistancy_rank25-30_n512_eps0p03 \
+    --adv_model_tag consistancy_rank25-30_n512_eps0p03 \
+    --config PTR3d_rank_soft_mask_8_2048_r40_3d_interpolate.yaml \
+    --checkpoint_path checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.03_42_fold0_consistancy_rank25-30_n512_eps0p03_best.pth \
+    --ad_data_path ad_data/thubenchmark_eegnet_no_ea_consistancy_rank25-30_n512_eps0p03_madry_autoattack_eps0.03_seed42_fold0.pth \
+    --sample_num 1 \
+    --rank_soft_mask_init_rank 15 \
+    --rank_soft_mask_temperature 1.0 \
+    --rank_soft_mask_weight 0.003 \
+    --output_dir tensor_ring_rank_analysis/results_smoke_exp014_rank_soft_mask_n1 \
+    --no_visualize \
+    --overwrite
+
+  # 正式 512 样本 sweep：每个 lambda 单独后台运行并写入稳定日志
+  for LAMBDA in 0.0 0.001 0.003 0.01; do
+    TAG=$(printf "%s" "${LAMBDA}" | sed 's/\./p/g')
+    OUT_DIR="tensor_ring_rank_analysis/results_rank_soft_mask_exp014_eps0p03_n512_lambda${TAG}"
+    LOG_FILE="logs/exp014_rank_soft_mask_eps0p03_n512_lambda${TAG}_$(date +%Y%m%d_%H%M%S).log"
+    setsid nohup conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/analyze_tr_rank_predictions.py \
+      --analysis_mode rank_soft_mask \
+      --dataset thubenchmark \
+      --model eegnet \
+      --no_ea \
+      --eps 0.03 \
+      --fold 0 \
+      --attack autoattack \
+      --at_strategy madry \
+      --consistency_version consistancy \
+      --consistency_tag consistancy_rank25-30_n512_eps0p03 \
+      --adv_model_tag consistancy_rank25-30_n512_eps0p03 \
+      --config PTR3d_rank_soft_mask_8_2048_r40_3d_interpolate.yaml \
+      --checkpoint_path checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.03_42_fold0_consistancy_rank25-30_n512_eps0p03_best.pth \
+      --ad_data_path ad_data/thubenchmark_eegnet_no_ea_consistancy_rank25-30_n512_eps0p03_madry_autoattack_eps0.03_seed42_fold0.pth \
+      --sample_num 512 \
+      --rank_soft_mask_init_rank 15 \
+      --rank_soft_mask_temperature 1.0 \
+      --rank_soft_mask_weight "${LAMBDA}" \
+      --output_dir "${OUT_DIR}" \
+      --plot_format png \
+      --plot_dpi 180 \
+      > "${LOG_FILE}" 2>&1 &
+  done
+  ```
+- **关键设置：**
+  - 数据集/划分：`thubenchmark fold0 seed42`
+  - 攻击：`autoattack eps=0.03`
+  - 模型来源：`consistancy_rank25-30_n512_eps0p03`
+  - 样本数：`512`
+  - soft-rank 初始值：`rank_soft_mask_init_rank=15`
+  - temperature：`1.0`
+  - sweep：`rank_soft_mask_weight=0.0/0.001/0.003/0.01`
+  - 输出目录：`tensor_ring_rank_analysis/results_rank_soft_mask_exp014_eps0p03_n512_lambda*/`
+- **正式任务启动记录：**
+  - 启动时间：`2026-06-05 17:07:37`
+  - 启动方式：`setsid nohup conda run -n torch --no-capture-output python -u ... > LOG_FILE 2>&1 &`
+  - `lambda=0.0`：PID `415401`，输出目录 `tensor_ring_rank_analysis/results_rank_soft_mask_exp014_eps0p03_n512_lambda0p0/`，日志 `logs/exp014_rank_soft_mask_eps0p03_n512_lambda0p0_20260605_170737.log`
+  - `lambda=0.001`：PID `415402`，输出目录 `tensor_ring_rank_analysis/results_rank_soft_mask_exp014_eps0p03_n512_lambda0p001/`，日志 `logs/exp014_rank_soft_mask_eps0p03_n512_lambda0p001_20260605_170737.log`
+  - `lambda=0.003`：PID `415403`，输出目录 `tensor_ring_rank_analysis/results_rank_soft_mask_exp014_eps0p03_n512_lambda0p003/`，日志 `logs/exp014_rank_soft_mask_eps0p03_n512_lambda0p003_20260605_170737.log`
+  - `lambda=0.01`：PID `415404`，输出目录 `tensor_ring_rank_analysis/results_rank_soft_mask_exp014_eps0p03_n512_lambda0p01/`，日志 `logs/exp014_rank_soft_mask_eps0p03_n512_lambda0p01_20260605_170737.log`
+  - 启动检查：宿主 `ps` 确认 4 个进程运行中，日志已开始实时写入。
+  - 完成检查：4 个日志均记录 `Saved rank-soft-mask analysis results`，未发现 `Traceback`、`ERROR`、`RuntimeError` 或 `CUDA out of memory`；4 个 PID 均已结束。
+- **实现验证：**
+  - `py_compile` 已通过：
+    ```bash
+    conda run -n torch --no-capture-output python -m py_compile \
+      TN/rank_growth/PTR_3d_rank_soft_mask.py \
+      tensor_ring_rank_analysis/analyze_tr_rank_predictions.py \
+      purify.py TN/utils.py
+    ```
+  - `sample_num=1` smoke 已通过，输出目录：`tensor_ring_rank_analysis/results_smoke_exp014_rank_soft_mask_n1/`。
+  - smoke 输出确认 `rank_soft_mask_rows.csv` 含 `effective_rank`、`rho`、`rank_cost`、`rank_soft_mask_weight`，`meta.json` 记录 `analysis_mode=rank_soft_mask`。
+  - 该 smoke 只用于验证代码路径和输出格式，不作为正式实验结论。
+- **指标：**
+  - 主指标：clean accuracy、adversarial accuracy。
+  - 次指标：MSE、confidence、entropy、effective rank、rho、rank cost、近似有效参数量、单样本训练时间。
+- **结果：**
+  - 正式输出：
+    - `tensor_ring_rank_analysis/results_rank_soft_mask_exp014_eps0p03_n512_lambda0p0/`
+    - `tensor_ring_rank_analysis/results_rank_soft_mask_exp014_eps0p03_n512_lambda0p001/`
+    - `tensor_ring_rank_analysis/results_rank_soft_mask_exp014_eps0p03_n512_lambda0p003/`
+    - `tensor_ring_rank_analysis/results_rank_soft_mask_exp014_eps0p03_n512_lambda0p01/`
+  - 每个输出目录均包含 `rank_soft_mask_predictions.pt`、`rank_soft_mask_rows.csv`、`rank_soft_mask_summary.csv`、`meta.json` 和 `plots/effective_rank_distribution.png`。
+  - sweep summary：
+
+    | rank penalty | clean acc | adv acc | all acc | clean MSE | adv MSE | mean effective rank | mean entropy |
+    | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+    | `0.0` | `0.900391` | `0.832031` | `0.866211` | `0.058365` | `0.058537` | `19.536` | `0.400834` |
+    | `0.001` | `0.886719` | `0.830078` | `0.858398` | `0.059127` | `0.059350` | `19.330` | `0.400110` |
+    | `0.003` | `0.894531` | `0.828125` | `0.861328` | `0.060689` | `0.060897` | `18.939` | `0.402222` |
+    | `0.01` | `0.896484` | `0.837891` | `0.867188` | `0.065804` | `0.065905` | `17.715` | `0.408294` |
+
+  - 相对 `lambda=0.0`：
+    - `lambda=0.001`：effective rank 降低约 `0.206`，adv acc 低 `1/512`，clean acc 低 `7/512`。
+    - `lambda=0.003`：effective rank 降低约 `0.596`，adv acc 低 `2/512`，clean acc 低 `3/512`。
+    - `lambda=0.01`：effective rank 降低约 `1.821`，adv acc 高 `3/512`，clean acc 低 `2/512`，但 MSE 增加约 `0.0074`。
+- **观察：**
+  - rank penalty 确实按预期压低 effective rank：`0.0 -> 0.001 -> 0.003 -> 0.01` 的全量 mean effective rank 为 `19.536 -> 19.330 -> 18.939 -> 17.715`。
+  - accuracy 对 rank penalty 非单调。当前 sweep 中 `lambda=0.01` 的 adv acc 最高，为 `0.837891`；`lambda=0.0` 的 clean acc 最高，为 `0.900391`。
+  - effective rank 的样本级分布较窄，不像真正学到了强 sample-wise rank allocation：
+    - `lambda=0.0` 全量 effective rank 的 `q10/median/q90` 为 `18.887/19.560/20.164`。
+    - `lambda=0.01` 全量 effective rank 的 `q10/median/q90` 为 `17.072/17.761/18.261`。
+    - clean 与 adv 的 effective rank 均值几乎重合，说明当前 soft gate 没有形成明显 clean/adv 区分。
+  - effective rank 与重构 MSE 强相关，相关系数约 `0.78~0.84`；但与分类正确性相关很弱且略为负，说明 gate 主要在追踪重构难度，而不是分类/鲁棒性所需 rank。
+  - 与 `EXP-010/011` 对照：
+    - `lambda=0.01` 的 adv acc `0.837891` 与固定 `rank20` 持平，但低于 `threshold=0.847656` 和 `js_mse=0.845703`。
+    - `lambda=0.01` 的 clean acc `0.896484` 高于 `threshold=0.884766` 和 `js_mse=0.890625`，但低于固定 `rank35=0.916016` 和 `rank40=0.910156`。
+    - soft-mask 的 MSE 明显低于 `threshold/js_mse` selector，但这没有转化为更高 robust accuracy。
+- **问题：**
+  - 初版目标 `MSE + rank cost` 不足以学习有判别意义的动态 rank；它更像一个可微的全局 rank/重构难度调节器。
+  - `effective_rank` 的数值不能直接等同于 hard fixed rank，因为模型仍使用 `max_rank=40` 的完整参数容器和 soft mask，参数共享/表达方式与 hard slice 不完全一致。
+  - 当前只跑了 `fold0 seed42 eps=0.03`，未做跨 seed/fold 复验；但本次主趋势已经足以说明该目标不是当前最强候选。
+- **结论：**
+  - `PTR_3d_rank_soft_mask` 的工程路径可行，输出完整，rank penalty 可控。
+  - 但核心假设只得到弱支持：它能降低平均 effective rank，却没有学出足够清晰的样本级最小充分 rank，也没有超过 hard rank-growth selector 的 robust accuracy。
+  - 当前不建议把 `MSE + rank cost` 的 soft-mask 版本作为 accuracy-oriented 主线或替代 `threshold/js_mse`；它更适合作为后续可微 rank gate 的原型和诊断工具。
+- **下一步：**
+  - 若继续推进 soft-mask，应优先改优化目标，而不是只调 `rank_soft_mask_weight`：
+    - 引入能刻画 rate-distortion knee/边际收益的目标或约束，避免只用全局线性 rank cost。
+    - 设计让 `rho` 真正 sample-adaptive 的机制，例如基于中间重构统计动态调节 penalty 或 temperature。
+    - 若仍追求 robust accuracy，需要引入与分类边界或净化稳定性相关的信号；仅 MSE 不够。
+  - 在论文主线选择上，当前结果更支持继续围绕 hard rank-growth selector 的 `threshold/js_mse` 和更可解释的在线选择机制推进。
+
+### EXP-015：PTR_3d_rank_growth + JS_MSE 跨 dataset/model/seed/fold/eps 完整复验
+
+- **日期：** 2026-06-05
+- **状态：** Stopped（用户要求停止，保留已有产物）
+- **相关 idea：** `IDEA-006`
+- **目的：**
+  - 对 `PTR_3d_rank_growth + JS_MSE` 做跨数据集、模型、随机种子、fold 和攻击强度的完整复验。
+  - 与普通 AT baseline（Madry/TRADES/FBF）和 ABAT baseline 对齐比较 clean/adv accuracy。
+- **关键设置：**
+  - 数据集：`thubenchmark`、`seediv`
+  - 模型：主方法与普通 AT baseline 使用 `eegnet`、`conformer`；ABAT 使用 `eegnet_ea_forward`、`conformer_ea_forward`
+  - seeds：`42,43,45`
+  - folds：`0,1,2`
+  - EPS：`0.01,0.03,0.05`
+  - 攻击：`autoattack`
+  - 主方法训练增强：paired `consistancy`，训练集净化 rank 为 `25/30`，`sample_num=512`
+  - 主方法测试净化：`PTR_3d_rank_growth`，rank 序列 `5,10,15,20,25,30,35,40`
+  - JS_MSE 固定阈值来源：`EXP-010` 的 `eps=0.03` n512 `js_mse` selector
+    - `rank_growth_js_threshold=0.0403031319472992`
+    - `rank_growth_max_mse_to_input=0.1642765770602721`
+- **实现计划：**
+  - 新增 EXP-015 专用 rank-growth 配置：
+    - `configs/thubenchmark/PTR3d_rank_growth_js_mse_exp015_8_2048_r5-40_3d_interpolate.yaml`
+    - `configs/seediv/PTR3d_rank_growth_js_mse_exp015_8_2048_r5-40_3d_interpolate.yaml`
+  - 新增矩阵编排脚本：`TN/rank_growth/run_exp015_full_test.sh`
+  - 新增结果汇总脚本：`tensor_ring_rank_analysis/summarize_exp015_results.py`
+  - 修复训练入口 fold 支持，避免 fold1/fold2 实验误用 fold0。
+  - 扩展 ABAT EA-in-forward 路径，使其支持 Conformer。
+- **计划命令：**
+  ```bash
+  # 语法和导入验证
+  conda run -n torch --no-capture-output python -m py_compile \
+    train_AT.py train_AT_consistancy.py train_AT_ea_forward.py attack.py attack_ea_forward.py \
+    models/eegnet_ea_forward.py tensor_ring_rank_analysis/summarize_exp015_results.py
+
+  # dry-run 检查矩阵与日志路径
+  DRY_RUN=1 EXP015_SMOKE=1 bash TN/rank_growth/run_exp015_full_test.sh
+
+  # smoke：小样本、1 epoch，不作为正式结果
+  EXP015_SMOKE=1 bash TN/rank_growth/run_exp015_full_test.sh
+
+  # full：smoke 通过后用 nohup 后台启动
+  RUN_ID=exp015_full_YYYYMMDD_HHMMSS
+  mkdir -p "logs/exp015/${RUN_ID}"
+  nohup setsid bash -lc "cd /home/yhj/pythonProject/EEGAP && EXP015_RUN_ID=${RUN_ID} bash TN/rank_growth/run_exp015_full_test.sh" \
+    > "logs/exp015/${RUN_ID}/controller.log" 2>&1 < /dev/null &
+  ```
+- **指标：**
+  - 主指标：clean accuracy、adversarial accuracy。
+  - 主方法额外记录：purified clean accuracy、purified adversarial accuracy、MSE、实际 sample_num。
+  - 汇总文件：`logs/exp015/<run_id>/summary.csv`
+- **验证：**
+  - `py_compile` 已通过：
+    ```bash
+    conda run -n torch --no-capture-output python -m py_compile \
+      train_AT.py train_AT_consistancy.py train_AT_ea_forward.py attack.py attack_ea_forward.py \
+      models/eegnet_ea_forward.py tensor_ring_rank_analysis/summarize_exp015_results.py
+    ```
+  - Shell 语法检查已通过：
+    ```bash
+    bash -n TN/rank_growth/run_exp015_full_test.sh
+    bash -n purify_aug_consistancy_pipeline.sh
+    ```
+  - Dry-run 已通过：
+    - `exp015_dryrun_20260605_233552`：`EXP015_SMOKE=1` 默认 smoke 矩阵生成 `16` 个计划任务，`planned_tasks.csv` 共 `17` 行。
+    - `tensor_ring_rank_analysis/summarize_exp015_results.py` 已能基于 dry-run `planned_tasks.csv` 生成 `summary.csv`。
+  - 轻量 smoke 已通过：
+    - run id：`exp015_smoke_light_seediv_conformer_20260605_235011`
+    - 设置：`EXP015_SMOKE=1 DATASETS_CSV=seediv MODELS_CSV=conformer SMOKE_SAMPLE_NUM=1 SMOKE_TRAIN_SAMPLE_NUM=64 SMOKE_ATTACK_SAMPLE_NUM=2`
+    - `planned_tasks.csv` 共 `5` 行，覆盖 clean、主方法 `main_js_mse`、Madry baseline、ABAT `conformer_ea_forward`。
+    - 汇总：`logs/exp015/exp015_smoke_light_seediv_conformer_20260605_235011/summary.csv`，4 个任务均为 `success/artifact_found`。
+  - 以上 smoke 只验证工程路径、日志路径、产物命名和汇总脚本，不作为正式实验结论。
+- **启动记录：**
+  - 2026-06-05 23:58:18 首次尝试 `nohup` 启动 `exp015_full_20260605_235818`，controller 写入启动日志后未持续运行，无训练子进程保留；该 run id 不作为正式 full 记录。
+  - 2026-06-05 23:59:30 使用 `nohup + setsid` 在可访问 GPU 的环境中正式启动 full：
+    ```bash
+    nohup setsid bash -lc "cd /home/yhj/pythonProject/EEGAP && EXP015_RUN_ID=exp015_full_20260605_235930 bash TN/rank_growth/run_exp015_full_test.sh" \
+      > logs/exp015/exp015_full_20260605_235930/controller.log 2>&1 < /dev/null &
+    ```
+  - run id：`exp015_full_20260605_235930`
+  - controller PID：`546853`，记录文件：`logs/exp015/exp015_full_20260605_235930/controller.pid`
+  - controller log：`logs/exp015/exp015_full_20260605_235930/controller.log`
+  - 初始状态：进入 Phase 1 clean checkpoints，`thubenchmark/eegnet/seed42/fold0` 因已有 clean checkpoint 被跳过，当前训练 `thubenchmark/eegnet/seed42/fold1`。
+  - GPU 确认：`nvidia-smi` 显示训练进程 `546883` 使用 `NVIDIA GeForce RTX 4070 Ti SUPER`，约 `2206 MiB` 显存，约 `52%` GPU utilization。
+  - 2026-06-06 01:23:02 状态检查：
+    - controller 仍在运行，当前训练进程为 `train_AT.py --dataset thubenchmark --model eegnet --at_strategy clean --fold 1 --seed 45`，GPU 进程 PID 为 `574947`。
+    - 仍处于 Phase 1 clean checkpoints，`planned_tasks.csv` 共 `10` 行；已记录到 `thubenchmark/eegnet/seed45/fold2`。
+    - 已完成：`thubenchmark/eegnet/seed42/fold1`、`seed42/fold2`、`seed43/fold0`、`seed43/fold1`、`seed43/fold2`、`seed45/fold0`；`seed42/fold0` 因已有 clean checkpoint 跳过。
+    - 当前运行：`thubenchmark/eegnet/seed45/fold1`；`nvidia-smi` 显示约 `2206 MiB` 显存、约 `59%` GPU utilization。
+    - 日志扫描未发现 `Traceback`、`RuntimeError`、`CUDA out of memory`、`failed` 或 `Exception`。
+  - 预计任务规模：Phase 1 clean `36` 个，Phase 2 主方法 `108` 个，Phase 3 普通 AT baseline `324` 个，Phase 4 ABAT `108` 个，共 `576` 个计划任务；`planned_tasks.csv` 会随调度推进逐步追加。
+  - 2026-06-08 15:19 状态检查：
+    - Phase 1 clean：`35/36` 个有效 artifact；`seediv/conformer/seed42/fold0` 被跳过但对应 clean checkpoint 缺失。
+    - Phase 2 main_js_mse：`12/108` 个正式净化结果完成，均为 `thubenchmark/eegnet`。
+    - 当前任务停在 `thubenchmark/eegnet/seed43/fold1/eps=0.01`，已完成 Stage 1 两个训练集净化文件，正在 Stage 2 `train_AT_consistancy.py`。
+    - 按用户要求停止 EXP-015：对进程组 `546853` 发送 `TERM`，复查宿主进程表未见 `exp015_full_20260605_235930`、`run_exp015_full_test.sh` 或当前训练子进程残留。
+  - 完成后汇总命令：
+    ```bash
+    conda run -n torch --no-capture-output python -u tensor_ring_rank_analysis/summarize_exp015_results.py \
+      --log_root logs/exp015/exp015_full_20260605_235930
+    ```
+- **结果：**
+  - 当前已有正式结果仅覆盖 `thubenchmark/eegnet` 的 12 个主方法组合：
+    - `seed42`：fold `0,1,2` × eps `0.01,0.03,0.05`
+    - `seed43`：fold `0` × eps `0.01,0.03,0.05`
+  - 已有 12 个组合的均值：
+    - clean accuracy：`0.935221`
+    - adversarial accuracy：`0.764811`
+    - purified clean accuracy：`0.899577`
+    - purified adversarial accuracy：`0.834961`
+    - purified adversarial accuracy 相对普通 consistancy 提升：`+0.070150`
+    - purified clean accuracy 相对普通 consistancy 下降：`-0.035645`
+    - MSE：`0.126506`
+  - 按 eps 汇总：
+    - `eps=0.01`（n=4）：adv `0.882812` -> purified adv `0.894531`，提升 `+0.011719`
+    - `eps=0.03`（n=4）：adv `0.764648` -> purified adv `0.833008`，提升 `+0.068359`
+    - `eps=0.05`（n=4）：adv `0.646973` -> purified adv `0.777344`，提升 `+0.130371`
+  - baseline、ABAT、Conformer、SEED-IV 尚未产生正式 full 结果。
+- **风险：**
+  - 全量矩阵计算量很大；先 smoke 再 full，full 使用稳定日志目录跟踪。
+  - JS_MSE 阈值固定来自 `thubenchmark/eegnet/fold0/seed42/eps0.03`，跨 dataset/model/eps 泛化可能不稳定；本实验正是检验该风险。
+  - `conformer_ea_forward` 是本实验新增 ABAT 路径，需要 smoke 先验证模型构造、训练和 subject-aware attack。
+
+### EXP-016：对抗训练逐 epoch PGD 鲁棒准确率评估
+
+- **日期：** 2026-06-10
+- **状态：** 已完成（工程 smoke）
+- **相关 idea：** None
+- **目的：**
+  - 在 `train_AT.py` 每个 epoch 结束后，用当前训练配置的 PGD 攻击完整测试集并记录鲁棒准确率。
+- **关键设置：**
+  - 攻击参数复用 `epsilon`、`pgd_step_size`、`pgd_steps`、`pgd_random_start` 和输入裁剪参数。
+  - `Robust Acc` 与原有 epoch 指标写入同一行日志。
+  - 鲁棒评估前后恢复 PyTorch CPU/CUDA RNG 状态，避免评估随机起点改变后续训练随机序列。
+- **命令：**
+  ```bash
+  conda run -n torch --no-capture-output python -m py_compile train_AT.py
+
+  conda run -n torch --no-capture-output python -u train_AT.py \
+    --dataset thubenchmark --model eegnet --at_strategy madry --fold 0 \
+    --epsilon 0.01 --epochs 1 --batch_size 128 --train_sample_num 64 \
+    --patience 1 --seed 42 --gpu_id 0
+  ```
+- **结果：**
+  - 运行环境无法连接 NVIDIA 驱动，本次 smoke 使用 CPU 完成。
+  - 训练集抽样 `64` 条，验证集和测试集分别为 `840` 条。
+  - epoch 日志已在同一行输出：
+    - `Test Acc: 0.0167`
+    - `Test Loss: 3.6893`
+    - `Robust Acc: 0.0000`
+  - 日志：`log_train_AT/train_thubenchmark_eegnet_no_ea_madry_eps0.01_42_fold0_0.001_0.0001_128_20260610_175329.log`
+  - 该结果只验证逐 epoch PGD 鲁棒评估链路，不作为模型性能结论。
+- **风险：**
+  - 每个 epoch 需要额外执行一次完整测试集 PGD，训练总耗时会明显增加。
+  - smoke 使用脚本的标准 checkpoint 命名，生成了 clean/madry 各两个 checkpoint；若同名文件此前存在，则已被本次 1 epoch smoke 覆盖。

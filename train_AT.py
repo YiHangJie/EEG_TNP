@@ -38,6 +38,7 @@ def parse_args():
     parser.add_argument('--dataset', type=str, default='seediv', choices=['seediv','m3cv', 'bciciv2a', 'thubenchmark'], help='choose dataset')
     parser.add_argument('--model', type=str, default='eegnet', choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
     parser.add_argument('--at_strategy', type=str, default='madry', choices=['madry', 'fbf', 'trades', 'clean'], help='adversarial training strategy')
+    parser.add_argument('--fold', type=int, default=0, help='which subject split fold to train')
     parser.add_argument('--epsilon', type=float, default=0.1, help='max perturbation budget for adversarial training')
     parser.add_argument('--pgd_step_size', type=float, default=0.02, help='step size for PGD/FGSM updates')
     parser.add_argument('--pgd_steps', type=int, default=10, help='number of PGD steps for adversarial example generation')
@@ -50,6 +51,8 @@ def parse_args():
     parser.add_argument('--no_pgd_random_start', dest='pgd_random_start', action='store_false', help='disable random start for PGD/FBF attacks')
     parser.add_argument('--epochs', type=int, default=400, help='number of epochs to train')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size for training')
+    parser.add_argument('--train_sample_num', type=int, default=None,
+                        help='optional random subset size for training smoke tests; default uses full train split')
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay')
     parser.add_argument('--patience', type=int, default=20, help='early stopping patience')
@@ -93,6 +96,22 @@ def clamp_tensor(x, clip_min=None, clip_max=None):
     upper = float('inf') if clip_max is None else clip_max
     return torch.clamp(x, min=lower, max=upper)
 
+def maybe_subset_train_dataset(train_dataset, args, fold_index, logger):
+    """仅用于 smoke：从训练 split 中抽一个稳定子集，full 默认不启用。"""
+    if args.train_sample_num is None:
+        return train_dataset
+    if args.train_sample_num <= 0:
+        raise ValueError('--train_sample_num must be positive when provided.')
+    sample_num = min(args.train_sample_num, len(train_dataset))
+    selection_seed = args.seed + fold_index * 1000 + 17
+    rng = np.random.RandomState(selection_seed)
+    selected_indices = rng.choice(len(train_dataset), size=sample_num, replace=False).tolist()
+    logger.info(
+        f'Using train_sample_num={sample_num}; selection_seed={selection_seed}; '
+        f'source index preview: {selected_indices[:20]}'
+    )
+    return torch.utils.data.Subset(train_dataset, selected_indices)
+
 def pgd_adversarial_examples(model, x, y, epsilon, step_size, steps, criterion, random_start=True, clip_min=None, clip_max=None):
     x_adv = x.detach()
     if random_start:
@@ -107,6 +126,32 @@ def pgd_adversarial_examples(model, x, y, epsilon, step_size, steps, criterion, 
         perturbation = torch.clamp(x_adv - x, min=-epsilon, max=epsilon)
         x_adv = clamp_tensor(x + perturbation, clip_min, clip_max)
     return x_adv.detach()
+
+def evaluate_robust(model, loader, criterion, args):
+    """使用当前训练配置的 PGD 攻击测试集，并统计鲁棒准确率。"""
+    model.eval()
+    device = next(model.parameters()).device
+    correct = 0
+    total = 0
+    cpu_rng_state = torch.get_rng_state()
+    cuda_rng_state = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
+    try:
+        for data, target in loader:
+            data, target = data.to(device), target.to(device)
+            adv_data = pgd_adversarial_examples(
+                model, data, target, epsilon=args.epsilon, step_size=args.pgd_step_size,
+                steps=args.pgd_steps, criterion=criterion, random_start=args.pgd_random_start,
+                clip_min=args.clip_min, clip_max=args.clip_max
+            )
+            with torch.no_grad():
+                pred = model(adv_data).argmax(dim=1)
+            correct += pred.eq(target).sum().item()
+            total += data.size(0)
+    finally:
+        torch.set_rng_state(cpu_rng_state)
+        if cuda_rng_state is not None:
+            torch.cuda.set_rng_state_all(cuda_rng_state)
+    return correct / total
 
 def trades_adversarial_examples(model, x, natural_pred, step_size, epsilon, steps, clip_min=None, clip_max=None):
     x_adv = x.detach() + 0.001 * torch.randn_like(x)
@@ -301,7 +346,7 @@ if __name__ == '__main__':
     protocol_short = 'ea' if args.use_ea else 'no_ea'
     logfile_directory = (
         f'./log_train_AT/train_{args.dataset}_{args.model}_{protocol_short}_{args.at_strategy}_'
-        f'eps{args.epsilon}_{args.seed}_{args.lr}_{args.weight_decay}_{args.batch_size}'
+        f'eps{args.epsilon}_{args.seed}_fold{args.fold}_{args.lr}_{args.weight_decay}_{args.batch_size}'
         f'{aug_suffix}_{timestamp}.log'
     )
     logging.basicConfig(filename=logfile_directory, level=logging.INFO, filemode='w', format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # 时间格式)
@@ -331,6 +376,7 @@ if __name__ == '__main__':
     accs = []
     losses = []
     best_models = []
+    ran_requested_fold = False
     for index, train_dataset, val_dataset, test_dataset, split_path in iter_subject_folds(
         dataset_name=args.dataset,
         dataset=dataset,
@@ -338,10 +384,12 @@ if __name__ == '__main__':
         seed=args.seed,
         use_ea=args.use_ea,
     ):
-        if index >= 1:
-            break
+        if index != args.fold:
+            continue
+        ran_requested_fold = True
         logging.info(f'Split path: {split_path}')
         logging.info(f"sample num in train set: {len(train_dataset)}, sample num in val set: {len(val_dataset)}, sample num in test set: {len(test_dataset)}")
+        train_dataset = maybe_subset_train_dataset(train_dataset, args, index, logging)
 
         if args.use_purified_aug:
             purified_aug_paths = normalize_path_args(args.purified_aug_paths)
@@ -420,8 +468,9 @@ if __name__ == '__main__':
                 train_loss = train_epoch_clean(model, train_loader, optimizer, criterion, device)
             val_acc, val_loss = evaluate(model, val_loader)
             test_acc, test_loss = evaluate(model, test_loader)
+            robust_acc = evaluate_robust(model, test_loader, criterion, args)
             scheduler.step(val_loss)
-            logging.info(f'Epoch: {epoch+1}, Train Loss: {train_loss:.4f}, Val Acc: {val_acc:.4f}, Val Loss: {val_loss:.4f}, Test Acc: {test_acc:.4f}, Test Loss: {test_loss:.4f}, Learning Rate: {optimizer.param_groups[0]["lr"]:.6f}')
+            logging.info(f'Epoch: {epoch+1}, Train Loss: {train_loss:.4f}, Val Acc: {val_acc:.4f}, Val Loss: {val_loss:.4f}, Test Acc: {test_acc:.4f}, Test Loss: {test_loss:.4f}, Robust Acc: {robust_acc:.4f}, Learning Rate: {optimizer.param_groups[0]["lr"]:.6f}')
             # logging.info(f'Epoch: {epoch+1}, Train Loss: {train_loss:.4f}')
 
             # # save best model
@@ -469,4 +518,7 @@ if __name__ == '__main__':
         logging.info(f'Test Acc: {test_acc:.4f}, Test Loss: {test_loss:.4f}')
         accs.append(test_acc)
         losses.append(test_loss)
+        break
+    if not ran_requested_fold:
+        raise ValueError(f'Requested fold {args.fold} was not produced by iter_subject_folds.')
     logging.info(f'Acc: {np.mean(accs):.4f}±{np.std(accs):.4f}, Loss: {np.mean(losses):.4f}±{np.std(losses):.4f}')
