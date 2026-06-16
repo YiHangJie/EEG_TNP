@@ -57,6 +57,23 @@
   - 使用多个 consistency2 rank 缓存进行 Madry AT + 多 rank consistency 损失训练。
   - 要求至少两个 `--consistency_aug_paths`，会按 `source_indices` 对齐不同 rank。
 
+- `rpcf/`
+  - Rank-aware Purification Critical Fine-tuning 独立实现，不改变现有 AT 和 consistency baseline。
+  - 训练/测试子集抽样严格复用 consistancy pipeline：`selection_seed = seed + fold * 1000`；fine-tuning shuffle 复用全局 `seed_everything(seed)`，不再添加 RPCF 专用 seed offset。
+  - `generate_cache.py`：对训练子集只攻击一次，再对相同 `x/x_adv` 生成多 rank clean/adversarial purification，最终保存统一 `[N, R, ...]` cache；每个 rank 使用可续跑 work shard。
+  - `analyze_sensitivity.py`：在逻辑层上计算 clean-anchor 的绝对 shift，并用 input/相邻逻辑层的 shift 比值计算层间相对敏感度，按 clean/adv-pur 等权组合分数选择 Top-K。
+  - `finetune.py`：冻结非敏感层和对应 BatchNorm 统计量，使用 clean-teacher consistancy CE+KL 与动态 rank curriculum 微调 AT checkpoint；固定训练满 epochs 并保存最终 epoch，不使用 validation early stopping。
+  - `evaluate_attack.py`、`evaluate_purification.py`、`summarize.py`：分别负责 white-box attack、逐 rank 净化评估和 CSV/JSON 汇总。
+  - `run_rpcf_pipeline.sh`：七阶段可续跑 pipeline，支持 `SMOKE`、`DRY_RUN`、`START_STAGE`、`STOP_STAGE` 和 `SKIP_EXISTING`。
+  - `compare_exp018.py`、`run_exp018.sh`：执行 EXP-018 三方法 seed42 全流程重跑；统一训练 AT、训练 consistancy/RPCF、生成各自 white-box AutoAttack，并严格校验同一 n512 测试子集上的 rank25/30 净化结果。
+  - `run_exp018_rpcf_rerun.sh`：复用 EXP-018 的 AT、六-rank cache 和已有对照产物，只重跑新版 RPCF sensitivity、fine-tuning、white-box attack、rank25/30 净化与公平汇总。
+  - `run_exp018_rpcf_all_layers.sh`：EXP-018 的 `RPCF w.o. sensitivity layer selection` 消融，保持数据、损失、rank curriculum 和评估不变，仅通过 `--all_layers` 微调全模型。
+  - `run_exp018_rpcf_static_ranks.sh`：EXP-018 的 `RPCF w.o. rank schedule` 消融，保留 sensitive-layer selection，仅通过 `--static_rank_weights` 将六个 rank 权重固定为 `1/6`。
+  - `compare_exp018_five_methods.py`：只读复用公平比较 `summary.json`，严格校验实验协议、完整测试集样本数和净化子集 `source_indices`，统一输出 Madry AT、consistancy、RPCF selective、RPCF all-layers、RPCF rank-weight uniform 五方法长表、宽表和 Markdown 表。
+  - `run_exp019.sh`：EXP-019 五方法 seed43/fold0 复验 pipeline；统一生成 AT/consistancy、三个 RPCF 变体、五组 white-box AutoAttack、五组 rank25/30 净化和最终严格汇总，支持 smoke、dry-run 与断点续跑。
+  - `run_exp019_consistancy_six_rank.sh`：EXP-019 续跑脚本；复用原 seed43 AT/RPCF 产物，只把 consistancy 的训练增强从 rank25/30 改为与 RPCF 一致的 rank15/20/25/30/35/40，随后重跑 consistancy checkpoint、white-box AutoAttack、rank25/30 净化和五方法汇总。
+  - 默认 rank 为 `15,20,25,30,35,40`，正式长实验必须通过 `nohup` 后台启动。
+
 - `train_AT_ea_forward.py`
   - EA-in-forward 特殊训练入口。
   - 使用 raw/no_ea 输入，将 subject-wise EA 放到模型 forward 中执行。
@@ -139,6 +156,10 @@
   - `eeg_subject_classification_collate` 用于 EA-in-forward batch。
   - `load_tensor_payload` 兼容 `(data, labels)`、`(data, labels, meta)` 和 dict 格式。
 
+- `utils/reproducibility.py`
+  - 提供全仓共享的 `seed_everything()` 和 `stable_subset_indices()`。
+  - EXP-018 相关 AT、consistancy、RPCF、攻击和净化入口统一使用该实现。
+
 ## 模型定义
 
 - 分类模型主要来自 `torcheeg.models`
@@ -208,6 +229,7 @@
 - `purify.py` 会记录 clean/adversarial 数据净化前后 accuracy/loss，以及 mean MSE。
 - `collect_log.py` 用正则解析 `log_purify/` 的日志，汇总净化实验指标。
 - `test_subject_ea.py` 是可运行的 EA/split/EA-in-forward 相关单元测试与 smoke test。
+- `test_rpcf.py` 覆盖 RPCF cache、feature shift、Top-K、rank curriculum、冻结 BatchNorm、checkpoint 选择规则和 consistancy 抽样 seed 对齐。
 - `test_graph_loss.py` 当前未观察到有效内容，TODO：确认是否保留或补充。
 
 ## 实验配置

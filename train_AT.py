@@ -8,7 +8,6 @@ configure_runtime_env()
 
 import torch
 import torch.nn.functional as F
-import random
 import numpy as np
 from tqdm import tqdm
 
@@ -24,14 +23,7 @@ from utils.experiment_artifacts import (
     normalize_path_args,
     safe_token,
 )
-
-def seed_everything(seed=42):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
+from utils.reproducibility import seed_everything, stable_subset_indices
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -68,6 +60,8 @@ def parse_args():
                         help='one or more purified train .pth files; comma-separated input is also accepted')
     parser.add_argument('--purified_aug_tag', type=str, default='purified_aug',
                         help='experiment tag added to logs and checkpoints when purified augmentation is enabled')
+    parser.add_argument('--checkpoint_tag', type=str, default=None,
+                        help='optional experiment tag added to logs and checkpoints')
     args = parser.parse_args()
     return args
 
@@ -103,9 +97,9 @@ def maybe_subset_train_dataset(train_dataset, args, fold_index, logger):
     if args.train_sample_num <= 0:
         raise ValueError('--train_sample_num must be positive when provided.')
     sample_num = min(args.train_sample_num, len(train_dataset))
-    selection_seed = args.seed + fold_index * 1000 + 17
-    rng = np.random.RandomState(selection_seed)
-    selected_indices = rng.choice(len(train_dataset), size=sample_num, replace=False).tolist()
+    selected_indices, selection_seed = stable_subset_indices(
+        len(train_dataset), sample_num, args.seed, fold_index, offset=17
+    )
     logger.info(
         f'Using train_sample_num={sample_num}; selection_seed={selection_seed}; '
         f'source index preview: {selected_indices[:20]}'
@@ -340,7 +334,10 @@ if __name__ == '__main__':
     # set log file
     import logging
     timestamp = str(datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
-    checkpoint_tag = f'aug_{safe_token(args.purified_aug_tag)}' if args.use_purified_aug else None
+    checkpoint_tag = safe_token(args.checkpoint_tag) if args.checkpoint_tag else None
+    if args.use_purified_aug:
+        aug_tag = f'aug_{safe_token(args.purified_aug_tag)}'
+        checkpoint_tag = f'{checkpoint_tag}_{aug_tag}' if checkpoint_tag else aug_tag
     aug_suffix = f'_{checkpoint_tag}' if checkpoint_tag else ''
     protocol_tag = get_protocol_tag(use_ea=args.use_ea)
     protocol_short = 'ea' if args.use_ea else 'no_ea'

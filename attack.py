@@ -6,7 +6,6 @@ from runtime_env import configure_runtime_env
 configure_runtime_env()
 
 import torch
-import random
 import numpy as np
 from tqdm import tqdm
 from contextlib import contextmanager
@@ -26,14 +25,7 @@ from utils.experiment_artifacts import (
     safe_token,
     short_protocol_tag,
 )
-
-def seed_everything(seed=42):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
+from utils.reproducibility import seed_everything, stable_subset_indices
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -74,16 +66,6 @@ def resolve_checkpoint_path(args, protocol_tag):
     if args.checkpoint_path:
         return args.checkpoint_path
     return build_default_attack_checkpoint_path(args, protocol_tag)
-
-def select_random_indices(dataset_size, sample_num, seed, fold):
-    """从测试 split 中无放回随机抽样，避免 512 样本评估集中在连续被试上。"""
-    if sample_num > dataset_size:
-        raise ValueError(
-            f'Requested {sample_num} random samples but dataset has only {dataset_size} samples.'
-        )
-    selection_seed = seed + fold * 1000
-    rng = np.random.RandomState(selection_seed)
-    return rng.choice(dataset_size, size=sample_num, replace=False).tolist(), selection_seed
 
 def infer_adv_model_tag(args):
     if args.adv_output_tag:
@@ -226,7 +208,7 @@ if __name__ == '__main__':
         if args.attack_sample_num <= 0:
             raise ValueError('--attack_sample_num must be positive when provided.')
         attack_sample_num = min(args.attack_sample_num, len(test_dataset))
-        selected_indices, selection_seed = select_random_indices(
+        selected_indices, selection_seed = stable_subset_indices(
             dataset_size=len(test_dataset),
             sample_num=attack_sample_num,
             seed=args.seed,
@@ -264,7 +246,14 @@ if __name__ == '__main__':
         'cw': CW,
         'autoattack': AutoAttack
     }
-    attack = attack_dict[args.attack](model, eps=args.eps, device=device, n_classes=info['num_classes'])
+    attack_kwargs = {
+        'eps': args.eps,
+        'device': device,
+        'n_classes': info['num_classes'],
+    }
+    if args.attack == 'autoattack':
+        attack_kwargs['seed'] = args.seed
+    attack = attack_dict[args.attack](model, **attack_kwargs)
     log_cuda_memory("after attack init", device)
 
     logging.info(f"Sample num in test set: {len(test_dataset)}")
@@ -355,7 +344,7 @@ if __name__ == '__main__':
     test_label = torch.cat(test_label, dim=0)
     available_sample_num = min(test_data.size(0), ad_data.size(0), labels.size(0))
     eval_sample_num = min(512, available_sample_num)
-    selected_indices, selection_seed = select_random_indices(
+    selected_indices, selection_seed = stable_subset_indices(
         dataset_size=available_sample_num,
         sample_num=eval_sample_num,
         seed=args.seed,

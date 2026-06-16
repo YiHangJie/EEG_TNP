@@ -286,3 +286,97 @@
   - `IDEA-005`
 - **相关实验：**
   - `EXP-014`
+
+### DEC-011：当前 RPCF 配置暂不替代 AT 或 consistancy
+
+- **日期：** 2026-06-14
+- **背景：**
+  - `EXP-018` 在统一 seed42、fold0、Madry AT、AutoAttack 和同一 n512 测试子集下，重跑了普通 EEG_TNP+AT、consistancy 和 RPCF。
+- **最终选择：**
+  - 保留 RPCF 为待改进研究分支，当前不作为默认 purification-aware classifier。
+- **原因：**
+  - RPCF 选中的 `block2/block1` 只占 `6.61%` 参数，但最佳 checkpoint 为 epoch0；其最终指标与 AT 初始化模型完全一致，没有观察到 fine-tuning 收益。
+  - consistancy 的完整测试集 AutoAttack accuracy 低于 AT，但在 rank25/30 净化后 adversarial accuracy 分别高出 `1.37/1.76` 个百分点，说明其价值集中在适配净化分布。
+- **影响：**
+  - 后续 RPCF 实验应先检查选模标准、损失权重和可训练层比例，并加入 all-layers/static-weight 消融。
+  - 当前三方法比较中，普通 AT 作为未净化鲁棒性基线，consistancy 作为净化后鲁棒性最佳方法。
+- **相关实验：**
+  - `EXP-018`
+
+### DEC-012：RPCF 需要显式控制净化适应与原始鲁棒性的权衡
+
+- **日期：** 2026-06-15
+- **背景：**
+  - EXP-018 无早停 RPCF 使用相邻层 sensitivity、clean-teacher consistancy KL，
+    固定训练 100 epochs 并保存最终模型。
+- **结论：**
+  - RPCF 在 rank25/30 净化后 adversarial accuracy 达到 `83.59%/84.18%`，
+    超过 consistancy 的 `83.20%/83.40%`。
+  - 但完整测试集 AutoAttack accuracy 从 AT 的 `77.86%` 降至 `72.26%`，
+    说明无约束微调破坏了部分原始 AT robustness。
+- **决策：**
+  - 保留 RPCF 为 purification-aware adaptation 主候选，但当前 100-epoch
+    final-checkpoint 配置不作为默认模型。
+  - 下一轮应围绕训练时长、损失权重或参数漂移约束做小规模消融，不能只优化净化后指标。
+- **相关实验：**
+  - `EXP-018`
+
+### DEC-013：RPCF 保留 purification-sensitive layer selection
+
+- **日期：** 2026-06-15
+- **背景：**
+  - EXP-018 对比了 selective RPCF（训练 `6.61%` 参数）与
+    `w.o. sensitivity layer selection`（训练 `100%` 参数）。
+- **结论：**
+  - all-layers 在完整测试集 AutoAttack 和 rank25 purified adversarial accuracy
+    上仅提高 `0.48/0.20` 个百分点。
+  - selective RPCF 的 rank30 purified adversarial accuracy 为 `84.18%`，
+    高于 all-layers 的 `82.81%`；purified clean accuracy 也高 `0.39` 个百分点。
+- **决策：**
+  - 后续 RPCF 默认保留 sensitive-layer selection，不采用全模型微调作为主方法。
+  - all-layers 保留为必要消融；跨 seed/fold 前不把单次差异解释为普遍规律。
+- **相关实验：**
+  - `EXP-018`
+
+### DEC-014：RPCF 保留 low-to-high rank schedule
+
+- **日期：** 2026-06-15
+- **背景：**
+  - EXP-018 对比了 dynamic rank schedule 与六个 rank 始终均匀权重的
+    `w.o. rank schedule` 消融。
+- **结论：**
+  - static weights 的 rank25 purified adversarial accuracy 高 `0.39` 个百分点，
+    但 rank30 低 `0.59` 个百分点。
+  - dynamic schedule 的完整测试集 AutoAttack accuracy 高 `0.71` 个百分点，
+    且当前最佳 purified adversarial 结果仍是 rank30 的 `84.18%`。
+- **决策：**
+  - RPCF 默认保留 low-to-high动态 schedule。
+  - 当前不能声称 schedule 在所有 rank 上都更好；更准确的表述是它偏向提升
+    后期高-rank适应，并改善未净化鲁棒性。
+- **相关实验：**
+  - `EXP-018`
+
+### DEC-015：RPCF 的 seed42 优势暂不作为稳定结论
+
+- **日期：** 2026-06-16
+- **背景：**
+  - `EXP-019` 在 `thubenchmark / EEGNet / seed43 / fold0 / eps0.03` 上完成五方法公平复验。
+  - 五种方法分别使用自身 white-box AutoAttack，并在同一 seed43 n512 子集上执行 rank25/30 净化。
+- **结论：**
+  - seed43 上完整测试集未净化 AutoAttack 最好的是 `Madry AT`（`79.52%`）。
+  - rank25/30 净化后 adversarial accuracy 最好的是 `consistancy`
+    （`82.23%/82.62%`）。
+  - `RPCF selective` 的 rank25/30 净化后 adversarial accuracy 为
+    `81.64%/80.86%`，没有复现 seed42 上超过 consistancy 的优势。
+  - `RPCF rank-weight uniform` 为 `82.03%/82.03%`，也没有复现 seed42 上
+    rank25 最优的优势。
+- **决策：**
+  - 不再把 `RPCF selective + dynamic rank schedule` 写作跨 seed 稳定默认方法。
+  - RPCF 保留为研究分支，但论文/汇报中应把当前证据表述为 seed-dependent。
+  - 下一步优先做 rank25/30-only 的 RPCF 控制消融，拆分“AT 初始化微调”、
+    “敏感层选择”和“六-rank训练分布”三个因素。
+- **相关 idea：**
+  - `IDEA-007`
+- **相关实验：**
+  - `EXP-018`
+  - `EXP-019`

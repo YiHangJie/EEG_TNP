@@ -2,7 +2,6 @@ import argparse
 import copy
 import datetime
 import os
-import random
 
 from runtime_env import configure_runtime_env
 
@@ -24,16 +23,7 @@ from utils.experiment_artifacts import (
     safe_token,
     torch_load_cpu,
 )
-
-
-def seed_everything(seed=42):
-    """固定主要随机源，保证 AT 与 consistancy 增强训练可复现。"""
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
+from utils.reproducibility import seed_everything, stable_subset_indices
 
 
 def parse_args():
@@ -123,9 +113,9 @@ def maybe_subset_train_dataset(train_dataset, args, fold_index, logger):
     if args.train_sample_num <= 0:
         raise ValueError('--train_sample_num must be positive when provided.')
     sample_num = min(args.train_sample_num, len(train_dataset))
-    selection_seed = args.seed + fold_index * 1000 + 17
-    rng = np.random.RandomState(selection_seed)
-    selected_indices = rng.choice(len(train_dataset), size=sample_num, replace=False).tolist()
+    selected_indices, selection_seed = stable_subset_indices(
+        len(train_dataset), sample_num, args.seed, fold_index, offset=17
+    )
     logger.info(
         f'Using train_sample_num={sample_num}; selection_seed={selection_seed}; '
         f'source index preview: {selected_indices[:20]}'

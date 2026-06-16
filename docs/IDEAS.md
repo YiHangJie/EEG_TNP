@@ -190,3 +190,40 @@
 - **备注：**
   - 也要补充用于对比的 baseline 性能的实验，就是普通的 Madry、TRADES、fbf、ABAT（train_AT_ea_forward.py）。
   - baseline 方法都是 AT 方法，只需对抗训练、攻击测试即可。
+
+### IDEA-007：Rank-aware Purification Critical Fine-tuning（RPCF）
+
+- **状态：** 实现完成，跨 seed 复验完成
+- **动机：**
+  - AT 模型已经具备基础 robust decision boundary，但 EEG_TNP 会引入与 rank 相关的输入分布变化。
+  - 全模型继续训练可能破坏已有鲁棒表示；只更新对净化变化最敏感的逻辑层，有机会用较小参数更新适应多 rank purification views。
+- **核心假设：**
+  - AT 模型中存在 purification-sensitive layers，其 clean-anchor feature shift 显著高于其他层。
+  - 对这些层进行多 rank curriculum fine-tuning，可以比原始 AT 更好地适应 purified clean/adversarial inputs，同时保留 AT 能力。
+- **方法：**
+  - 从 Madry AT checkpoint 出发，对同一训练子集只生成一次 `x_adv`。
+  - 对 `x/x_adv` 使用 rank `15,20,25,30,35,40` 分别净化并保存统一 cache。
+  - 层评分先计算 clean-anchor 的绝对 shift，再用 `C_l(r)=S_l(r)/(S_previous(r)+eps)` 衡量相邻逻辑层的变化放大率；首层以前一阶段 input shift 为分母。最终分数为 clean-purified 与 adversarial-purified 相对敏感度的跨 rank 等权均值。
+  - 选择 Top 40% 逻辑层，冻结其余参数和对应 BatchNorm running statistics。
+  - `w.o. sensitivity layer selection` 消融取消冻结并微调 100% 参数，其他训练和评估条件保持不变，用于检验 sensitive-layer selection 是否有独立价值。
+  - fine-tuning 使用 clean logits 作为 detached teacher；`x_adv`、多 rank `x_pur` 和 `x_adv_pur` 均通过温度 KL 对齐 clean logits，同时保留 hard-label CE。rank 权重从低 rank 迁移到高 rank，并用于多 rank CE/KL 聚合。
+  - `w.o. rank schedule` 消融保持 sensitive-layer selection 不变，但将六个 rank 在所有 epoch 的 CE/KL 聚合权重固定为 `1/6`，用于检验 low-to-high curriculum 的独立作用。
+  - 当前 RPCF 不使用 validation early stopping 或 best-checkpoint 回退，固定训练满配置 epochs 并保存最终 epoch；clean/PGD validation 指标只作为诊断。
+- **预期实现：**
+  - 独立 `rpcf/` 模块、统一 cache、层分析、微调、white-box attack、逐 rank 净化评估、汇总与可续跑 pipeline。
+  - 不修改现有 AT、consistency2 或净化 baseline 行为。
+- **评估指标：**
+  - clean accuracy、AutoAttack accuracy。
+  - 各 rank purified clean/adversarial accuracy 与 MSE。
+  - selected layer、selected parameter ratio、validation PGD robust accuracy 和动态 rank 权重轨迹。
+- **风险：**
+  - 六个 rank 对 clean/adv 分别净化，训练集和测试集缓存生成成本很高。
+  - clean-anchor `S_advpur` 同时包含攻击与净化导致的 feature shift，这是本方法明确采用的定义，解释时不能等价为纯净化位移。
+  - 单条件结果不足以证明跨模型、seed、fold 和 eps 的稳定性。
+- **相关实验：**
+  - `EXP-017`
+  - `EXP-018`
+  - `EXP-019`：已完成，seed43 未复现 RPCF 在 seed42 上的净化后鲁棒优势
+- **备注：**
+  - 首轮只比较 RPCF 与其初始化来源 AT；full-layer 和 static-rank-weight 消融已预留开关，后续按结果决定是否运行。
+  - 2026-06-12 起，RPCF 的训练/测试随机子集和 DataLoader seed 逻辑与既有 consistancy pipeline 对齐：子集使用 `seed + fold * 1000`，训练 shuffle 使用 `seed_everything(seed)` 的全局 RNG，不添加 RPCF 私有 offset。

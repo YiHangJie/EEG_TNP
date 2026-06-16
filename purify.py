@@ -7,7 +7,6 @@ from runtime_env import configure_runtime_env
 configure_runtime_env()
 
 import torch
-import random
 import numpy as np
 import yaml
 
@@ -44,14 +43,7 @@ from utils.experiment_artifacts import (
     short_protocol_tag,
 )
 from utils.visualize import plot_eeg
-
-def seed_everything(seed=42):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
+from utils.reproducibility import seed_everything, stable_subset_indices
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -139,16 +131,6 @@ def infer_model_tag(args, ad_meta):
             if ad_meta.get(key):
                 return safe_token(ad_meta[key])
     return 'clean'
-
-def select_random_indices(dataset_size, sample_num, seed, fold):
-    """从测试 split 中无放回随机抽样，避免连续取样带来的 subject/session 偏置。"""
-    if sample_num > dataset_size:
-        raise ValueError(
-            f'Requested {sample_num} random samples but dataset has only {dataset_size} samples.'
-        )
-    selection_seed = seed + fold * 1000
-    rng = np.random.RandomState(selection_seed)
-    return rng.choice(dataset_size, size=sample_num, replace=False).tolist(), selection_seed
 
 def build_purified_output_paths(args, protocol_short, model_tag, sample_num):
     config_tag = safe_token(os.path.splitext(os.path.basename(args.config))[0])
@@ -479,7 +461,7 @@ if __name__ == '__main__':
     if sample_num < args.sample_num:
         logging.info(f'Requested sample_num={args.sample_num}, using available sample_num={sample_num}.')
 
-    selected_indices, selection_seed = select_random_indices(
+    selected_indices, selection_seed = stable_subset_indices(
         dataset_size=available_sample_num,
         sample_num=sample_num,
         seed=args.seed,

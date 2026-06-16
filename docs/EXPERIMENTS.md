@@ -1914,3 +1914,460 @@
 - **风险：**
   - 每个 epoch 需要额外执行一次完整测试集 PGD，训练总耗时会明显增加。
   - smoke 使用脚本的标准 checkpoint 命名，生成了 clean/madry 各两个 checkpoint；若同名文件此前存在，则已被本次 1 epoch smoke 覆盖。
+
+### EXP-017：RPCF 首轮单条件完整实验
+
+- **日期：** 2026-06-11
+- **状态：** Completed（legacy RPCF seed protocol）
+- **相关 idea：** `IDEA-007`
+- **目的：**
+  - 验证 purification-sensitive layer selection 与 rank curriculum fine-tuning 是否能改善 AT 模型对 EEG_TNP 多 rank 净化视图的适应性。
+- **关键设置：**
+  - 数据集/模型：`thubenchmark / EEGNet`
+  - split：`seed=42, fold=0, no-EA`
+  - 初始化：Madry AT，`eps=0.03`
+  - 训练集 RPCF cache：`sample_num=512`
+  - ranks：`15,20,25,30,35,40`
+  - sensitive layers：组合 sensitivity Top 40%
+  - fine-tuning：100 epochs，batch 64，AdamW `lr=1e-4, weight_decay=1e-4`
+  - checkpoint：优先最大化 validation PGD robust accuracy
+  - 最终攻击：AT 与 RPCF 各自 white-box AutoAttack
+- **Pipeline：**
+  ```bash
+  # dry-run
+  DRY_RUN=1 SMOKE=1 RPCF_RUN_ID=rpcf_dryrun_20260611 \
+    bash rpcf/run_rpcf_pipeline.sh
+
+  # smoke
+  SMOKE=1 RPCF_RUN_ID=rpcf_smoke_YYYYMMDD_HHMMSS \
+    bash rpcf/run_rpcf_pipeline.sh
+
+  # full，必须后台运行
+  nohup setsid bash -lc \
+    "cd /home/yhj/pythonProject/EEGAP && \
+     RPCF_RUN_ID=rpcf_full_YYYYMMDD_HHMMSS bash rpcf/run_rpcf_pipeline.sh" \
+    > logs/rpcf/rpcf_full_YYYYMMDD_HHMMSS/controller.log 2>&1 < /dev/null &
+  ```
+- **已执行验证：**
+  - `rpcf/*.py` 的 `py_compile` 通过。
+  - `bash -n rpcf/run_rpcf_pipeline.sh` 通过。
+  - cache、sensitivity、fine-tuning CLI `--help` 导入通过。
+  - `python -m unittest test_rpcf.py`：6 个测试全部通过。
+  - 四类 TorchEEG 模型的逻辑层 hook 随机输入检查通过。
+  - dry-run：`logs/rpcf/rpcf_dryrun_20260611/`，七个阶段命令和 artifact 路径均成功展开。
+  - 完整 smoke 已通过：
+    - run id：`rpcf_smoke_20260611_182500`
+    - 设置：六个 rank、训练样本 1、fine-tuning 1 epoch、white-box attack 样本 2、测试净化样本 2。
+    - Stage 1 至 Stage 7 全部完成，统一 cache、sensitivity、checkpoint、两套 attack、两套逐-rank purification 和 summary 均已生成。
+    - smoke 选择 `block2/block1`，可训练参数比例 `0.066071`；该结果只验证工程链路，不作为正式层选择结论。
+    - smoke 的最佳 checkpoint 保持在初始化 epoch 0；n=1/2 的准确率不作为正式实验结果。
+    - 汇总：`logs/rpcf/rpcf_smoke_20260611_182500/summary.csv`
+- **正式启动记录：**
+  - 启动时间：2026-06-11 18:27（Asia/Shanghai）
+  - run id：`rpcf_full_20260611_183000`
+  - controller PID：`2692104`
+  - controller log：`logs/rpcf/rpcf_full_20260611_183000/controller.log`
+  - PID 文件：`logs/rpcf/rpcf_full_20260611_183000/controller.pid`
+  - 完成时间：2026-06-12 11:08（Asia/Shanghai）
+  - Stage 1 至 Stage 7 全部完成。
+- **结果：**
+  - 汇总：`logs/rpcf/rpcf_full_20260611_183000/summary.csv`
+  - selected layers：`block2/block1`，可训练参数比例 `0.066071`。
+  - RPCF clean / AutoAttack：`0.939286 / 0.775000`。
+  - AT clean / AutoAttack：`0.938095 / 0.778571`。
+  - 六 rank purified adversarial accuracy 平均值：RPCF `0.828125`，AT `0.790039`。
+- **2026-06-12 seed 协议修正：**
+  - 该 run 使用旧 RPCF 子集规则 `seed + fold * 1000 + 7007`，测试净化 `selection_seed=7049`。
+  - 当前代码已改为与 consistancy 完全一致的 `seed + fold * 1000`；`seed42/fold0` 对应 `selection_seed=42`。
+  - fine-tuning DataLoader 已移除 `seed+991` 私有 generator，改为与 `train_AT_consistancy.py` 一样使用 `seed_everything(seed)` 后的全局 shuffle。
+  - `evaluate_purification.py` 已补充 `seed_everything(seed)`，与现有 `purify.py` 入口一致。
+  - 因此本实验结果保留为历史结果，但不能用于与 consistancy 的严格同子集比较；seed-aligned RPCF 正式复验尚未运行，结果为 `Pending`。
+  - 修正后验证：`py_compile` 通过；`python -m unittest test_rpcf.py` 共 7 项通过；dry-run 为 `logs/rpcf/rpcf_seed_aligned_dryrun_20260612/`。
+- **风险：**
+  - 单次 full 包含训练集和两套 white-box 测试净化，共六个 rank，预计运行时间较长。
+  - 当前首轮只覆盖一个 dataset/model/seed/fold/eps 条件，结论只能作为方法可行性验证。
+
+### EXP-018：RPCF、consistancy 与普通 EEG_TNP+AT 公平对比
+
+- **日期：** 2026-06-12
+- **状态：** 已完成（Completed）
+- **相关 idea：** `IDEA-007`
+- **目的：**
+  - 公平比较 RPCF、consistancy、普通 EEG_TNP 净化后由 Madry AT 模型分类三条流程。
+  - 三条方法从统一新训练的 seed42 Madry AT 基础模型出发，重新运行训练、white-box AutoAttack 和最终净化评估，不复用旧实验指标。
+- **关键设置：**
+  - 数据集/模型：`thubenchmark / EEGNet`
+  - split：`seed=42, fold=0, no-EA`
+  - 统一 AT：Madry，`eps=0.03`，400 epochs，patience 20。
+  - consistancy：保持既有方法定义，从随机初始化执行 Madry AT + rank25/30 paired consistency；paired cache 的攻击模型使用统一 AT checkpoint。
+  - RPCF：从统一 AT checkpoint 初始化；训练 cache 使用 ranks `15,20,25,30,35,40`，Top 40% sensitive layers，100 epochs。
+  - 攻击：三种分类器分别运行自身 white-box AutoAttack，显式 `attack_seed=42`。
+  - 最终净化：三条方法均只运行固定 rank `25,30`。
+  - 公平子集：三条方法均使用 `selection_seed=seed+fold*1000=42` 得到同一 n512 测试子集；汇总要求 source indices 顺序、labels 和 clean tensors 完全一致。
+- **随机协议：**
+  - 新增共享 `utils/reproducibility.py`，统一 Python、NumPy、PyTorch、CUDA seed 和稳定子集抽样。
+  - 标准 AT、consistancy、RPCF、攻击和净化入口均调用共享 `seed_everything(42)`。
+  - AutoAttack 从每个入口显式接收 seed42，不依赖默认参数。
+- **命令：**
+  ```bash
+  # dry-run
+  DRY_RUN=1 SMOKE=1 EXP018_RUN_ID=exp018_dryrun_full_20260612 \
+    bash rpcf/run_exp018.sh
+
+  # smoke
+  SMOKE=1 SKIP_EXISTING=0 \
+    EXP018_RUN_ID=exp018_smoke_20260612_1240 \
+    bash rpcf/run_exp018.sh
+
+  # 正式实验必须后台运行
+  nohup setsid bash -lc \
+    "cd /home/yhj/pythonProject/EEGAP && \
+     EXP018_RUN_ID=exp018_full_20260612_124131 bash rpcf/run_exp018.sh" \
+    > logs/exp018/exp018_full_20260612_124131/controller.log 2>&1 < /dev/null &
+  ```
+- **Pipeline：**
+  1. 新训练统一 Madry AT。
+  2. 生成 consistancy rank25/30 paired train cache。
+  3. 训练 consistancy。
+  4. 生成 RPCF 六-rank train cache。
+  5. 计算 RPCF sensitivity。
+  6. RPCF fine-tuning。
+  7. 三模型分别运行 AutoAttack。
+  8. 三模型分别运行 rank25/30 净化。
+  9. 严格校验并汇总。
+- **已执行验证：**
+  - `py_compile` 通过。
+  - `bash -n rpcf/run_exp018.sh` 通过。
+  - CLI `--help` 通过。
+  - `python -m unittest test_rpcf.py`：9 项通过。
+  - dry-run：`logs/exp018/exp018_dryrun_full_20260612/`。
+  - 完整 GPU smoke 已通过：
+    - run id：`exp018_smoke_20260612_1240`
+    - 设置：AT/consistancy/RPCF 各 1 epoch，训练缓存 n1，攻击/净化 n2；RPCF 保留六个训练 rank，最终保留 rank25/30。
+    - 9 个 stage 全部完成，三条方法的 source indices 均为 `[816,695]`，严格汇总成功。
+    - 汇总：`logs/exp018/exp018_smoke_20260612_1240/summary.csv`。
+    - smoke 指标仅验证工程链路，不作为性能结果。
+- **正式启动记录：**
+  - 启动时间：2026-06-12 12:41（Asia/Shanghai）
+  - 完成时间：2026-06-13 05:12（Asia/Shanghai）
+  - run id：`exp018_full_20260612_124131`
+  - controller PID：`2927720`
+  - controller log：`logs/exp018/exp018_full_20260612_124131/controller.log`
+  - PID 文件：`logs/exp018/exp018_full_20260612_124131/controller.pid`
+- **输出：**
+  - 控制日志：`logs/exp018/<run_id>/controller.log`
+  - checkpoints：`checkpoints/*exp018_full_20260612_124131*`
+  - attack：`ad_data/exp018/`
+  - train/eval purification：`purified_data/exp018/`
+  - 公平汇总：`logs/exp018/<run_id>/summary.csv`、`summary.json`
+- **结果：**
+  - 完整测试集（n=840）：
+    - 普通 AT：clean `0.938095`，AutoAttack `0.778571`。
+    - consistancy：clean `0.935714`，AutoAttack `0.761905`。
+    - RPCF：clean `0.938095`，AutoAttack `0.778571`。
+  - 统一 seed42 n512 净化：
+    - rank25 purified adversarial accuracy：AT `0.818359`，consistancy `0.832031`，RPCF `0.818359`。
+    - rank30 purified adversarial accuracy：AT `0.816406`，consistancy `0.833984`，RPCF `0.816406`。
+    - rank25 purified clean accuracy：AT/RPCF `0.929688`，consistancy `0.921875`。
+    - rank30 purified clean accuracy：三者均为 `0.925781`。
+  - RPCF 选择 `block2`、`block1`，可训练参数比例 `0.066071`；最佳 epoch 为 `0`。15 个 fine-tuning epoch 均未超过初始化 checkpoint，因此本次 RPCF checkpoint 与统一 AT checkpoint 等价，全部评估指标也与普通 AT 完全一致。
+  - consistancy 虽然自身 white-box AutoAttack accuracy 低于 AT `1.6667` 个百分点，但净化后的 adversarial accuracy 在 rank25/30 分别高于 AT `1.3672`、`1.7578` 个百分点。
+  - 汇总：`logs/exp018/exp018_full_20260612_124131/summary.csv`、`summary.json`、`full_test_attack.csv`。
+- **结论：**
+  - 当前 RPCF 配置没有产生有效 fine-tuning 收益，不能据此宣称优于 AT。
+  - consistancy 的收益主要出现在“净化后对抗样本”场景，而不是未净化 white-box robustness。
+  - 在该设置下，rank30 对 consistancy 的 clean/robust/MSE 综合表现最好；普通 AT/RPCF 的准确率则略偏向 rank25。
+- **风险：**
+  - 结果仍仅覆盖 `thubenchmark / EEGNet / fold0 / seed42 / eps0.03`，不能直接外推到其他 seed、fold、模型或攻击强度。
+  - RPCF 的 epoch0 checkpoint 选择需要进一步区分“训练目标无效”和“validation PGD 选模标准过于保守”。
+
+#### EXP-018 RPCF inter-layer sensitivity + consistancy KL 续跑
+
+- **日期：** 2026-06-14
+- **状态：** 已手动停止（Stopped）
+- **run id：** `exp018_rpcf_interlayer_kl_20260614_2340`
+- **修改：**
+  - sensitivity 从绝对 feature shift 改为相邻阶段放大率：
+    `C_l(r)=S_l(r)/(S_previous(r)+eps)`；首层使用 input shift 作为分母。
+  - clean-purified 和 adversarial-purified 分支分别计算相对敏感度，再跨 rank 等权组合。
+  - fine-tuning 使用 clean logits 作为 detached teacher；`x_adv`、多 rank `x_pur/x_adv_pur` 均使用温度 KL 对齐 clean teacher，同时保留 hard-label CE 和动态 rank 权重。
+- **复用产物：**
+  - 统一 AT checkpoint、seed42 n512 六-rank RPCF cache。
+  - 原 EXP-018 的 AT/consistancy checkpoint 和 rank25/30 评估产物。
+- **初步 sensitivity：**
+  - `block2`：`1.054864`。
+  - `block1`：`1.041012`。
+  - `lin`：`0.696991`。
+  - Top 40% 仍选择 `block2, block1`，可训练参数比例 `6.6071%`。
+- **fine-tuning 状态：**
+  - 运行 15 epochs 后 early stopping。
+  - 最佳 checkpoint 仍为 epoch0：validation PGD robust accuracy `0.798810`，
+    clean accuracy `0.925000`，validation loss `0.263624`。
+  - 2026-06-14 在 Stage 3 white-box AutoAttack 期间按用户要求手动停止。
+  - sensitivity、fine-tuning history 和 checkpoint 已保留；后续可从 Stage 3 重启。
+  - 最终 AutoAttack 和净化指标仍为 `Pending`。
+- **验证：**
+  - `py_compile`、`bash -n`、CLI `--help` 和 dry-run 通过。
+  - `python -m unittest test_rpcf.py`：11 项通过。
+- **日志：**
+  - controller：`logs/exp018/exp018_rpcf_interlayer_kl_20260614_2340/controller.log`
+  - fine-tuning：`logs/exp018/exp018_rpcf_interlayer_kl_20260614_2340/finetune.log`
+- **结果：**
+  - Pending
+
+#### EXP-018 RPCF 无早停续跑
+
+- **日期：** 2026-06-14
+- **状态：** 已完成（Completed）
+- **run id：** `exp018_rpcf_no_early_stop_20260614_2357`
+- **训练策略：**
+  - 复用原 EXP-018 AT checkpoint、seed42 n512 六-rank训练 cache 和新版 inter-layer sensitivity。
+  - clean logits 作为 detached teacher，使用 consistancy CE+KL 和动态 rank 权重。
+  - 不使用 validation early stopping 或 best-checkpoint 回退，固定训练 100 epochs 并保存 epoch100。
+  - 每轮 clean/PGD validation 指标仅用于诊断，不参与 checkpoint 选择。
+- **验证：**
+  - `py_compile`、`bash -n`、dry-run 通过。
+  - `python -m unittest test_rpcf.py`：11 项通过。
+  - 1-epoch GPU smoke 确认保存最终 epoch，`checkpoint_policy=final_epoch_no_early_stopping`。
+- **日志：**
+  - controller：`logs/exp018/exp018_rpcf_no_early_stop_20260614_2357/controller.log`
+  - fine-tuning：`logs/exp018/exp018_rpcf_no_early_stop_20260614_2357/finetune.log`
+- **结果：**
+  - 完成时间：2026-06-15 02:05（Asia/Shanghai）。
+  - 100 epochs 全部完成，最终 validation clean accuracy `0.933333`，
+    PGD robust accuracy `0.728571`；初始值分别为 `0.925000`、`0.798810`。
+  - 完整测试集（n=840）：clean accuracy `0.950000`，AutoAttack accuracy
+    `0.722619`。相对 AT 分别变化 `+1.1905`、`-5.5952` 个百分点。
+  - seed42 n512、rank25：purified clean `0.929688`，purified adversarial
+    `0.835938`；后者高于 AT `1.7578`、高于 consistancy `0.3906` 个百分点。
+  - seed42 n512、rank30：purified clean `0.937500`，purified adversarial
+    `0.841797`；分别高于 AT `1.1719/2.5391` 个百分点，高于 consistancy
+    `1.1719/0.7813` 个百分点。
+  - 汇总：`logs/exp018/exp018_rpcf_no_early_stop_20260614_2357/summary.csv`、
+    `summary.json`、`full_test_attack.csv`。
+- **结论：**
+  - 无早停 RPCF 确实获得了更强的 purification adaptation，rank25/30 净化后
+    adversarial accuracy 均为三种方法最高，rank30 最优。
+  - 代价是分类器自身 white-box robustness 明显下降；当前 RPCF 学到了净化分布，
+    但没有保持原始 AT robust decision boundary。
+  - 后续重点不应继续无约束增加 epochs，而应控制 purification adaptation 与原始
+    robustness 的权衡，例如减少 epochs、降低 KL/CE 权重或加入参数漂移约束。
+
+#### EXP-018 RPCF w.o. sensitivity layer selection
+
+- **日期：** 2026-06-15
+- **状态：** 已完成（Completed）
+- **run id：** `exp018_rpcf_all_layers_20260615_0933`
+- **目的：**
+  - 检验 purification-sensitive layer selection 的独立作用。
+  - 与无早停 selective RPCF 保持相同 AT 初始化、seed42 n512 六-rank cache、
+    clean-teacher consistancy CE+KL、动态 rank 权重、100 epochs 和最终评估。
+  - 唯一核心变化是启用 `--all_layers`，微调全模型参数且所有 BatchNorm 保持训练状态。
+- **训练范围：**
+  - 可训练参数：`32208/32208`，比例 `100%`。
+  - sensitivity artifact 仅用于 cache/rank 元数据校验，不参与参数冻结。
+- **验证：**
+  - `py_compile`、`bash -n`、CLI dry-run 通过。
+  - `python -m unittest test_rpcf.py`：12 项通过。
+  - 完整 n2 smoke 通过：`exp018_rpcf_all_layers_smoke_20260615_0932`；
+    source indices 与原 EXP-018 smoke 均为 `[816,695]`。
+- **日志：**
+  - controller：`logs/exp018/exp018_rpcf_all_layers_20260615_0933/controller.log`
+  - fine-tuning：`logs/exp018/exp018_rpcf_all_layers_20260615_0933/finetune.log`
+- **结果：**
+  - 完成时间：2026-06-15 11:41（Asia/Shanghai）。
+  - 100 epochs 全部完成，最终 validation clean accuracy `0.935714`，
+    PGD robust accuracy `0.728571`。
+  - 完整测试集（n=840）：clean accuracy `0.946429`，AutoAttack accuracy
+    `0.727381`。相对 selective RPCF 分别变化 `-0.3571/+0.4762` 个百分点。
+  - seed42 n512、rank25：purified clean `0.925781`，purified adversarial
+    `0.837891`；相对 selective RPCF 分别变化 `-0.3906/+0.1953` 个百分点。
+  - seed42 n512、rank30：purified clean `0.933594`，purified adversarial
+    `0.828125`；相对 selective RPCF 均下降，分别为 `-0.3906/-1.3672`
+    个百分点。
+  - 汇总：`logs/exp018/exp018_rpcf_all_layers_20260615_0933/summary.csv`、
+    `summary.json`、`full_test_attack.csv`。
+- **结论：**
+  - 全模型微调没有稳定优于 sensitive-layer selection；其收益仅表现为未净化
+    AutoAttack `+0.48` 和 rank25 purified adversarial `+0.20` 个百分点。
+  - selective RPCF 在 rank30 purified clean/adversarial accuracy 上均更高，
+    尤其 purified adversarial accuracy 高 `1.37` 个百分点。
+  - 当前单次实验支持 sensitive-layer selection 的独立价值：仅训练 `6.61%`
+    参数即可取得更好的 rank30 净化性能，并减少全模型适配造成的不稳定性。
+
+#### EXP-018 RPCF w.o. rank schedule
+
+- **日期：** 2026-06-15
+- **状态：** 已完成（Completed）
+- **run id：** `exp018_rpcf_static_ranks_20260615_1155`
+- **目的：**
+  - 检验 low-rank-to-high-rank动态 curriculum 的独立作用。
+  - 保留新版 inter-layer sensitivity 和 `block2/block1` selective fine-tuning；
+    与主 RPCF 使用相同 AT 初始化、seed42 n512 六-rank cache、clean-teacher
+    consistancy CE+KL、100 epochs 和最终评估。
+  - 唯一核心变化是启用 `--static_rank_weights`，rank
+    `15,20,25,30,35,40` 在所有 epoch 均固定为 `1/6`。
+- **验证：**
+  - `py_compile`、`bash -n`、dry-run 通过。
+  - `python -m unittest test_rpcf.py`：12 项通过。
+  - 完整 n2 smoke 通过：`exp018_rpcf_static_ranks_smoke_20260615_1154`；
+    六个 rank 权重均为 `0.1666667`，source indices 为 `[816,695]`。
+- **日志：**
+  - controller：`logs/exp018/exp018_rpcf_static_ranks_20260615_1155/controller.log`
+  - fine-tuning：`logs/exp018/exp018_rpcf_static_ranks_20260615_1155/finetune.log`
+- **结果：**
+  - 完成时间：2026-06-15 14:03（Asia/Shanghai）。
+  - 完整测试集（n=840）：clean accuracy `0.951190`，AutoAttack accuracy
+    `0.715476`。相对 dynamic-schedule RPCF 分别变化 `+0.1190/-0.7143`
+    个百分点。
+  - seed42 n512、rank25：purified clean `0.929688`，purified adversarial
+    `0.839844`；相对 dynamic schedule 分别变化 `0.0000/+0.3906`
+    个百分点。
+  - seed42 n512、rank30：purified clean `0.937500`，purified adversarial
+    `0.835938`；相对 dynamic schedule 分别变化 `0.0000/-0.5859`
+    个百分点。
+  - 汇总：`logs/exp018/exp018_rpcf_static_ranks_20260615_1155/summary.csv`、
+    `summary.json`、`full_test_attack.csv`。
+- **结论：**
+  - 去除 schedule 后并非全面退化，而是 rank25 略有提升、rank30 和未净化
+    AutoAttack 下降，说明 schedule 确实改变了模型对不同净化强度的适应分布。
+  - dynamic schedule 在当前主要结果 rank30 上高 `0.59` 个百分点，同时保留
+    更高的分类器自身 AutoAttack accuracy，因此继续作为 RPCF 默认配置。
+  - rank25/30 purified adversarial accuracy 的两-rank均值差异很小；schedule
+    的证据主要来自 rank30 和未净化鲁棒性，仍需跨 seed/fold 验证。
+
+### EXP-019：五方法 seed43 公平复验
+
+- **日期：** 2026-06-15 至 2026-06-16
+- **状态：** 已完成
+- **相关 idea：** `IDEA-007`
+- **目的：**
+  - 在独立随机种子上补全五种方法的完整训练、white-box attack 和净化结果。
+  - 检查 EXP-018 中 selective layer 与 dynamic rank schedule 的结论能否迁移到
+    seed43。
+- **方法：**
+  - `Madry AT`
+  - `consistancy`
+  - `RPCF selective`
+  - `RPCF all-layers`
+  - `RPCF rank-weight uniform`
+- **统一设置：**
+  - dataset/model：`thubenchmark / EEGNet`
+  - split：`seed=43, fold=0, no-EA`
+  - attack：white-box AutoAttack，`eps=0.03`，显式 `attack_seed=43`
+  - AT/consistancy：最多 400 epochs，patience 20
+  - RPCF：六-rank cache `15,20,25,30,35,40`，三种变体均训练 100 epochs
+  - 训练 cache：n512；最终净化：同一 seed43 n512 子集、rank25/30
+- **Pipeline：**
+  - `rpcf/run_exp019.sh` 共 11 个可续跑阶段。
+  - 三个 RPCF 变体共享同一 AT 初始化、六-rank cache 和 sensitivity 结果。
+  - 五种方法分别生成自身 white-box AutoAttack，再独立执行 rank25/30 净化。
+  - 汇总严格校验实验协议、完整测试集样本数、baseline 重复行和
+    `source_indices`。
+- **验证：**
+  - `bash -n rpcf/run_exp019.sh` 通过。
+  - 完整 11-stage dry-run 通过：`exp019_seed43_fold0_dryrun`。
+  - `python -m unittest test_rpcf.py`：15 项通过。
+  - n2 GPU smoke 全流程通过：
+    `exp019_seed43_fold0_smoke_20260615_1817`。
+  - smoke 的五方法净化 `source_indices=[196,214]`，最终 JSON 标识为
+    `exp019_five_method_comparison`；smoke 指标不作为正式结果。
+- **正式命令：**
+  ```bash
+  nohup setsid bash -lc \
+    "cd /home/yhj/pythonProject/EEGAP && \
+     EXP019_RUN_ID=exp019_seed43_fold0_full_YYYYMMDD_HHMM \
+     bash rpcf/run_exp019.sh" \
+    > logs/exp019/exp019_seed43_fold0_full_YYYYMMDD_HHMM/controller.log \
+    2>&1 < /dev/null &
+  ```
+- **正式启动记录：**
+  - 启动时间：2026-06-15 18:21（Asia/Shanghai）
+  - run id：`exp019_seed43_fold0_full_20260615_1821`
+  - controller PID：`3874811`
+  - PID 文件：
+    `logs/exp019/exp019_seed43_fold0_full_20260615_1821/controller.pid`
+  - controller log：
+    `logs/exp019/exp019_seed43_fold0_full_20260615_1821/controller.log`
+  - 完成时间：2026-06-16 14:20:39（Asia/Shanghai）
+- **结果：**
+  - 汇总产物：
+    `logs/exp019/exp019_seed43_fold0_full_20260615_1821/five_methods/five_methods_table.md`
+  - 长格式 CSV：
+    `logs/exp019/exp019_seed43_fold0_full_20260615_1821/five_methods/five_methods_long.csv`
+  - 宽格式 CSV：
+    `logs/exp019/exp019_seed43_fold0_full_20260615_1821/five_methods/five_methods_wide.csv`
+  - JSON：
+    `logs/exp019/exp019_seed43_fold0_full_20260615_1821/five_methods/five_methods_summary.json`
+
+| Method | Full clean | Full AutoAttack | Rank 25 clean | Rank 25 adversarial | Rank 30 clean | Rank 30 adversarial |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Madry AT | 91.79% | 79.52% | 88.87% | 81.64% | 90.04% | 81.84% |
+| consistancy | 92.14% | 77.50% | 88.09% | 82.23% | 88.87% | 82.62% |
+| RPCF selective | 93.45% | 71.67% | 91.02% | 81.64% | 90.43% | 80.86% |
+| RPCF all-layers | 93.45% | 71.55% | 89.26% | 81.25% | 90.04% | 80.86% |
+| RPCF rank-weight uniform | 93.45% | 71.31% | 90.82% | 82.03% | 90.82% | 82.03% |
+
+- **观察：**
+  - seed43 上，未净化完整测试集 AutoAttack 最好的是 `Madry AT`（`79.52%`）。
+  - rank25/30 净化后 adversarial accuracy 最好的是 `consistancy`
+    （`82.23%/82.62%`）。
+  - 三个 RPCF 变体完整 clean accuracy 均为 `93.45%`，但完整 AutoAttack
+    只有 `71.31%` 至 `71.67%`，明显低于 AT 和 consistancy。
+  - 与 seed42 不同，`RPCF selective` 在 rank25/30 净化后 adversarial
+    accuracy 均没有超过 consistancy；`rank-weight uniform` 也没有复现
+    seed42 上 rank25 的优势。
+- **结论：**
+  - EXP-018 seed42 中“RPCF selective/dynamic schedule 更优”的结论不能直接作为
+    跨 seed 稳定结论。
+  - 当前更稳妥的表述是：RPCF 能提高净化分布上的 clean 适配，但在 seed43
+    中没有稳定提升净化后 adversarial accuracy，且会显著牺牲未净化
+    AutoAttack。
+  - consistancy 只使用 rank25/30 净化样本做数据增强，与本次 rank25/30
+    评估分布更匹配；RPCF 使用六-rank 训练分布，这可能是 seed43 结果反转的
+    重要因素之一。
+
+#### EXP-019 consistancy 六-rank增强续跑
+
+- **日期：** 2026-06-16
+- **状态：** 正式实验运行中（Running）
+- **相关 idea：** `IDEA-007`
+- **目的：**
+  - 修正 EXP-019 中 consistancy 只使用 rank25/30 做数据增强的对比不公平问题。
+  - 让 consistancy 使用与 RPCF 训练 cache 一致的六个 rank：
+    `15,20,25,30,35,40`。
+- **复用产物：**
+  - 原 EXP-019 seed43 AT checkpoint。
+  - 原 EXP-019 三个 RPCF 变体 checkpoint、attack/purification 结果和 history。
+  - 原 EXP-019 AT rank25/30 净化结果。
+- **重跑内容：**
+  1. 为 consistancy 生成 rank15/20/25/30/35/40 六个 paired train cache，均使用
+     seed43、fold0、n512 和同一 AT checkpoint。
+  2. 使用六个 paired cache 重新训练 consistancy。
+  3. 对新 consistancy checkpoint 运行自身 white-box AutoAttack。
+  4. 对新 attack 结果运行 rank25/30 净化评估。
+  5. 复用原 AT/RPCF 结果，重新生成五方法汇总表。
+- **验证：**
+  - `bash -n rpcf/run_exp019_consistancy_six_rank.sh` 通过。
+  - dry-run 通过：
+    `EXP019_CONSISTANCY_SIX_RANK_RUN_ID=exp019_consistancy_six_rank_dryrun`。
+- **正式命令：**
+  ```bash
+  nohup setsid bash -lc \
+    "cd /home/yhj/pythonProject/EEGAP && \
+     EXP019_CONSISTANCY_SIX_RANK_RUN_ID=exp019_seed43_fold0_consistancy_six_rank_YYYYMMDD_HHMM \
+     bash rpcf/run_exp019_consistancy_six_rank.sh" \
+    > logs/exp019/exp019_seed43_fold0_consistancy_six_rank_YYYYMMDD_HHMM/controller.log \
+    2>&1 < /dev/null &
+  ```
+- **正式启动记录：**
+  - 启动时间：2026-06-16 14:52（Asia/Shanghai）
+  - run id：`exp019_seed43_fold0_consistancy_six_rank_20260616_1451`
+  - controller PID：`4128123`
+  - PID 文件：
+    `logs/exp019/exp019_seed43_fold0_consistancy_six_rank_20260616_1451/controller.pid`
+  - controller log：
+    `logs/exp019/exp019_seed43_fold0_consistancy_six_rank_20260616_1451/controller.log`
+  - 启动后状态：Stage 1 rank15 paired cache 正在生成。
+- **结果：**
+  - Pending

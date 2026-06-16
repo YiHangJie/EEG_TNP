@@ -2,7 +2,6 @@ import argparse
 import datetime
 import logging
 import os
-import random
 
 from runtime_env import configure_runtime_env
 
@@ -22,16 +21,7 @@ from models.model_args import get_model_args
 from purify import purify
 from torcheeg.models import ATCNet, Conformer, EEGNet, TSCeption
 from utils.experiment_artifacts import eeg_classification_collate, safe_token, short_protocol_tag
-
-
-def seed_everything(seed=42):
-    """固定随机源，保证 paired consistancy 增强样本可复现。"""
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
+from utils.reproducibility import seed_everything, stable_subset_indices
 
 
 def parse_args():
@@ -74,17 +64,6 @@ def build_output_path(args):
     return os.path.join(args.output_dir, file_name)
 
 
-def select_random_indices(dataset_size, sample_num, seed, fold):
-    """从训练 split 中无放回随机抽样，保证 x/x_pur/x_adv/x_adv_pur 严格一一对应。"""
-    if sample_num > dataset_size:
-        raise ValueError(
-            f'Requested {sample_num} random samples but train split has only {dataset_size} samples.'
-        )
-    selection_seed = seed + fold * 1000
-    rng = np.random.RandomState(selection_seed)
-    return rng.choice(dataset_size, size=sample_num, replace=False).tolist(), selection_seed
-
-
 def load_classifier(args, info, device):
     """加载用于生成缓存对抗样本的分类器 checkpoint。"""
     if not os.path.exists(args.checkpoint_path):
@@ -114,12 +93,14 @@ def build_attack(args, model, info, device):
         'cw': CW,
         'autoattack': AutoAttack,
     }
-    return attack_dict[args.attack](
-        model,
-        eps=args.eps,
-        device=device,
-        n_classes=info['num_classes'],
-    )
+    kwargs = {
+        'eps': args.eps,
+        'device': device,
+        'n_classes': info['num_classes'],
+    }
+    if args.attack == 'autoattack':
+        kwargs['seed'] = args.seed
+    return attack_dict[args.attack](model, **kwargs)
 
 
 def load_train_batch(train_dataset, indices):
@@ -181,7 +162,7 @@ def main():
     logging.info(f'Split path: {split_path}')
     logging.info(f'Train dataset size: {len(train_dataset)}')
 
-    selected_indices, selection_seed = select_random_indices(
+    selected_indices, selection_seed = stable_subset_indices(
         dataset_size=len(train_dataset),
         sample_num=args.sample_num,
         seed=args.seed,
