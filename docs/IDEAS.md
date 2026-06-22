@@ -227,3 +227,27 @@
 - **备注：**
   - 首轮只比较 RPCF 与其初始化来源 AT；full-layer 和 static-rank-weight 消融已预留开关，后续按结果决定是否运行。
   - 2026-06-12 起，RPCF 的训练/测试随机子集和 DataLoader seed 逻辑与既有 consistancy pipeline 对齐：子集使用 `seed + fold * 1000`，训练 shuffle 使用 `seed_everything(seed)` 的全局 RNG，不添加 RPCF 私有 offset。
+
+### IDEA-008：RPCF 五方法对比在 eps=0.05 下的跨 seed 复验
+
+- **状态：** 实现中
+- **动机：**
+  - EXP-019 已在 `eps=0.03`、seed42/43/44 上完成五方法公平对比，需要确认攻击强度提高后结论是否稳定。
+- **核心假设：**
+  - RPCF 对净化分布的适配收益在 `eps=0.05` 下仍可能存在，但未净化鲁棒性与跨 seed 方差可能进一步恶化。
+- **方法：**
+  - 完整复用 EXP-019 的 five-method six-rank 协议，只将训练、AutoAttack 和净化评估的 epsilon 从 `0.03` 改为 `0.05`。
+  - seed42/43/44、fold0 串行运行，避免 GPU 资源竞争。
+- **预期实现：**
+  - 新增 `rpcf/run_exp020.sh` 和 `rpcf/run_exp020_all_seeds.sh`。
+  - 日志、攻击数据和净化缓存分别隔离到 `logs/exp020`、`ad_data/exp020` 和 `purified_data/exp020`。
+- **评估指标：**
+  - 五方法的 full clean、full AutoAttack、rank25/30 purified clean/adversarial accuracy。
+  - 三 seed 均值、标准差以及与 EXP-019 eps0.03 的差值。
+- **风险：**
+  - 三个 seed 串行预计耗时约 3 天，任一 seed 失败会使串行脚本停止，需要从对应 seed 断点续跑。
+  - 更高 epsilon 可能改变训练收敛和净化分布，不能复用 eps0.03 checkpoint 或缓存。
+- **相关实验：**
+  - `EXP-020`：运行中
+- **备注：**
+  - 除 epsilon 和独立产物目录外，其余超参数与 EXP-019 保持一致。

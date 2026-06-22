@@ -380,3 +380,32 @@
 - **相关实验：**
   - `EXP-018`
   - `EXP-019`
+
+### DEC-016：比较 consistancy 与 RPCF 时必须控制训练 rank 分布
+
+- **日期：** 2026-06-17
+- **背景：**
+  - 原 EXP-019 中 consistancy 只使用 rank25/30 paired augmentation，而 RPCF
+    使用 rank15/20/25/30/35/40 六-rank cache。
+  - 为消除该不公平因素，补跑 `EXP-019 consistancy six-rank`，让 consistancy
+    使用与 RPCF 一致的六-rank增强数据。
+- **结论：**
+  - six-rank consistancy 的 full AutoAttack 为 `74.17%`，低于原 rank25/30-only
+    consistancy 的 `77.50%`。
+  - six-rank consistancy 的 rank25/30 purified adversarial accuracy 为
+    `81.05%/79.49%`，低于原 rank25/30-only consistancy 的
+    `82.23%/82.62%`。
+  - 在同为六-rank训练分布的口径下，`RPCF rank-weight uniform` 的
+    rank25/30 purified adversarial accuracy 为 `82.03%/82.03%`，是 seed43
+    五方法中净化后 adversarial 最好的结果。
+- **决策：**
+  - 以后比较 consistancy 与 RPCF 时，必须显式声明训练 rank 分布；rank25/30-only
+    与 six-rank 结果不能直接混用。
+  - 原 “consistancy seed43 净化后最强” 结论只适用于 rank25/30-only
+    augmentation 与 rank25/30 evaluation 匹配的设置。
+  - 若采用与 RPCF 一致的六-rank训练分布，当前 seed43 结果更支持
+    `RPCF rank-weight uniform` 作为净化后 adversarial 的最优变体。
+- **相关 idea：**
+  - `IDEA-007`
+- **相关实验：**
+  - `EXP-019`

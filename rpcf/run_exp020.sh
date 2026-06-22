@@ -5,11 +5,11 @@ DATASET="${DATASET:-thubenchmark}"
 MODEL="${MODEL:-eegnet}"
 SEED="${SEED:-43}"
 FOLD="${FOLD:-0}"
-EPS="${EPS:-0.03}"
+EPS="${EPS:-0.05}"
 GPU_ID="${GPU_ID:-0}"
 CONDA_ENV="${CONDA_ENV:-torch}"
-RUN_ID="${EXP019_RUN_ID:-exp019_seed${SEED}_fold${FOLD}_$(date +%Y%m%d_%H%M%S)}"
-LOG_ROOT="${EXP019_LOG_ROOT:-logs/exp019/${RUN_ID}}"
+RUN_ID="${EXP020_RUN_ID:-exp020_seed${SEED}_fold${FOLD}_$(date +%Y%m%d_%H%M%S)}"
+LOG_ROOT="${EXP020_LOG_ROOT:-logs/exp020/${RUN_ID}}"
 TAG="${RUN_ID//[^A-Za-z0-9_.-]/_}"
 
 START_STAGE="${START_STAGE:-1}"
@@ -62,8 +62,8 @@ if (( START_STAGE > STOP_STAGE )); then
   echo "START_STAGE cannot be greater than STOP_STAGE." >&2
   exit 1
 fi
-if [[ "${DATASET}" != "thubenchmark" || "${MODEL}" != "eegnet" || "${EPS}" != "0.03" ]]; then
-  echo "EXP-019 currently supports thubenchmark/eegnet/eps0.03 only." >&2
+if [[ "${DATASET}" != "thubenchmark" || "${MODEL}" != "eegnet" || "${EPS}" != "0.05" ]]; then
+  echo "EXP-020 currently supports thubenchmark/eegnet/eps0.05 only." >&2
   exit 1
 fi
 
@@ -76,7 +76,7 @@ RPCF_SELECTIVE_CHECKPOINT="checkpoints/${DATASET}_${MODEL}_${PROTOCOL}_madry_eps
 RPCF_ALL_CHECKPOINT="checkpoints/${DATASET}_${MODEL}_${PROTOCOL}_madry_eps${EPS}_${SEED}_fold${FOLD}_rpcf_all_layers_${TAG}_best.pth"
 RPCF_UNIFORM_CHECKPOINT="checkpoints/${DATASET}_${MODEL}_${PROTOCOL}_madry_eps${EPS}_${SEED}_fold${FOLD}_rpcf_rank_weight_uniform_${TAG}_best.pth"
 
-PAIR_DIR="purified_data/exp019/train_pair_consistancy_six_rank"
+PAIR_DIR="purified_data/exp020/train_pair_consistancy_six_rank"
 IFS=',' read -r -a CONSISTANCY_TRAIN_RANKS <<< "${TRAIN_RANKS}"
 PAIR_PATHS=()
 for rank in "${CONSISTANCY_TRAIN_RANKS[@]}"; do
@@ -84,24 +84,24 @@ for rank in "${CONSISTANCY_TRAIN_RANKS[@]}"; do
     "${PAIR_DIR}/${DATASET}_${MODEL}_no_ea_fold${FOLD}_seed${SEED}_train_pair_consistancy_autoattack_eps${EPS}_PTR3d_8_2048_rank${rank}_3d_interpolate_n${TRAIN_CACHE_SAMPLE_NUM}_tag${CONSISTANCY_TAG}.pth"
   )
 done
-RPCF_CACHE="purified_data/exp019/rpcf_train/${TAG}_six_rank.pth"
+RPCF_CACHE="purified_data/exp020/rpcf_train/${TAG}_six_rank.pth"
 SENSITIVITY_PREFIX="${LOG_ROOT}/sensitivity"
 SENSITIVITY_PATH="${SENSITIVITY_PREFIX}.json"
 SELECTIVE_HISTORY="${LOG_ROOT}/finetune_selective"
 ALL_HISTORY="${LOG_ROOT}/finetune_all_layers"
 UNIFORM_HISTORY="${LOG_ROOT}/finetune_rank_weight_uniform"
 
-AT_ATTACK="ad_data/exp019/${TAG}_madry_at_autoattack.pth"
-CONSISTANCY_ATTACK="ad_data/exp019/${TAG}_consistancy_six_rank_autoattack.pth"
-RPCF_SELECTIVE_ATTACK="ad_data/exp019/${TAG}_rpcf_selective_autoattack.pth"
-RPCF_ALL_ATTACK="ad_data/exp019/${TAG}_rpcf_all_layers_autoattack.pth"
-RPCF_UNIFORM_ATTACK="ad_data/exp019/${TAG}_rpcf_rank_weight_uniform_autoattack.pth"
+AT_ATTACK="ad_data/exp020/${TAG}_madry_at_autoattack.pth"
+CONSISTANCY_ATTACK="ad_data/exp020/${TAG}_consistancy_six_rank_autoattack.pth"
+RPCF_SELECTIVE_ATTACK="ad_data/exp020/${TAG}_rpcf_selective_autoattack.pth"
+RPCF_ALL_ATTACK="ad_data/exp020/${TAG}_rpcf_all_layers_autoattack.pth"
+RPCF_UNIFORM_ATTACK="ad_data/exp020/${TAG}_rpcf_rank_weight_uniform_autoattack.pth"
 
-AT_PURIFY="purified_data/exp019/eval/${TAG}_madry_at_rank25-30.pth"
-CONSISTANCY_PURIFY="purified_data/exp019/eval/${TAG}_consistancy_six_rank_rank25-30.pth"
-RPCF_SELECTIVE_PURIFY="purified_data/exp019/eval/${TAG}_rpcf_selective_rank25-30.pth"
-RPCF_ALL_PURIFY="purified_data/exp019/eval/${TAG}_rpcf_all_layers_rank25-30.pth"
-RPCF_UNIFORM_PURIFY="purified_data/exp019/eval/${TAG}_rpcf_rank_weight_uniform_rank25-30.pth"
+AT_PURIFY="purified_data/exp020/eval/${TAG}_madry_at_rank25-30.pth"
+CONSISTANCY_PURIFY="purified_data/exp020/eval/${TAG}_consistancy_six_rank_rank25-30.pth"
+RPCF_SELECTIVE_PURIFY="purified_data/exp020/eval/${TAG}_rpcf_selective_rank25-30.pth"
+RPCF_ALL_PURIFY="purified_data/exp020/eval/${TAG}_rpcf_all_layers_rank25-30.pth"
+RPCF_UNIFORM_PURIFY="purified_data/exp020/eval/${TAG}_rpcf_rank_weight_uniform_rank25-30.pth"
 
 SELECTIVE_SUMMARY_DIR="${LOG_ROOT}/comparison_selective"
 ALL_SUMMARY_DIR="${LOG_ROOT}/comparison_all_layers"
@@ -109,15 +109,15 @@ UNIFORM_SUMMARY_DIR="${LOG_ROOT}/comparison_rank_weight_uniform"
 FIVE_SUMMARY_DIR="${LOG_ROOT}/five_methods"
 
 mkdir -p \
-  "${LOG_ROOT}" "${PAIR_DIR}" checkpoints ad_data/exp019 \
-  purified_data/exp019/rpcf_train purified_data/exp019/eval
+  "${LOG_ROOT}" "${PAIR_DIR}" checkpoints ad_data/exp020 \
+  purified_data/exp020/rpcf_train purified_data/exp020/eval
 export NUMBA_CACHE_DIR="${NUMBA_CACHE_DIR:-/tmp/numba_cache}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/xdg_cache}"
 mkdir -p "${NUMBA_CACHE_DIR}" "${XDG_CACHE_HOME}"
 
 printf '%s\n' "$$" > "${LOG_ROOT}/controller.pid"
 cat > "${LOG_ROOT}/run_config.txt" <<EOF
-EXPERIMENT_ID=EXP-019
+EXPERIMENT_ID=EXP-020
 RUN_ID=${RUN_ID}
 DATASET=${DATASET}
 MODEL=${MODEL}
@@ -410,7 +410,7 @@ run_three_method_summary() {
     --rpcf_purification_path "${rpcf_purification}" \
     --sensitivity_path "${SENSITIVITY_PATH}" \
     --history_path "${history_path}.json" --output_dir "${output_dir}" \
-    --experiment_id EXP-019
+    --experiment_id EXP-020
 }
 
 if should_run 11; then
@@ -436,7 +436,7 @@ if should_run 11; then
     --selective_summary "${SELECTIVE_SUMMARY_DIR}/summary.json" \
     --all_layers_summary "${ALL_SUMMARY_DIR}/summary.json" \
     --uniform_summary "${UNIFORM_SUMMARY_DIR}/summary.json" \
-    --output_dir "${FIVE_SUMMARY_DIR}" --experiment_id EXP-019
+    --output_dir "${FIVE_SUMMARY_DIR}" --experiment_id EXP-020
 fi
 
-echo "[$(date -Is)] EXP-019 pipeline finished: ${RUN_ID}"
+echo "[$(date -Is)] EXP-020 pipeline finished: ${RUN_ID}"

@@ -2236,6 +2236,51 @@
   - rank25/30 purified adversarial accuracy 的两-rank均值差异很小；schedule
     的证据主要来自 rank30 和未净化鲁棒性，仍需跨 seed/fold 验证。
 
+#### EXP-018 consistancy 六-rank增强续跑
+
+- **日期：** 2026-06-17
+- **状态：** 正式实验运行中（Running）
+- **相关 idea：** `IDEA-007`
+- **目的：**
+  - 对齐 seed42 中 consistancy 与 RPCF 的训练 rank 分布。
+  - 将 consistancy 训练增强从 rank25/30 改为与 RPCF 一致的
+    rank15/20/25/30/35/40。
+- **复用产物：**
+  - AT：`exp018_full_20260612_124131`
+  - RPCF selective：`exp018_rpcf_no_early_stop_20260614_2357`
+  - RPCF all-layers：`exp018_rpcf_all_layers_20260615_0933`
+  - RPCF rank-weight uniform：`exp018_rpcf_static_ranks_20260615_1155`
+- **重跑内容：**
+  1. 使用 seed42/fold0/n512 和同一 AT checkpoint 生成六个 paired train cache。
+  2. 使用六个 paired cache 重新训练 consistancy。
+  3. 对新 consistancy checkpoint 运行自身 white-box AutoAttack。
+  4. 对新 attack 结果运行 rank25/30 净化评估。
+  5. 复用原 AT/RPCF 结果，重新生成五方法汇总表。
+- **验证：**
+  - `bash -n rpcf/run_exp018_consistancy_six_rank.sh` 通过。
+  - dry-run 通过：
+    `EXP018_CONSISTANCY_SIX_RANK_RUN_ID=exp018_consistancy_six_rank_dryrun`。
+- **正式命令：**
+  ```bash
+  nohup setsid bash -lc \
+    "cd /home/yhj/pythonProject/EEGAP && \
+     EXP018_CONSISTANCY_SIX_RANK_RUN_ID=exp018_seed42_fold0_consistancy_six_rank_YYYYMMDD_HHMM \
+     bash rpcf/run_exp018_consistancy_six_rank.sh" \
+    > logs/exp018/exp018_seed42_fold0_consistancy_six_rank_YYYYMMDD_HHMM/controller.log \
+    2>&1 < /dev/null &
+  ```
+- **正式启动记录：**
+  - 启动时间：2026-06-17 10:21（Asia/Shanghai）
+  - run id：`exp018_seed42_fold0_consistancy_six_rank_20260617_1020`
+  - controller PID：`180071`
+  - PID 文件：
+    `logs/exp018/exp018_seed42_fold0_consistancy_six_rank_20260617_1020/controller.pid`
+  - controller log：
+    `logs/exp018/exp018_seed42_fold0_consistancy_six_rank_20260617_1020/controller.log`
+  - 启动后状态：Stage 1 rank15 paired cache 正在生成。
+- **结果：**
+  - Pending
+
 ### EXP-019：五方法 seed43 公平复验
 
 - **日期：** 2026-06-15 至 2026-06-16
@@ -2329,8 +2374,8 @@
 
 #### EXP-019 consistancy 六-rank增强续跑
 
-- **日期：** 2026-06-16
-- **状态：** 正式实验运行中（Running）
+- **日期：** 2026-06-16 至 2026-06-17
+- **状态：** 已完成
 - **相关 idea：** `IDEA-007`
 - **目的：**
   - 修正 EXP-019 中 consistancy 只使用 rank25/30 做数据增强的对比不公平问题。
@@ -2368,6 +2413,133 @@
     `logs/exp019/exp019_seed43_fold0_consistancy_six_rank_20260616_1451/controller.pid`
   - controller log：
     `logs/exp019/exp019_seed43_fold0_consistancy_six_rank_20260616_1451/controller.log`
-  - 启动后状态：Stage 1 rank15 paired cache 正在生成。
+  - 完成时间：2026-06-17 00:18:34（Asia/Shanghai）
+- **结果：**
+  - 汇总表：
+    `logs/exp019/exp019_seed43_fold0_consistancy_six_rank_20260616_1451/five_methods/five_methods_table.md`
+  - 长格式 CSV：
+    `logs/exp019/exp019_seed43_fold0_consistancy_six_rank_20260616_1451/five_methods/five_methods_long.csv`
+  - 宽格式 CSV：
+    `logs/exp019/exp019_seed43_fold0_consistancy_six_rank_20260616_1451/five_methods/five_methods_wide.csv`
+  - JSON：
+    `logs/exp019/exp019_seed43_fold0_consistancy_six_rank_20260616_1451/five_methods/five_methods_summary.json`
+
+| Method | Full clean | Full AutoAttack | Rank 25 clean | Rank 25 adversarial | Rank 30 clean | Rank 30 adversarial |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Madry AT | 91.79% | 79.52% | 88.87% | 81.64% | 90.04% | 81.84% |
+| consistancy | 91.19% | 74.17% | 87.11% | 81.05% | 89.06% | 79.49% |
+| RPCF selective | 93.45% | 71.67% | 91.02% | 81.64% | 90.43% | 80.86% |
+| RPCF all-layers | 93.45% | 71.55% | 89.26% | 81.25% | 90.04% | 80.86% |
+| RPCF rank-weight uniform | 93.45% | 71.31% | 90.82% | 82.03% | 90.82% | 82.03% |
+
+- **观察：**
+  - 相比原 EXP-019 rank25/30-only consistancy，six-rank consistancy 明显下降：
+    full AutoAttack 从 `77.50%` 降至 `74.17%`，rank25/30 purified adversarial
+    从 `82.23%/82.62%` 降至 `81.05%/79.49%`。
+  - 在公平 six-rank增强口径下，rank25/30 净化后 adversarial accuracy 最好的是
+    `RPCF rank-weight uniform`（`82.03%/82.03%`）。
+  - `Madry AT` 仍是未净化 full AutoAttack 最强方法（`79.52%`）。
+- **结论：**
+  - 原 seed43 结论中 “consistancy 在净化后 adversarial 最好” 依赖于
+    consistancy 只使用 rank25/30 训练增强、与评估 rank 完全匹配。
+  - 当 consistancy 也使用与 RPCF 一致的六-rank增强后，其 rank25/30 净化后
+    adversarial accuracy 不再领先；这说明训练 rank 分布与评估 rank 分布匹配度
+    是关键混杂因素。
+  - 后续若继续比较 consistancy 和 RPCF，必须显式区分 rank25/30-only 与 six-rank
+    两种训练分布，不能混用后直接下结论。
+
+#### EXP-019 seed44 五方法与 consistancy 六-rank复验
+
+- **日期：** 2026-06-17 起
+- **状态：** 已完成
+- **相关 idea：** `IDEA-007`
+- **目的：**
+  - 在 `seed=44, fold=0, eps=0.03` 上复验 EXP-019 五方法结果。
+  - 将 full five-method 中的 `consistancy` 直接改为 six-rank 训练增强口径，
+    形成与 seed42/seed43 可对齐的三 seed 汇总。
+- **统一设置：**
+  - dataset/model：`thubenchmark / EEGNet`
+  - split：`seed=44, fold=0, no-EA`
+  - attack：white-box AutoAttack，`eps=0.03`
+  - 训练 cache：n512；最终净化：同一 seed44 n512 子集、rank25/30
+- **执行计划：**
+  - 运行新版 `rpcf/run_exp019.sh`，生成 seed44 的 Madry AT、six-rank
+    consistancy、RPCF selective、RPCF all-layers、RPCF rank-weight uniform
+    及五方法汇总。
+  - `run_exp019.sh` 中的 consistancy 训练增强 rank 已改为
+    `15,20,25,30,35,40`；最终 `five_methods` 表不再需要后置替换。
+- **验证：**
+  - 旧版 dry-run：
+    `SEED=44 DRY_RUN=1 EXP019_RUN_ID=exp019_seed44_fold0_full_dryrun bash rpcf/run_exp019.sh`
+    通过。
+  - 独立 six-rank rerun dry-run：
+    `SEED=44 DRY_RUN=1 BASE_RUN_ID=exp019_seed44_fold0_full_dryrun EXP019_CONSISTANCY_SIX_RANK_RUN_ID=exp019_seed44_fold0_consistancy_six_rank_dryrun bash rpcf/run_exp019_consistancy_six_rank.sh`
+    通过。
+  - 新版 full six-rank dry-run：
+    `SEED=44 DRY_RUN=1 EXP019_RUN_ID=exp019_seed44_fold0_full_sixrank_dryrun bash rpcf/run_exp019.sh`
+    通过。
+- **正式命令：**
+  ```bash
+  nohup setsid bash -lc \
+    "cd /home/yhj/pythonProject/EEGAP && \
+     SEED=44 EXP019_RUN_ID=exp019_seed44_fold0_full_sixrank_20260617_2114 \
+     bash rpcf/run_exp019.sh" \
+    > logs/exp019/exp019_seed44_fold0_full_sixrank_20260617_2114/controller.log \
+    2>&1 < /dev/null &
+  ```
+- **正式启动记录：**
+  - 旧链式 run `exp019_seed44_fold0_all_20260617_2108` 已在 stage1 停止；
+    停止原因：用户要求把 full five-method 内部的 consistancy 改为 six-rank 版本。
+  - 新启动时间：2026-06-17 21:14（Asia/Shanghai）
+  - run id：`exp019_seed44_fold0_full_sixrank_20260617_2114`
+  - controller PID：`321947`
+  - controller log：
+    `logs/exp019/exp019_seed44_fold0_full_sixrank_20260617_2114/controller.log`
+- **结果：**
+  - 完成时间：2026-06-18 22:28（Asia/Shanghai）
+  - 汇总表：
+    `logs/exp019/exp019_seed44_fold0_full_sixrank_20260617_2114/five_methods/five_methods_table.md`
+  - JSON：
+    `logs/exp019/exp019_seed44_fold0_full_sixrank_20260617_2114/five_methods/five_methods_summary.json`
+
+### EXP-020：eps=0.05 五方法三 seed 公平复验
+
+- **日期：** 2026-06-21 起
+- **状态：** 运行中
+- **相关 idea：** `IDEA-008`
+- **目的：**
+  - 检验 EXP-019 的五方法结论在更强扰动 `eps=0.05` 下是否稳定。
+- **统一设置：**
+  - dataset/model：`thubenchmark / EEGNet`
+  - split：seed42/43/44，fold0，no-EA
+  - 方法：Madry AT、consistancy six-rank、RPCF selective、
+    RPCF all-layers、RPCF rank-weight uniform
+  - attack：各方法自身 white-box AutoAttack，`eps=0.05`
+  - consistancy/RPCF 训练 rank：`15,20,25,30,35,40`
+  - 训练 cache：n512；最终净化：同 seed n512 子集、rank25/30
+  - 除 epsilon 和独立输出目录外，其余参数与 EXP-019 相同。
+- **实现：**
+  - 单 seed pipeline：`rpcf/run_exp020.sh`
+  - 三 seed 串行调度：`rpcf/run_exp020_all_seeds.sh`
+  - 输出隔离到 `logs/exp020`、`ad_data/exp020` 和
+    `purified_data/exp020`，不复用 eps0.03 产物。
+- **正式命令：**
+  ```bash
+  EXP020_RUN_TAG=20260621_0839 \
+  EXP020_CHAIN_ID=exp020_eps0p05_seeds42-44_20260621_0839 \
+  nohup setsid bash rpcf/run_exp020_all_seeds.sh \
+    > logs/exp020/exp020_eps0p05_seeds42-44_20260621_0839/controller.log \
+    2>&1 < /dev/null &
+  ```
+- **正式启动记录：**
+  - 启动时间：2026-06-21 08:39（Asia/Shanghai）
+  - chain id：`exp020_eps0p05_seeds42-44_20260621_0839`
+  - chain controller PID：`8204`
+  - seed42 run：`exp020_seed42_fold0_eps0p05_20260621_0839`
+  - seed43 run：`exp020_seed43_fold0_eps0p05_20260621_0839`
+  - seed44 run：`exp020_seed44_fold0_eps0p05_20260621_0839`
+  - 当前状态：seed42 `stage1_train_madry_at` 运行中。
+  - chain log：
+    `logs/exp020/exp020_eps0p05_seeds42-44_20260621_0839/controller.log`
 - **结果：**
   - Pending

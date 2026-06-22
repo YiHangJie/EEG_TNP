@@ -66,12 +66,15 @@
   - `evaluate_attack.py`、`evaluate_purification.py`、`summarize.py`：分别负责 white-box attack、逐 rank 净化评估和 CSV/JSON 汇总。
   - `run_rpcf_pipeline.sh`：七阶段可续跑 pipeline，支持 `SMOKE`、`DRY_RUN`、`START_STAGE`、`STOP_STAGE` 和 `SKIP_EXISTING`。
   - `compare_exp018.py`、`run_exp018.sh`：执行 EXP-018 三方法 seed42 全流程重跑；统一训练 AT、训练 consistancy/RPCF、生成各自 white-box AutoAttack，并严格校验同一 n512 测试子集上的 rank25/30 净化结果。
+  - `run_exp018_consistancy_six_rank.sh`：EXP-018 续跑脚本；复用 seed42 AT/RPCF 正式产物，只把 consistancy 的训练增强从 rank25/30 改为 rank15/20/25/30/35/40，随后重跑 consistancy checkpoint、white-box AutoAttack、rank25/30 净化和五方法汇总。
   - `run_exp018_rpcf_rerun.sh`：复用 EXP-018 的 AT、六-rank cache 和已有对照产物，只重跑新版 RPCF sensitivity、fine-tuning、white-box attack、rank25/30 净化与公平汇总。
   - `run_exp018_rpcf_all_layers.sh`：EXP-018 的 `RPCF w.o. sensitivity layer selection` 消融，保持数据、损失、rank curriculum 和评估不变，仅通过 `--all_layers` 微调全模型。
   - `run_exp018_rpcf_static_ranks.sh`：EXP-018 的 `RPCF w.o. rank schedule` 消融，保留 sensitive-layer selection，仅通过 `--static_rank_weights` 将六个 rank 权重固定为 `1/6`。
   - `compare_exp018_five_methods.py`：只读复用公平比较 `summary.json`，严格校验实验协议、完整测试集样本数和净化子集 `source_indices`，统一输出 Madry AT、consistancy、RPCF selective、RPCF all-layers、RPCF rank-weight uniform 五方法长表、宽表和 Markdown 表。
   - `run_exp019.sh`：EXP-019 五方法 seed43/fold0 复验 pipeline；统一生成 AT/consistancy、三个 RPCF 变体、五组 white-box AutoAttack、五组 rank25/30 净化和最终严格汇总，支持 smoke、dry-run 与断点续跑。
   - `run_exp019_consistancy_six_rank.sh`：EXP-019 续跑脚本；复用原 seed43 AT/RPCF 产物，只把 consistancy 的训练增强从 rank25/30 改为与 RPCF 一致的 rank15/20/25/30/35/40，随后重跑 consistancy checkpoint、white-box AutoAttack、rank25/30 净化和五方法汇总。
+  - `run_exp020.sh`：EXP-020 的 eps0.05 五方法复验 pipeline；完整复制 EXP-019 six-rank 公平对比协议，但将所有训练、攻击和评估的 epsilon 固定为 `0.05`，产物隔离写入 `exp020`。
+  - `run_exp020_all_seeds.sh`：按 seed42/43/44 串行调度 EXP-020，避免单 GPU 并发，并为每个 seed 保留独立 controller log。
   - 默认 rank 为 `15,20,25,30,35,40`，正式长实验必须通过 `nohup` 后台启动。
 
 - `train_AT_ea_forward.py`
@@ -86,6 +89,10 @@
 - `collect_log.py`
   - 解析 `log_purify/` 下的净化日志，导出 Excel，并可生成对比图。
   - 默认示例输出包括 `purify_summary.xlsx` 和 `plots/` 下的图。
+
+- `tools/exp_status.py`
+  - 只读汇总 `logs/*/<run_id>` 下的 PID、阶段日志、错误和最终 summary。
+  - 只有与当前 run id 匹配的最终完成日志，或 controller 退出后存在最终 summary，才会标记为 `completed`；中间 comparison summary 不代表整个 run 完成。
 
 - `tensor_ring_rank_analysis/analyze_tr_rank_predictions.py`
   - 分析 Tensor Ring rank 与预测表现相关的实验脚本。
