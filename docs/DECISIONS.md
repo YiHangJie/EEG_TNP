@@ -409,3 +409,61 @@
   - `IDEA-007`
 - **相关实验：**
   - `EXP-019`
+
+### DEC-017：RPCF_AT 用在线对抗训练恢复原始鲁棒性
+
+- **日期：** 2026-06-24，2026-06-25 完成三 seed 更新
+- **背景：**
+  - `EXP-021` 在 seed42/43/44、fold0、eps0.03 下，为 selective RPCF 增加
+    完整训练集在线 Madry AT，并保持各 seed 的 sensitivity layers、六-rank
+    cache 和动态 rank schedule 不变。
+- **结论：**
+  - RPCF_AT 的完整测试集 AutoAttack 三 seed均值为 `78.65±0.72%`，相比普通
+    RPCF 的 `70.91±1.85%` 平均提高 `7.74` 个百分点，并与 Madry AT 的
+    `78.37±1.00%` 基本持平。
+  - RPCF_AT 在三个 seed 上均提高普通 RPCF 的 full AutoAttack；逐 seed增益为
+    `5.71/7.74/9.76` 个百分点。
+  - rank25/30 purified adversarial 三 seed均值为 `83.20%/82.81%`，相比普通
+    RPCF 分别提高 `0.98/1.24` 个百分点，并超过 Madry AT 和 six-rank
+    consistancy。
+  - 完整测试集 clean accuracy 三 seed均值从普通 RPCF 的 `93.89%` 降至
+    `92.78%`；rank25/30 purified clean 也平均下降约 `0.98/0.91` 个百分点。
+- **决策：**
+  - RPCF_AT 替代只依赖固定 `x_adv` cache 的普通 RPCF，作为后续 RPCF 主训练
+    配置和默认对照。
+  - 当前证据支持“RPCF_AT 同时保留 AT 级别原始鲁棒性，并提高净化后鲁棒性”，
+    但需要明确其约 `1` 个百分点的 clean accuracy 代价。
+  - 当前结论已通过三个 seed，但仍只覆盖 thubenchmark/EEGNet/fold0/eps0.03；
+    跨 fold、模型、数据集和 epsilon 的泛化仍需验证。
+- **相关 idea：**
+  - `IDEA-009`
+- **相关实验：**
+  - `EXP-021`
+
+### DEC-018：RPCF_AT 在 eps0.05 下继续作为 RPCF 主配置
+
+- **日期：** 2026-06-26
+- **背景：**
+  - `EXP-022` 在 thubenchmark/EEGNet/fold0、seed42/43/44、eps0.05 下复用
+    EXP-020 的 AT checkpoint、六-rank cache 和 sensitivity，重新执行
+    RPCF_AT 微调和公平评估。
+- **结论：**
+  - RPCF_AT 的 full AutoAttack 三 seed均值为 `68.37±0.42%`，相比普通 RPCF
+    的 `49.13±1.10%` 提高 `19.25` 个百分点，并与 Madry AT 的
+    `68.81±0.41%` 基本持平。
+  - rank25/30 purified adversarial accuracy 为 `79.36±1.66%/78.58±1.24%`，
+    相比普通 RPCF 提高 `4.04/5.86` 个百分点，相比 Madry AT 提高
+    `8.01/7.68` 个百分点。
+  - RPCF_AT 的 full clean 为 `92.30±0.84%`，相比普通 RPCF 下降约 `1.07`
+    个百分点，但与 Madry AT 的 `92.34±1.13%` 基本相同。
+- **决策：**
+  - eps0.03 和 eps0.05 的三 seed 证据一致支持 RPCF_AT 替代普通 RPCF。
+  - 后续主实验不再将无在线 AT 的普通 RPCF 作为主方法，只保留为必要消融。
+  - RPCF_AT 的核心表述应是：保持 Madry AT 级别未净化鲁棒性，同时显著提高
+    EEG_TNP 净化后的鲁棒准确率。
+  - 下一步优先扩展 backbone、数据集和 fold，而不是继续在
+    thubenchmark/EEGNet/fold0 上增加 seed。
+- **相关 idea：**
+  - `IDEA-010`
+- **相关实验：**
+  - `EXP-022`

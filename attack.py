@@ -35,6 +35,10 @@ def parse_args():
     parser.add_argument('--fold', type=int, default=0, help='which fold to use')
     parser.add_argument('--attack', type=str, default='fgsm', choices=['fgsm', 'pgd', 'cw', 'autoattack'], help='choose attack')
     parser.add_argument('--eps', type=float, default=0.1, help='attack budget, default is 8/255')
+    parser.add_argument('--pgd_steps', type=int, default=None,
+                        help='optional PGD iteration count; default keeps attack.pgd.PGD behavior')
+    parser.add_argument('--pgd_alpha', type=float, default=None,
+                        help='optional PGD step size; default keeps attack.pgd.PGD behavior')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
     parser.add_argument('--attack_sample_num', type=int, default=None,
                         help='optional random subset size for attack smoke tests; default attacks the full test split')
@@ -253,6 +257,11 @@ if __name__ == '__main__':
     }
     if args.attack == 'autoattack':
         attack_kwargs['seed'] = args.seed
+    if args.attack == 'pgd':
+        if args.pgd_steps is not None:
+            attack_kwargs['steps'] = args.pgd_steps
+        if args.pgd_alpha is not None:
+            attack_kwargs['alpha'] = args.pgd_alpha
     attack = attack_dict[args.attack](model, **attack_kwargs)
     log_cuda_memory("after attack init", device)
 

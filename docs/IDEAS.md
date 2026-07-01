@@ -251,3 +251,132 @@
   - `EXP-020`：运行中
 - **备注：**
   - 除 epsilon 和独立产物目录外，其余超参数与 EXP-019 保持一致。
+
+### IDEA-009：RPCF_AT 在线对抗训练与多-rank净化适配
+
+- **状态：** 已测试
+- **动机：**
+  - 现有 RPCF 只重复使用初始 AT checkpoint 生成的固定 `x_adv`，随着微调参数变化，
+    固定对抗视图不再持续追踪当前决策边界，可能导致未净化 white-box 鲁棒性下降。
+- **核心假设：**
+  - 在每个 RPCF epoch 前对完整原始训练集执行在线 Madry PGD，可以减少基础鲁棒性
+    遗忘，同时保留多-rank净化分布上的适配收益。
+- **方法：**
+  - 每个 epoch 先基于当前模型生成 10-step PGD，对完整训练 split 优化 adversarial CE。
+  - 随后在已有 n512 六-rank cache 上执行原 RPCF clean、clean-purified 和
+    adversarial-purified CE/KL 损失及动态 rank curriculum。
+  - cache 阶段移除固定 `x_adv` 的 CE/KL，避免与在线 Madry AT 重复优化。
+  - sensitive-layer selection、冻结 BatchNorm、优化器和最终 epoch 保存策略保持不变。
+- **预期实现：**
+  - 在 `rpcf/finetune.py` 增加默认关闭的 `--online_madry_at` 模式。
+  - 新增 `rpcf/run_exp021_rpcf_at.sh`，复用 EXP-018 seed42 的已有训练缓存。
+- **评估指标：**
+  - full clean、full AutoAttack、rank25/30 purified clean/adversarial accuracy。
+  - 与 Madry AT、six-rank consistancy 和原 RPCF selective 对比。
+- **风险：**
+  - selective layers 的有限容量可能不足以同时拟合在线攻击与多-rank净化分布。
+  - 在线 AT 可能降低 RPCF 当前较高的 clean accuracy，或削弱净化后优势。
+  - 与 EXP-020 并发运行会延长耗时，并可能造成 GPU 显存竞争。
+- **相关实验：**
+  - `EXP-021`：seed42/43/44 已完成
+- **备注：**
+  - 第一轮只测试 selective + dynamic rank schedule，不同时运行 all-layers 或 uniform 消融。
+
+### IDEA-010：RPCF_AT 在 eps=0.05 下的三 seed 复验
+
+- **状态：** 已测试
+- **动机：**
+  - EXP-021 已证明 RPCF_AT 在 `eps=0.03` 下能够恢复普通 RPCF 丢失的原始输入
+    鲁棒性，并提高 rank25/30 净化后的平均鲁棒准确率。
+  - EXP-020 显示普通 RPCF 在 `eps=0.05` 下的 full AutoAttack 明显退化，需要
+    验证在线 Madry AT 是否在更强攻击下仍能稳定修复该问题。
+- **核心假设：**
+  - RPCF_AT 在 `eps=0.05` 下仍能将 full AutoAttack 恢复到 Madry AT 附近，
+    同时保留或改善普通 RPCF 的净化后 adversarial accuracy。
+- **方法：**
+  - 复用 EXP-020 seed42/43/44 的 Madry AT checkpoint、n512 六-rank RPCF
+    cache、sensitivity，以及 AT/consistancy 的 rank25/30 净化结果。
+  - 从各 seed 的 AT checkpoint 重新执行 100 epochs selective RPCF_AT。
+  - 在线 PGD 使用完整训练 split、10 steps、step size `0.01=eps/5`。
+  - 对每个 RPCF_AT checkpoint 生成自身 white-box AutoAttack，并执行 n512
+    rank25/30 净化评估。
+- **预期实现：**
+  - 新增 `rpcf/run_exp022_rpcf_at.sh` 和
+    `rpcf/run_exp022_all_seeds.sh`。
+  - 产物隔离到 `logs/exp022`、`ad_data/exp022` 和
+    `purified_data/exp022`。
+- **评估指标：**
+  - full clean、full AutoAttack、rank25/30 purified clean/adversarial accuracy。
+  - 与 EXP-020 的 Madry AT、six-rank consistancy 和普通 RPCF selective 对比。
+- **风险：**
+  - 更强在线攻击可能造成 clean accuracy 进一步下降。
+  - selective layers 容量可能不足以同时适配 `eps=0.05` 原始攻击和净化分布。
+- **相关实验：**
+  - `EXP-022`：seed42/43/44 已完成
+- **备注：**
+  - 不重新生成训练 cache 或 sensitivity，避免重复 EXP-020 的高成本阶段。
+
+### IDEA-011：EEG_TNP + RPCF_AT 的 BPDA+PGD adaptive attack
+
+- **状态：** 已实现，smoke 已通过，正式实验待运行
+- **动机：**
+  - EXP-021/022 的主结果使用“先攻击模型、再离线净化”的评估协议，攻击未直接穿过
+    EEG_TNP 净化器。
+  - 为了评估 EEG_TNP+RPCF_AT 组合防御在 adaptive white-box 假设下的强度，需要
+    将 EEG_TNP 放入攻击循环。
+- **核心假设：**
+  - EEG_TNP 内部包含非可微或高成本优化过程，可用 BPDA 将其 backward 近似为恒等
+    变换；forward 仍保持真实净化，从而给出更严格的 adaptive attack 压力测试。
+- **方法：**
+  - 复用 EXP-021 seed42/43/44 已完成的 RPCF_AT checkpoint，不重新微调。
+  - 对 rank25 和 rank30 分别执行 rank-specific BPDA+PGD-10。
+  - 每轮 PGD forward 为 `RPCF_AT(EEG_TNP(x_adv))`，backward 对 EEG_TNP 使用
+    identity gradient。
+  - epsilon 固定为 `0.03`，PGD step size 为 `0.006=eps/5`，不使用 random
+    start，不额外 clamp 数据范围。
+  - 测试子集为同 seed/fold 的 n512，抽样规则继续使用
+    `stable_subset_indices(len(test), 512, seed, fold)`。
+- **预期实现：**
+  - 新增 `rpcf/evaluate_bpda_pgd.py`，通过自定义 autograd wrapper 实现 BPDA。
+  - 新增 `rpcf/run_exp023_bpda_pgd.sh` 和 `rpcf/run_exp023_all_seeds.sh`。
+  - 新增 `rpcf/compare_exp023.py` 汇总三 seed、rank25/30 结果，并可对照 EXP-021
+    非 adaptive 净化结果。
+- **评估指标：**
+  - BPDA purified clean accuracy、BPDA purified adversarial accuracy、attack MSE。
+  - 与 EXP-021 同 seed、同 rank 的非 adaptive purified adversarial accuracy 对比。
+- **风险：**
+  - EEG_TNP 在 PGD 内循环中开销极高，n512×rank25/30×三 seed 可能耗时很长。
+  - BPDA identity gradient 是近似攻击，不等价于真实可微净化器梯度。
+  - rank-specific 攻击结果不能跨 rank 复用，否则会低估 adaptive attack 强度。
+- **相关实验：**
+  - `EXP-023`：Pending
+
+### IDEA-012：RPCF_AT 在其他 backbone 上的泛化测试
+
+- **状态：** 实现中
+- **动机：**
+  - EEGNet 上的 RPCF_AT 已完成三 seed 与 adaptive attack 检查，但仍需要确认方法收益是否依赖特定 backbone。
+  - TSCeption、ATCNet、Conformer 的结构差异较大，可用于评估 purification-sensitive layer selection 和在线 AT 的泛化性。
+- **核心假设：**
+  - 从各 backbone 的 Madry AT checkpoint 出发，RPCF_AT 仍能学习对 rank25/30 EEG_TNP 净化分布的适配。
+  - 若收益只在 EEGNet 上出现，则 RPCF_AT 的结论需要收缩到模型特定现象。
+- **方法：**
+  - 数据集固定为 `thubenchmark`，no-EA subject split，fold0，`eps=0.03`，seed42。
+  - backbone 覆盖 `tsception`、`atcnet`、`conformer`。
+  - 每个 backbone 先训练 Madry AT，再生成六 rank RPCF cache，分析 sensitivity，执行 selective RPCF_AT 在线微调。
+  - 对 Madry AT 和 RPCF_AT 分别执行 white-box AutoAttack 和 rank25/30 净化测试。
+  - 同时训练 clean、TRADES、FBF baseline，并在同一攻击协议下评估。
+- **预期实现：**
+  - 新增 `rpcf/run_exp024_backbone.sh`：单 backbone 可续跑 pipeline。
+  - 新增 `rpcf/run_exp024_all_backbones.sh`：按 backbone 串行调度。
+  - 新增 `rpcf/compare_exp024.py`：汇总 attack、purification 和 RPCF_AT 诊断产物。
+- **评估指标：**
+  - full clean accuracy、full AutoAttack accuracy。
+  - rank25/30 purified clean/adversarial accuracy 与 MSE。
+  - baseline clean/TRADES/FBF 的 clean/AutoAttack accuracy。
+- **风险：**
+  - 三个 backbone 的从零训练、六 rank cache 和净化评估成本较高。
+  - 不同 backbone 的层命名和模块结构可能影响 sensitivity hook 覆盖，需要用 smoke 或早期日志确认。
+  - seed42 单 seed 只能作为 backbone 泛化的初步证据，不能替代跨 seed 统计。
+- **相关实验：**
+  - `EXP-024`：Pending

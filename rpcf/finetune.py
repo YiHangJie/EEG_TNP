@@ -63,6 +63,25 @@ def parse_args():
     parser.add_argument("--lambda_pur", type=float, default=0.2)
     parser.add_argument("--lambda_adv_pur", type=float, default=0.5)
     parser.add_argument("--pgd_steps", type=int, default=10)
+    parser.add_argument(
+        "--online_madry_at",
+        action="store_true",
+        help="每个 epoch 先在完整训练集上执行在线 Madry PGD 对抗训练。",
+    )
+    parser.add_argument("--online_at_batch_size", type=int, default=128)
+    parser.add_argument("--online_at_pgd_steps", type=int, default=10)
+    parser.add_argument(
+        "--online_at_step_size",
+        type=float,
+        default=None,
+        help="在线 PGD 步长；默认使用 epsilon / 5。",
+    )
+    parser.add_argument(
+        "--online_train_sample_num",
+        type=int,
+        default=None,
+        help="仅用于 smoke；默认使用完整训练 split。",
+    )
     parser.add_argument("--gpu_id", type=int, default=0)
     parser.add_argument("--all_layers", action="store_true")
     parser.add_argument("--static_rank_weights", action="store_true")
@@ -137,6 +156,79 @@ def rank_weighted_kl(
     return (losses * rank_weights.view(1, rank_count)).sum(dim=1).mean()
 
 
+def pgd_adversarial_examples(
+    model,
+    x,
+    labels,
+    epsilon,
+    step_size,
+    steps,
+    random_start=True,
+):
+    """基于当前模型在线生成 L∞ PGD 对抗样本。"""
+    x_adv = x.detach()
+    if random_start:
+        x_adv = x_adv + torch.empty_like(x_adv).uniform_(-epsilon, epsilon)
+    for _ in range(steps):
+        x_adv.requires_grad_()
+        with torch.enable_grad():
+            loss = F.cross_entropy(model(x_adv), labels)
+        gradient = torch.autograd.grad(loss, x_adv)[0]
+        x_adv = x_adv.detach() + step_size * gradient.sign()
+        perturbation = torch.clamp(x_adv - x, min=-epsilon, max=epsilon)
+        x_adv = (x + perturbation).detach()
+    return x_adv
+
+
+def train_epoch_online_madry(
+    model,
+    loader,
+    optimizer,
+    device,
+    selected_layers,
+    all_layers,
+    args,
+):
+    """在原始训练 split 上执行在线 Madry AT，只优化 adversarial CE。"""
+    model.train()
+    set_frozen_batchnorm_eval(
+        model,
+        selected_layers=selected_layers,
+        all_layers=all_layers,
+    )
+    total_loss = 0.0
+    total_samples = 0
+    step_size = (
+        args.online_at_step_size
+        if args.online_at_step_size is not None
+        else args.epsilon / 5.0
+    )
+    for x, labels in loader:
+        x = x.to(device)
+        labels = labels.to(device)
+        x_adv = pgd_adversarial_examples(
+            model,
+            x,
+            labels,
+            epsilon=args.epsilon,
+            step_size=step_size,
+            steps=args.online_at_pgd_steps,
+            random_start=True,
+        )
+        optimizer.zero_grad(set_to_none=True)
+        loss = F.cross_entropy(model(x_adv), labels)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(
+            (parameter for parameter in model.parameters() if parameter.requires_grad),
+            max_norm=0.01,
+        )
+        optimizer.step()
+        batch_size = labels.size(0)
+        total_loss += loss.item() * batch_size
+        total_samples += batch_size
+    return total_loss / total_samples
+
+
 def train_epoch(
     model,
     loader,
@@ -146,6 +238,7 @@ def train_epoch(
     selected_layers,
     all_layers,
     args,
+    use_cached_adv=True,
 ):
     model.train()
     set_frozen_batchnorm_eval(
@@ -180,8 +273,6 @@ def train_epoch(
             teacher_probs = F.softmax(
                 clean_logits.detach() / args.consistancy_temperature, dim=1
             )
-        adv_logits = model(x_adv)
-        adv_ce = F.cross_entropy(adv_logits, labels)
         clean_pur_logits = model(
             x_pur_by_rank.reshape(batch_size * rank_count, *sample_shape)
         )
@@ -194,9 +285,15 @@ def train_epoch(
         adv_pur_ce = rank_weighted_ce(
             adv_pur_logits, labels, rank_count, rank_weights
         )
-        adv_kl = kl_to_clean_teacher(
-            adv_logits, teacher_probs, args.consistancy_temperature
-        ).mean()
+        if use_cached_adv:
+            adv_logits = model(x_adv)
+            adv_ce = F.cross_entropy(adv_logits, labels)
+            adv_kl = kl_to_clean_teacher(
+                adv_logits, teacher_probs, args.consistancy_temperature
+            ).mean()
+        else:
+            adv_ce = clean_ce.new_tensor(0.0)
+            adv_kl = clean_ce.new_tensor(0.0)
         clean_pur_kl = rank_weighted_kl(
             clean_pur_logits,
             teacher_probs,
@@ -241,10 +338,22 @@ def train_epoch(
 
 def main():
     args = parse_args()
-    if args.epochs <= 0 or args.batch_size <= 0:
+    if (
+        args.epochs <= 0
+        or args.batch_size <= 0
+        or args.online_at_batch_size <= 0
+        or args.online_at_pgd_steps <= 0
+    ):
         raise ValueError("epochs and batch_size must be positive.")
     if args.consistancy_temperature <= 0:
         raise ValueError("--consistancy_temperature must be positive.")
+    if args.online_at_step_size is not None and args.online_at_step_size <= 0:
+        raise ValueError("--online_at_step_size must be positive when provided.")
+    if (
+        args.online_train_sample_num is not None
+        and args.online_train_sample_num <= 0
+    ):
+        raise ValueError("--online_train_sample_num must be positive when provided.")
     seed_everything(args.seed)
     device = torch.device(f"cuda:{args.gpu_id}" if torch.cuda.is_available() else "cpu")
     os.makedirs(os.path.dirname(args.output_checkpoint) or ".", exist_ok=True)
@@ -271,7 +380,7 @@ def main():
         args.sensitivity_path, args, cache
     )
     dataset, info = DATASET_LOADERS[args.dataset]()
-    _, val_dataset, _, split_path = prepare_subject_fold(
+    raw_train_dataset, val_dataset, _, split_path = prepare_subject_fold(
         dataset_name=args.dataset,
         dataset=dataset,
         info=info,
@@ -301,6 +410,30 @@ def main():
         shuffle=True,
         num_workers=0,
     )
+    online_train_loader = None
+    online_train_sample_num = len(raw_train_dataset)
+    if args.online_madry_at:
+        online_train_dataset = raw_train_dataset
+        if args.online_train_sample_num is not None:
+            online_train_sample_num = min(
+                args.online_train_sample_num, len(raw_train_dataset)
+            )
+            generator = torch.Generator().manual_seed(
+                args.seed + args.fold * 1000 + 17
+            )
+            indices = torch.randperm(
+                len(raw_train_dataset), generator=generator
+            )[:online_train_sample_num].tolist()
+            online_train_dataset = torch.utils.data.Subset(
+                raw_train_dataset, indices
+            )
+        online_train_loader = torch.utils.data.DataLoader(
+            online_train_dataset,
+            batch_size=args.online_at_batch_size,
+            shuffle=True,
+            num_workers=0,
+            collate_fn=eeg_classification_collate,
+        )
     val_loader = torch.utils.data.DataLoader(
         val_dataset,
         batch_size=args.eval_batch_size,
@@ -338,6 +471,17 @@ def main():
             temperature=args.rank_temperature,
             static=args.static_rank_weights,
         ).to(device)
+        online_at_loss = None
+        if online_train_loader is not None:
+            online_at_loss = train_epoch_online_madry(
+                model,
+                online_train_loader,
+                optimizer,
+                device,
+                selected_layers,
+                args.all_layers,
+                args,
+            )
         train_metrics = train_epoch(
             model,
             train_loader,
@@ -347,7 +491,10 @@ def main():
             selected_layers,
             args.all_layers,
             args,
+            use_cached_adv=not args.online_madry_at,
         )
+        if online_at_loss is not None:
+            train_metrics["online_at_loss"] = online_at_loss
         clean_metrics = evaluate_classifier(model, val_loader, device)
         robust_acc = evaluate_pgd(
             model,
@@ -394,8 +541,27 @@ def main():
         "selected_layers": selected_layers,
         "all_layers": args.all_layers,
         "static_rank_weights": args.static_rank_weights,
+        "online_madry_at": args.online_madry_at,
+        "online_at": {
+            "train_sample_num": (
+                online_train_sample_num if args.online_madry_at else 0
+            ),
+            "batch_size": args.online_at_batch_size,
+            "pgd_steps": args.online_at_pgd_steps,
+            "step_size": (
+                args.online_at_step_size
+                if args.online_at_step_size is not None
+                else args.epsilon / 5.0
+            ),
+            "random_start": True,
+            "loss": "adversarial_ce",
+        },
         "rank_temperature": args.rank_temperature,
-        "loss_rule": "clean-teacher consistancy CE + KL",
+        "loss_rule": (
+            "online Madry AT + purification-only clean-teacher consistancy CE + KL"
+            if args.online_madry_at
+            else "clean-teacher consistancy CE + KL"
+        ),
         "consistancy_temperature": args.consistancy_temperature,
         "loss_weights": {
             "clean_ce": args.clean_ce_weight,
@@ -406,6 +572,7 @@ def main():
             "pur_kl": args.lambda_pur,
             "adv_pur_kl": args.lambda_adv_pur,
         },
+        "cached_adv_loss_enabled": not args.online_madry_at,
         "trainable_stats": trainable_stats,
         "sensitivity_selected_param_ratio": sensitivity.get(
             "selected_param_ratio"
@@ -432,6 +599,7 @@ def main():
         "adv_ce",
         "clean_pur_ce",
         "adv_pur_ce",
+        "online_at_loss",
         "robust_acc",
         "clean_acc",
         "val_loss",

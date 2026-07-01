@@ -23,6 +23,8 @@
   - 测试集攻击与攻击前后评估入口。
   - 支持 `fgsm`、`pgd`、`cw`、`autoattack`。
   - 从 `checkpoints/` 加载模型，生成对抗样本，可保存到 `ad_data/`。
+  - `--attack pgd` 支持可选 `--pgd_steps` 和 `--pgd_alpha`；默认不传时保持
+    `attack/pgd.py` 原有 PGD 参数。
   - 日志写入 `log_attack/`。
 
 - `purify.py`
@@ -62,7 +64,7 @@
   - 训练/测试子集抽样严格复用 consistancy pipeline：`selection_seed = seed + fold * 1000`；fine-tuning shuffle 复用全局 `seed_everything(seed)`，不再添加 RPCF 专用 seed offset。
   - `generate_cache.py`：对训练子集只攻击一次，再对相同 `x/x_adv` 生成多 rank clean/adversarial purification，最终保存统一 `[N, R, ...]` cache；每个 rank 使用可续跑 work shard。
   - `analyze_sensitivity.py`：在逻辑层上计算 clean-anchor 的绝对 shift，并用 input/相邻逻辑层的 shift 比值计算层间相对敏感度，按 clean/adv-pur 等权组合分数选择 Top-K。
-  - `finetune.py`：冻结非敏感层和对应 BatchNorm 统计量，使用 clean-teacher consistancy CE+KL 与动态 rank curriculum 微调 AT checkpoint；固定训练满 epochs 并保存最终 epoch，不使用 validation early stopping。
+  - `finetune.py`：冻结非敏感层和对应 BatchNorm 统计量，使用 clean-teacher consistancy CE+KL 与动态 rank curriculum 微调 AT checkpoint；固定训练满 epochs 并保存最终 epoch，不使用 validation early stopping。显式开启 `--online_madry_at` 后，每个 epoch 会先在完整训练 split 上执行在线 PGD adversarial CE，再执行不含固定 `x_adv` 项的多-rank 净化适配损失。
   - `evaluate_attack.py`、`evaluate_purification.py`、`summarize.py`：分别负责 white-box attack、逐 rank 净化评估和 CSV/JSON 汇总。
   - `run_rpcf_pipeline.sh`：七阶段可续跑 pipeline，支持 `SMOKE`、`DRY_RUN`、`START_STAGE`、`STOP_STAGE` 和 `SKIP_EXISTING`。
   - `compare_exp018.py`、`run_exp018.sh`：执行 EXP-018 三方法 seed42 全流程重跑；统一训练 AT、训练 consistancy/RPCF、生成各自 white-box AutoAttack，并严格校验同一 n512 测试子集上的 rank25/30 净化结果。
@@ -75,6 +77,22 @@
   - `run_exp019_consistancy_six_rank.sh`：EXP-019 续跑脚本；复用原 seed43 AT/RPCF 产物，只把 consistancy 的训练增强从 rank25/30 改为与 RPCF 一致的 rank15/20/25/30/35/40，随后重跑 consistancy checkpoint、white-box AutoAttack、rank25/30 净化和五方法汇总。
   - `run_exp020.sh`：EXP-020 的 eps0.05 五方法复验 pipeline；完整复制 EXP-019 six-rank 公平对比协议，但将所有训练、攻击和评估的 epsilon 固定为 `0.05`，产物隔离写入 `exp020`。
   - `run_exp020_all_seeds.sh`：按 seed42/43/44 串行调度 EXP-020，避免单 GPU 并发，并为每个 seed 保留独立 controller log。
+  - `run_exp021_rpcf_at.sh`：按 seed42/43/44 复用 EXP-018/019 的 AT checkpoint、六-rank cache 和 sensitivity，只重跑 RPCF_AT selective 微调、自身 white-box AutoAttack、rank25/30 净化与三方法公平汇总。
+  - `run_exp021_seeds43_44.sh`：串行调度 EXP-021 seed43/44，避免单 GPU 并发。
+  - `run_exp022_rpcf_at.sh`：复用 EXP-020 eps0.05 的 AT checkpoint、六-rank cache、sensitivity 和已有对照净化结果，只重跑 RPCF_AT 微调、攻击与净化。
+  - `run_exp022_all_seeds.sh`：串行调度 EXP-022 seed42/43/44。
+  - `compare_exp022.py`：严格校验 EXP-020 与 EXP-022 的协议和净化子集，输出 Madry AT、six-rank consistancy、普通 RPCF selective、RPCF_AT 四方法汇总。
+  - `evaluate_bpda_pgd.py`、`run_exp023_bpda_pgd.sh`、`run_exp023_all_seeds.sh`、`compare_exp023.py`：EXP-023 的 EEG_TNP+RPCF_AT adaptive attack；BPDA forward 真实执行 rank25/30 EEG_TNP 净化，backward 将 EEG_TNP 视作恒等变换，并用 PGD-10 生成 rank-specific 对抗样本。
+  - `run_exp023_baseline_pgd10.sh`：EXP-023 baseline 补充脚本，复用
+    `attack.py` 在同一 n512 子集上评估 Madry/TRADES/FBF 面对 PGD-10 的性能。
+  - `run_exp023_train_baselines_then_pgd10.sh`：EXP-023 baseline 补全调度脚本；
+    等待 BPDA controller 结束后，先补训缺失的 seed43/44 TRADES/FBF baseline
+    checkpoint，再调用 `run_exp023_baseline_pgd10.sh` 评估 seed43/44 的
+    Madry/TRADES/FBF PGD-10。
+  - `run_exp024_backbone.sh`、`run_exp024_all_backbones.sh`、`compare_exp024.py`：
+    EXP-024 其他 backbone 扩展测试；对 `tsception`、`atcnet`、`conformer`
+    串行执行 Madry AT、RPCF cache/sensitivity、RPCF_AT 在线微调、AutoAttack、
+    rank25/30 净化测试，并训练/评估 clean、TRADES、FBF baseline。
   - 默认 rank 为 `15,20,25,30,35,40`，正式长实验必须通过 `nohup` 后台启动。
 
 - `train_AT_ea_forward.py`

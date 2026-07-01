@@ -1,4 +1,6 @@
 import unittest
+from copy import deepcopy
+from types import SimpleNamespace
 
 import numpy as np
 import torch
@@ -29,7 +31,13 @@ from rpcf.core import (
     validate_rpcf_cache,
 )
 from utils.reproducibility import seed_everything
-from rpcf.finetune import kl_to_clean_teacher, rank_weighted_kl
+from rpcf.finetune import (
+    kl_to_clean_teacher,
+    pgd_adversarial_examples,
+    rank_weighted_kl,
+    train_epoch,
+    train_epoch_online_madry,
+)
 
 
 class TinyRPCFModel(nn.Module):
@@ -44,6 +52,22 @@ class TinyRPCFModel(nn.Module):
 
 
 class RPCFCoreTest(unittest.TestCase):
+    @staticmethod
+    def _finetune_args():
+        return SimpleNamespace(
+            consistancy_temperature=2.0,
+            clean_ce_weight=1.0,
+            adv_ce_weight=1.0,
+            pur_ce_weight=0.5,
+            adv_pur_ce_weight=1.0,
+            lambda_adv=0.5,
+            lambda_pur=0.2,
+            lambda_adv_pur=0.5,
+            epsilon=0.03,
+            online_at_step_size=0.006,
+            online_at_pgd_steps=2,
+        )
+
     def _fair_payload(self, method="at"):
         return {
             "clean": torch.zeros(2, 1, 3, 4),
@@ -194,6 +218,162 @@ class RPCFCoreTest(unittest.TestCase):
             * weights
         ).sum()
         self.assertAlmostEqual(loss.item(), expected.item())
+
+    def test_online_pgd_respects_budget_and_uses_current_model(self):
+        class CountingModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = nn.Linear(2, 2)
+                self.calls = 0
+
+            def forward(self, x):
+                self.calls += 1
+                return self.linear(x)
+
+        model = CountingModel()
+        x = torch.tensor([[0.2, -0.1], [0.4, 0.3]])
+        labels = torch.tensor([0, 1])
+        torch.manual_seed(7)
+        x_adv = pgd_adversarial_examples(
+            model,
+            x,
+            labels,
+            epsilon=0.03,
+            step_size=0.006,
+            steps=3,
+            random_start=True,
+        )
+        self.assertGreaterEqual(model.calls, 3)
+        self.assertLessEqual((x_adv - x).abs().max().item(), 0.0300001)
+        self.assertFalse(x_adv.requires_grad)
+
+    def test_rpcf_at_cache_loss_ignores_fixed_adversarial_tensor(self):
+        args = self._finetune_args()
+        x = torch.tensor([[0.2, -0.1], [0.4, 0.3]])
+        labels = torch.tensor([0, 1])
+        x_pur = torch.stack([x * 0.8, x * 0.9], dim=1)
+        x_adv_pur = torch.stack([x * 0.7, x * 0.85], dim=1)
+        loader_a = torch.utils.data.DataLoader(
+            torch.utils.data.TensorDataset(
+                x, torch.zeros_like(x), x_pur, x_adv_pur, labels
+            ),
+            batch_size=2,
+            shuffle=False,
+        )
+        loader_b = torch.utils.data.DataLoader(
+            torch.utils.data.TensorDataset(
+                x, torch.full_like(x, 100.0), x_pur, x_adv_pur, labels
+            ),
+            batch_size=2,
+            shuffle=False,
+        )
+        model_a = nn.Linear(2, 2)
+        model_b = deepcopy(model_a)
+        optimizer_a = torch.optim.SGD(model_a.parameters(), lr=0.01)
+        optimizer_b = torch.optim.SGD(model_b.parameters(), lr=0.01)
+        weights = torch.tensor([0.5, 0.5])
+        metrics_a = train_epoch(
+            model_a,
+            loader_a,
+            optimizer_a,
+            torch.device("cpu"),
+            weights,
+            ["block1", "block2"],
+            True,
+            args,
+            use_cached_adv=False,
+        )
+        metrics_b = train_epoch(
+            model_b,
+            loader_b,
+            optimizer_b,
+            torch.device("cpu"),
+            weights,
+            ["block1", "block2"],
+            True,
+            args,
+            use_cached_adv=False,
+        )
+        self.assertEqual(metrics_a["adv_ce"], 0.0)
+        self.assertEqual(metrics_a["adv_kl"], 0.0)
+        self.assertAlmostEqual(metrics_a["loss"], metrics_b["loss"])
+        for parameter_a, parameter_b in zip(
+            model_a.parameters(), model_b.parameters()
+        ):
+            self.assertTrue(torch.allclose(parameter_a, parameter_b))
+
+    def test_original_rpcf_cache_loss_still_uses_fixed_adversarial_tensor(self):
+        args = self._finetune_args()
+        x = torch.tensor([[0.2, -0.1], [0.4, 0.3]])
+        labels = torch.tensor([0, 1])
+        x_pur = torch.stack([x * 0.8, x * 0.9], dim=1)
+        x_adv_pur = torch.stack([x * 0.7, x * 0.85], dim=1)
+        loaders = [
+            torch.utils.data.DataLoader(
+                torch.utils.data.TensorDataset(
+                    x, x_adv, x_pur, x_adv_pur, labels
+                ),
+                batch_size=2,
+                shuffle=False,
+            )
+            for x_adv in (torch.zeros_like(x), torch.full_like(x, 100.0))
+        ]
+        model_a = nn.Linear(2, 2)
+        model_b = deepcopy(model_a)
+        metrics = []
+        for model, loader in zip((model_a, model_b), loaders):
+            optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+            metrics.append(
+                train_epoch(
+                    model,
+                    loader,
+                    optimizer,
+                    torch.device("cpu"),
+                    torch.tensor([0.5, 0.5]),
+                    [],
+                    True,
+                    args,
+                )
+            )
+        self.assertGreater(metrics[0]["adv_ce"], 0.0)
+        self.assertNotAlmostEqual(metrics[0]["loss"], metrics[1]["loss"])
+
+    def test_online_madry_updates_only_selected_layers(self):
+        args = self._finetune_args()
+        model = TinyRPCFModel()
+        configure_trainable_layers(model, ["block2"])
+        frozen_weight = model.block1[0].weight.detach().clone()
+        frozen_running_mean = model.block1[1].running_mean.detach().clone()
+        selected_weight = model.block2[0].weight.detach().clone()
+        loader = torch.utils.data.DataLoader(
+            torch.utils.data.TensorDataset(
+                torch.tensor(
+                    [[0.2, -0.1], [0.4, 0.3], [-0.3, 0.1], [0.1, 0.5]]
+                ),
+                torch.tensor([0, 1, 0, 1]),
+            ),
+            batch_size=4,
+            shuffle=False,
+        )
+        optimizer = torch.optim.SGD(
+            (parameter for parameter in model.parameters() if parameter.requires_grad),
+            lr=0.05,
+        )
+        loss = train_epoch_online_madry(
+            model,
+            loader,
+            optimizer,
+            torch.device("cpu"),
+            ["block2"],
+            False,
+            args,
+        )
+        self.assertGreater(loss, 0.0)
+        self.assertTrue(torch.equal(model.block1[0].weight, frozen_weight))
+        self.assertTrue(
+            torch.equal(model.block1[1].running_mean, frozen_running_mean)
+        )
+        self.assertFalse(torch.equal(model.block2[0].weight, selected_weight))
 
     def test_top_40_percent_selection_is_deterministic(self):
         scores = {"b": 0.8, "a": 0.8, "c": 0.2, "d": 0.1}

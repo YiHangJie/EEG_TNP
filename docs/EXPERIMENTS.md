@@ -2504,8 +2504,8 @@
 
 ### EXP-020：eps=0.05 五方法三 seed 公平复验
 
-- **日期：** 2026-06-21 起
-- **状态：** 运行中
+- **日期：** 2026-06-21 至 2026-06-24
+- **状态：** 已完成
 - **相关 idea：** `IDEA-008`
 - **目的：**
   - 检验 EXP-019 的五方法结论在更强扰动 `eps=0.05` 下是否稳定。
@@ -2538,8 +2538,573 @@
   - seed42 run：`exp020_seed42_fold0_eps0p05_20260621_0839`
   - seed43 run：`exp020_seed43_fold0_eps0p05_20260621_0839`
   - seed44 run：`exp020_seed44_fold0_eps0p05_20260621_0839`
-  - 当前状态：seed42 `stage1_train_madry_at` 运行中。
+  - seed42 完成时间：2026-06-22 09:27（Asia/Shanghai）。
+  - seed43 完成时间：2026-06-23 10:31（Asia/Shanghai）。
+  - seed44 完成时间：2026-06-24 14:09（Asia/Shanghai）。
+  - 当前状态：三个 seed均已完成。
   - chain log：
     `logs/exp020/exp020_eps0p05_seeds42-44_20260621_0839/controller.log`
+- **seed43 结果：**
+  - 汇总表：
+    `logs/exp020/exp020_seed43_fold0_eps0p05_20260621_0839/five_methods/five_methods_table.md`
+  - JSON：
+    `logs/exp020/exp020_seed43_fold0_eps0p05_20260621_0839/five_methods/five_methods_summary.json`
+
+| Method | Full clean | Full AutoAttack | Rank 25 clean | Rank 25 adversarial | Rank 30 clean | Rank 30 adversarial |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Madry AT | 91.19% | 68.57% | 87.89% | 72.07% | 90.04% | 71.88% |
+| consistancy | 92.62% | 63.45% | 88.09% | 75.39% | 88.28% | 74.02% |
+| RPCF selective | 93.21% | 49.76% | 90.23% | 76.76% | 91.21% | 74.61% |
+| RPCF all-layers | 92.26% | 50.71% | 90.04% | 76.76% | 91.41% | 72.85% |
+| RPCF rank-weight uniform | 93.33% | 48.69% | 90.23% | 77.34% | 91.60% | 73.83% |
+
+- **seed43 阶段性观察：**
+  - 相比 `eps=0.03`，所有方法的未净化和净化后 adversarial accuracy 均下降，
+    符合攻击强度提高后的预期。
+  - Madry AT 仍保持最好的未净化 AutoAttack accuracy（`68.57%`）。
+  - RPCF 在净化分布上的适配优势更加明确：rank25 下三个 RPCF 变体均达到
+    `76.76%` 以上，优于 consistancy 的 `75.39%` 和 Madry AT 的 `72.07%`。
+  - rank30 下 RPCF selective 最好（`74.61%`），但相对 consistancy
+    （`74.02%`）优势较小；all-layers 则低于 consistancy。
+  - RPCF 的 full AutoAttack 下降到约 `49%~51%`，说明其收益高度依赖净化
+    前处理，原始输入空间的鲁棒性退化仍是主要代价。
+  - 三 seed 总结需等待 seed44 完成；当前结论仍为阶段性结果。
+
+### EXP-021：RPCF_AT eps0.03 三 seed 复验
+
+- **日期：** 2026-06-23 至 2026-06-24
+- **状态：** 已完成
+- **相关 idea：** `IDEA-009`
+- **目的：**
+  - 验证完整训练集在线 Madry AT 能否缓解原 RPCF 未净化 AutoAttack accuracy
+    下降，同时保留 rank25/30 净化后的性能优势。
+- **统一设置：**
+  - dataset/model：`thubenchmark / EEGNet`
+  - split：seed42/43/44，fold0，no-EA
+  - epsilon：`0.03`
+  - selective layers 与原 EXP-018 sensitivity 保持一致
+  - 在线 AT：完整 train split、10-step PGD、step size `0.006`、
+    batch size `128`、adversarial CE
+  - cache loss：n512、rank `15,20,25,30,35,40`，保留 clean、
+    clean-purified、adversarial-purified CE/KL，移除固定 `x_adv` CE/KL
+  - RPCF fine-tuning：100 epochs、AdamW、lr `1e-4`、weight decay `1e-4`
+  - 最终评估：完整 white-box AutoAttack、同 seed n512 rank25/30 净化
+- **复用产物：**
+  - AT checkpoint：
+    `checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.03_42_fold0_exp018_full_20260612_124131_at_best.pth`
+  - RPCF cache：
+    `purified_data/exp018/rpcf_train/exp018_full_20260612_124131_six_rank.pth`
+  - sensitivity：
+    `logs/exp018/exp018_rpcf_no_early_stop_20260614_2357/sensitivity.json`
+  - Madry AT 与 six-rank consistancy 的已有 rank25/30 净化产物。
+- **实现与验证：**
+  - pipeline：`rpcf/run_exp021_rpcf_at.sh`
+  - `rpcf/finetune.py` 的原模式默认行为不变；RPCF_AT 由
+    `--online_madry_at` 显式启用。
+  - `python -m py_compile rpcf/finetune.py` 通过。
+  - `bash -n rpcf/run_exp021_rpcf_at.sh` 通过。
+  - `conda run -n torch --no-capture-output python -m unittest test_rpcf.py`
+    通过，共 19 项测试。
+  - smoke run：
+    `exp021_rpcf_at_seed42_smoke_20260623_1259`。
+  - smoke 已完整通过 1 epoch RPCF_AT、2-sample AutoAttack 和
+    2-sample rank25/30 净化；history 确认 `online_at_loss` 已记录，
+    `cached_adv_loss_enabled=false`，固定 `adv_ce/adv_kl` 均为 0。
+- **正式命令：**
+  ```bash
+  EXP021_RUN_ID=exp021_rpcf_at_seed42_YYYYMMDD_HHMM \
+  nohup setsid bash rpcf/run_exp021_rpcf_at.sh \
+    > logs/exp021/exp021_rpcf_at_seed42_YYYYMMDD_HHMM/controller.log \
+    2>&1 < /dev/null &
+  ```
+- **正式启动记录：**
+  - 启动时间：2026-06-23 13:04（Asia/Shanghai）
+  - run id：`exp021_rpcf_at_seed42_20260623_1303`
+  - controller PID：`707704`
+  - 完成时间：2026-06-23 22:33（Asia/Shanghai）
+  - controller log：
+    `logs/exp021/exp021_rpcf_at_seed42_20260623_1303/controller.log`
+  - 与 EXP-020 seed44 并发运行；启动后总 GPU 显存占用约 `9.5/16 GB`，
+    仍有约 `6.4 GB` 余量。
 - **结果：**
-  - Pending
+  - 公平汇总：
+    `logs/exp021/exp021_rpcf_at_seed42_20260623_1303/comparison/summary.json`
+  - 完整测试集（n=840）上，RPCF_AT 的 clean / AutoAttack accuracy 为
+    `93.93% / 77.98%`；普通 RPCF 为 `95.00% / 72.26%`。RPCF_AT 的
+    未净化鲁棒准确率提高 `5.71` 个百分点，clean accuracy 降低 `1.07`
+    个百分点。
+  - 同一 n512 净化子集上，净化前 RPCF_AT 的 clean / AutoAttack accuracy
+    为 `94.53% / 78.91%`；普通 RPCF 为 `96.09% / 72.66%`。
+  - rank25 净化后，RPCF_AT 的 clean / adversarial accuracy 为
+    `93.16% / 84.38%`，相对普通 RPCF 的 `92.97% / 83.59%` 分别变化
+    `+0.20 / +0.78` 个百分点。
+  - rank30 净化后，RPCF_AT 的 clean / adversarial accuracy 为
+    `92.38% / 83.59%`，相对普通 RPCF 的 `93.75% / 84.18%` 分别变化
+    `-1.37 / -0.59` 个百分点。
+  - rank25/30 平均 purified adversarial accuracy 为 `83.98%`，普通 RPCF
+    为 `83.89%`，整体基本持平。在线 Madry AT 达到了恢复未净化鲁棒性的主要
+    目标，但没有形成稳定的净化后增益。
+- **运行备注：**
+  - 首次 full AutoAttack 使用 batch size 32 时因与 EXP-020 并发发生 OOM；
+    后续以 batch size 8 成功重跑并完成全部评估。
+- **seed43/44 补跑：**
+  - 主脚本已参数化支持 seed42/43/44，并将 full AutoAttack 默认 batch size
+    调整为 `8`，降低显存峰值和并发残留导致的 OOM 风险。
+  - seed43 复用 EXP-019 的 AT checkpoint、RPCF six-rank cache、sensitivity，
+    以及单独续跑的 six-rank consistancy checkpoint 和 rank25/30 净化结果。
+  - seed44 复用
+    `exp019_seed44_fold0_full_sixrank_20260617_2114` 的对应产物。
+  - 串行调度脚本：`rpcf/run_exp021_seeds43_44.sh`。
+  - 启动命令：
+    ```bash
+    EXP021_CHAIN_ID=exp021_rpcf_at_seeds43-44_YYYYMMDD_HHMM \
+    nohup setsid bash rpcf/run_exp021_seeds43_44.sh \
+      > logs/exp021/exp021_rpcf_at_seeds43-44_YYYYMMDD_HHMM/controller.log \
+      2>&1 < /dev/null &
+    ```
+  - 正式启动时间：2026-06-24 09:54（Asia/Shanghai）。
+  - chain id：`exp021_rpcf_at_seeds43-44_20260624_0955`。
+  - controller PID：`1138062`。
+  - seed43 完成时间：2026-06-24 13:25（Asia/Shanghai）。
+  - seed44 完成时间：2026-06-24 16:37（Asia/Shanghai）。
+  - controller log：
+    `logs/exp021/exp021_rpcf_at_seeds43-44_20260624_0955/controller.log`。
+- **seed43/44 结果：**
+
+| Seed | Method | Full clean | Full AutoAttack | Rank25 purified clean | Rank25 purified adv | Rank30 purified clean | Rank30 purified adv |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 43 | 普通 RPCF | 93.45% | 71.67% | 91.02% | 81.64% | 90.43% | 80.86% |
+| 43 | RPCF_AT | 91.79% | 79.40% | 88.28% | 82.23% | 90.23% | 81.84% |
+| 44 | 普通 RPCF | 93.21% | 68.81% | 91.02% | 81.45% | 91.60% | 79.69% |
+| 44 | RPCF_AT | 92.62% | 78.57% | 90.62% | 83.01% | 90.43% | 83.01% |
+
+- **三 seed 汇总（mean ± sample std）：**
+
+| Method | Full clean | Full AutoAttack | Rank25 purified clean | Rank25 purified adv | Rank30 purified clean | Rank30 purified adv |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Madry AT | 92.70±1.03% | 78.37±1.00% | 90.76±2.07% | 81.51±0.41% | 91.15±1.30% | 81.38±0.63% |
+| six-rank consistancy | 92.42±1.32% | 74.40±0.52% | 89.32±2.15% | 81.71±0.60% | 90.10±0.98% | 80.66±1.70% |
+| 普通 RPCF | 93.89±0.97% | 70.91±1.85% | 91.67±1.13% | 82.23±1.19% | 91.93±1.68% | 81.58±2.33% |
+| RPCF_AT | 92.78±1.08% | 78.65±0.72% | 90.69±2.44% | 83.20±1.09% | 91.02±1.19% | 82.81±0.90% |
+
+- **三 seed 结论：**
+  - 相比普通 RPCF，RPCF_AT 在 seed42/43/44 的 full AutoAttack 分别提高
+    `5.71/7.74/9.76` 个百分点，平均提高 `7.74±2.02` 个百分点；跨 seed
+    标准差也从 `1.85` 降至 `0.72`。
+  - RPCF_AT 的 full AutoAttack 三 seed 均值为 `78.65%`，与 Madry AT 的
+    `78.37%` 基本持平，说明在线 AT 稳定修复了普通 RPCF 的原始输入鲁棒性退化。
+  - 相比普通 RPCF，RPCF_AT 的 rank25/rank30 purified adversarial accuracy
+    平均分别提高 `0.98/1.24` 个百分点；六个 seed×rank 条件中有五个提高，
+    唯一下降是 seed42 rank30 的 `-0.59` 个百分点。
+  - RPCF_AT 的 rank25/rank30 purified adversarial 三 seed均值为
+    `83.20%/82.81%`，高于 Madry AT 的 `81.51%/81.38%`，也高于 six-rank
+    consistancy 的 `81.71%/80.66%`。
+  - 主要代价是 clean accuracy：相较普通 RPCF，full clean 平均下降
+    `1.11±0.54` 个百分点；purified clean 在 rank25/30 平均分别下降
+    `0.98/0.91` 个百分点。
+
+### EXP-022：RPCF_AT eps0.05 三 seed 复验
+
+- **日期：** 2026-06-25 至 2026-06-26
+- **状态：** 已完成
+- **相关 idea：** `IDEA-010`
+- **目的：**
+  - 验证 EXP-021 的 RPCF_AT 收益在更强 `eps=0.05` 下是否稳定。
+  - 检查在线 Madry AT 能否修复 EXP-020 普通 RPCF selective 的 full
+    AutoAttack 退化，同时保留 rank25/30 净化后优势。
+- **统一设置：**
+  - dataset/model：`thubenchmark / EEGNet`
+  - split：seed42/43/44，fold0，no-EA
+  - epsilon：`0.05`
+  - RPCF_AT：selective layers、dynamic rank schedule、100 epochs
+  - 在线 AT：完整训练 split、10-step PGD、step size `0.01=eps/5`、
+    batch size `128`
+  - cache loss：复用 n512 rank `15,20,25,30,35,40`，保留 clean、
+    clean-purified、adversarial-purified CE/KL，不使用固定 `x_adv` CE/KL
+  - 最终评估：自身完整 white-box AutoAttack、同 seed n512 rank25/30 净化
+- **复用 EXP-020 产物：**
+  - 每个 seed 的 Madry AT checkpoint。
+  - 每个 seed 的 RPCF six-rank cache 与 sensitivity。
+  - 每个 seed 的 Madry AT、six-rank consistancy checkpoint 和 rank25/30
+    净化结果，用于最终公平汇总。
+  - 不重新运行 AT 训练、cache 生成或 sensitivity 分析。
+- **预期输出：**
+  - 单 seed pipeline：`rpcf/run_exp022_rpcf_at.sh`
+  - 三 seed 串行调度：`rpcf/run_exp022_all_seeds.sh`
+  - 日志：`logs/exp022/`
+  - 攻击数据：`ad_data/exp022/`
+  - 净化结果：`purified_data/exp022/eval/`
+- **实现与验证：**
+  - `bash -n rpcf/run_exp022_rpcf_at.sh` 通过。
+  - `bash -n rpcf/run_exp022_all_seeds.sh` 通过。
+  - `python -m py_compile rpcf/compare_exp022.py` 通过。
+  - seed42/43/44 dry-run 均通过，且所有 EXP-020 复用产物存在。
+  - 四方法汇总器已使用 EXP-021 seed42 结果做协议兼容性验证，能够正确输出
+    Madry AT、six-rank consistancy、普通 RPCF selective 和 RPCF_AT。
+  - smoke run：`exp022_seed42_smoke_20260625_1458`。
+  - smoke 已完整通过 1 epoch RPCF_AT、2-sample AutoAttack 和
+    2-sample rank25/30 净化。
+- **正式命令：**
+  ```bash
+  EXP022_RUN_TAG=YYYYMMDD_HHMM \
+  EXP022_CHAIN_ID=exp022_rpcf_at_eps0p05_seeds42-44_YYYYMMDD_HHMM \
+  nohup setsid bash rpcf/run_exp022_all_seeds.sh \
+    > logs/exp022/exp022_rpcf_at_eps0p05_seeds42-44_YYYYMMDD_HHMM/controller.log \
+    2>&1 < /dev/null &
+  ```
+- **正式启动记录：**
+  - 启动时间：2026-06-25 15:00（Asia/Shanghai）。
+  - chain id：`exp022_rpcf_at_eps0p05_seeds42-44_20260625_1500`。
+  - controller PID：`15867`。
+  - seed42 run：`exp022_seed42_fold0_eps0p05_20260625_1500`。
+  - seed43 run：`exp022_seed43_fold0_eps0p05_20260625_1500`。
+  - seed44 run：`exp022_seed44_fold0_eps0p05_20260625_1500`。
+  - seed42 完成时间：2026-06-25 18:03（Asia/Shanghai）。
+  - seed43 完成时间：2026-06-25 21:06（Asia/Shanghai）。
+  - seed44 完成时间：2026-06-26 00:08（Asia/Shanghai）。
+  - controller log：
+    `logs/exp022/exp022_rpcf_at_eps0p05_seeds42-44_20260625_1500/controller.log`。
+- **结果：**
+  - 三个 seed 均成功生成 RPCF_AT checkpoint、自身 white-box AutoAttack、
+    rank25/30 净化结果和四方法严格汇总。
+
+| Seed | Method | Full clean | Full AutoAttack | Rank25 purified clean | Rank25 purified adv | Rank30 purified clean | Rank30 purified adv |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 42 | 普通 RPCF | 94.05% | 49.76% | 91.99% | 76.37% | 92.38% | 74.41% |
+| 42 | RPCF_AT | 93.21% | 68.33% | 90.82% | 79.30% | 91.41% | 79.30% |
+| 43 | 普通 RPCF | 93.21% | 49.76% | 90.23% | 76.76% | 91.21% | 74.61% |
+| 43 | RPCF_AT | 91.55% | 67.98% | 87.50% | 77.73% | 90.04% | 77.15% |
+| 44 | 普通 RPCF | 92.86% | 47.86% | 91.21% | 72.85% | 90.62% | 69.14% |
+| 44 | RPCF_AT | 92.14% | 68.81% | 90.23% | 81.05% | 90.23% | 79.30% |
+
+- **三 seed 汇总（mean ± sample std）：**
+
+| Method | Full clean | Full AutoAttack | Rank25 purified clean | Rank25 purified adv | Rank30 purified clean | Rank30 purified adv |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Madry AT | 92.34±1.13% | 68.81±0.41% | 89.52±1.44% | 71.35±0.63% | 90.56±0.49% | 70.90±1.37% |
+| six-rank consistancy | 92.58±0.07% | 62.10±1.44% | 89.32±1.08% | 75.20±0.70% | 90.17±1.66% | 74.54±0.49% |
+| 普通 RPCF | 93.37±0.61% | 49.13±1.10% | 91.15±0.88% | 75.33±2.15% | 91.41±0.90% | 72.72±3.10% |
+| RPCF_AT | 92.30±0.84% | 68.37±0.42% | 89.52±1.77% | 79.36±1.66% | 90.56±0.74% | 78.58±1.24% |
+
+- **结论：**
+  - 相比普通 RPCF，RPCF_AT 的 full AutoAttack 在 seed42/43/44 分别提高
+    `18.57/18.21/20.95` 个百分点，平均提高 `19.25±1.49` 个百分点。
+  - RPCF_AT 的 full AutoAttack 为 `68.37±0.42%`，与 Madry AT 的
+    `68.81±0.41%` 基本持平，说明在线 AT 在更强 `eps=0.05` 下仍稳定修复
+    原始输入鲁棒性退化。
+  - RPCF_AT 的 rank25/rank30 purified adversarial accuracy 为
+    `79.36±1.66%/78.58±1.24%`，相比普通 RPCF 平均提高
+    `4.04/5.86` 个百分点。
+  - 相比 Madry AT，RPCF_AT 的 rank25/rank30 purified adversarial accuracy
+    平均提高 `8.01/7.68` 个百分点；相比 six-rank consistancy 分别提高
+    `4.17/4.04` 个百分点。
+  - clean 代价仍存在：相较普通 RPCF，full clean 平均下降 `1.07` 个百分点，
+    rank25/30 purified clean 分别下降 `1.63/0.85` 个百分点；但 RPCF_AT 的
+    full clean 与 Madry AT 基本相同。
+
+### EXP-023：EEG_TNP + RPCF_AT 的 BPDA+PGD-10 adaptive attack
+
+- **日期：** 2026-06-26
+- **状态：** 已实现，smoke 已通过；正式三 seed 结果 Pending
+- **相关 idea：** `IDEA-011`
+- **目的：**
+  - 在 adaptive white-box 假设下评估 EXP-021 的 EEG_TNP+RPCF_AT 组合防御。
+  - 检查攻击直接穿过 EEG_TNP 净化器时，rank25/30 净化后鲁棒准确率是否仍能保持优势。
+- **统一设置：**
+  - dataset/model：`thubenchmark / EEGNet`
+  - split：seed42/43/44，fold0，no-EA
+  - checkpoint：复用 EXP-021 RPCF_AT，不重新微调
+  - attack：BPDA+PGD-10，`eps=0.03`，`pgd_alpha=0.006`
+  - BPDA：forward 真实 EEG_TNP 净化 + RPCF_AT 推理，backward 将 EEG_TNP 视作 identity
+  - ranks：rank25 和 rank30 分开攻击、分开汇总
+  - 样本量：n512，抽样规则为 `seed + fold * 1000`
+- **预期输出：**
+  - 单 seed pipeline：`rpcf/run_exp023_bpda_pgd.sh`
+  - 三 seed 串行调度：`rpcf/run_exp023_all_seeds.sh`
+  - baseline PGD-10 补充：`rpcf/run_exp023_baseline_pgd10.sh`
+  - 汇总器：`rpcf/compare_exp023.py`
+  - 日志：`logs/exp023/`
+  - adaptive attack artifact：`ad_data/exp023/`
+- **实现与验证：**
+  - 新增 `rpcf/evaluate_bpda_pgd.py`，通过 BPDA autograd wrapper 在 forward
+    中执行真实 EEG_TNP，并在 backward 中对 EEG_TNP 使用 identity gradient。
+  - 新增 `rpcf/run_exp023_bpda_pgd.sh` 和 `rpcf/run_exp023_all_seeds.sh`。
+  - 新增 `rpcf/compare_exp023.py`，支持单 seed 或三 seed 汇总，并可对照 EXP-021
+    非 adaptive 净化结果。
+  - 新增 `rpcf/run_exp023_baseline_pgd10.sh`，用于在同一 seed/fold/n512 子集上补跑
+    Madry/TRADES/FBF 面对 PGD-10 的 baseline 结果；`attack.py` 增加可选
+    `--pgd_steps` 和 `--pgd_alpha`，默认不传时保持原 PGD 行为。
+  ```bash
+  python -m py_compile rpcf/evaluate_bpda_pgd.py rpcf/compare_exp023.py
+  bash -n rpcf/run_exp023_bpda_pgd.sh
+  bash -n rpcf/run_exp023_all_seeds.sh
+  bash -n rpcf/run_exp023_baseline_pgd10.sh
+  DRY_RUN=1 EXP023_SEED=42 bash rpcf/run_exp023_bpda_pgd.sh
+  DRY_RUN=1 EXP023_BASELINE_RUN_ID=exp023_baseline_pgd10_seed42_dryrun \
+    bash rpcf/run_exp023_baseline_pgd10.sh
+  SMOKE=1 EXP023_SEED=42 EXP023_RUN_ID=exp023_seed42_smoke bash rpcf/run_exp023_bpda_pgd.sh
+  ```
+  - 以上静态检查和 dry-run 已通过。
+  - smoke run：`exp023_seed42_smoke_20260626_1100`，已成功生成 rank25/30 的
+    2-sample BPDA+PGD-10 artifact 和 `comparison/summary.json`。
+  - smoke 过程中发现 `autograd.Function.forward` 会禁用 EEG_TNP 内部训练梯度；
+    已在 BPDA forward 中用 `torch.enable_grad()` 仅恢复净化器内部优化，外层 BPDA
+    backward 仍保持 identity 透传。
+- **正式命令：**
+  ```bash
+  EXP023_CHAIN_ID=exp023_bpda_pgd10_eps0p03_seeds42-44_YYYYMMDD_HHMM \
+  nohup setsid bash rpcf/run_exp023_all_seeds.sh \
+    > logs/exp023/exp023_bpda_pgd10_eps0p03_seeds42-44_YYYYMMDD_HHMM/controller.log \
+    2>&1 < /dev/null &
+  ```
+- **正式启动记录（seed42，rank25/30 并行）：**
+  - 启动时间：2026-06-26 11:10（Asia/Shanghai）。
+  - run id：`exp023_bpda_pgd10_seed42_rank25-30_parallel_20260626_1108`。
+  - controller PID：`289421`。
+  - 运行范围：seed42、rank25/30、n512，两个 rank 并行。
+  - controller log：
+    `logs/exp023/exp023_bpda_pgd10_seed42_rank25-30_parallel_20260626_1108/controller.log`
+  - rank25 log：
+    `logs/exp023/exp023_bpda_pgd10_seed42_rank25-30_parallel_20260626_1108/stage1_bpda_pgd_rank25.log`
+  - rank30 log：
+    `logs/exp023/exp023_bpda_pgd10_seed42_rank25-30_parallel_20260626_1108/stage1_bpda_pgd_rank30.log`
+  - 目标产物：
+    `ad_data/exp023/exp023_bpda_pgd10_seed42_rank25-30_parallel_20260626_1108_rpcf_at_bpda_pgd10_rank25.pth`
+    和
+    `ad_data/exp023/exp023_bpda_pgd10_seed42_rank25-30_parallel_20260626_1108_rpcf_at_bpda_pgd10_rank30.pth`。
+- **正式启动记录（seed43/44 串行补跑）：**
+  - 启动时间：2026-06-29 12:06（Asia/Shanghai）。
+  - chain id：`exp023_bpda_pgd10_eps0p03_seeds43-44_20260629_1151`。
+  - controller PID：`30062`。
+  - 运行范围：seed43/44、rank25/30、n512；脚本按 seed 与 rank 串行运行，避免单 GPU 并发。
+  - controller log：
+    `logs/exp023/exp023_bpda_pgd10_eps0p03_seeds43-44_20260629_1151/controller.log`
+  - 当前阶段：seed43 rank25 `BPDA+PGD-10` 运行中。
+  - 预期产物：
+    `ad_data/exp023/exp023_bpda_pgd10_seed43_20260629_1151_rpcf_at_bpda_pgd10_rank25.pth`、
+    `ad_data/exp023/exp023_bpda_pgd10_seed43_20260629_1151_rpcf_at_bpda_pgd10_rank30.pth`、
+    `ad_data/exp023/exp023_bpda_pgd10_seed44_20260629_1151_rpcf_at_bpda_pgd10_rank25.pth`、
+    `ad_data/exp023/exp023_bpda_pgd10_seed44_20260629_1151_rpcf_at_bpda_pgd10_rank30.pth`。
+  - 预期汇总：
+    `logs/exp023/exp023_bpda_pgd10_eps0p03_seeds43-44_20260629_1151/comparison/summary.json`。
+  - 三 seed 自动汇总 watcher PID：`30705`；等待 seed43/44 controller 结束后，
+    将 seed42 既有 rank25/30 BPDA artifact 与 seed43/44 新产物合并汇总到
+    `logs/exp023/exp023_bpda_pgd10_eps0p03_seeds43-44_20260629_1151/comparison_three_seed/`。
+  - watcher log：
+    `logs/exp023/exp023_bpda_pgd10_eps0p03_seeds43-44_20260629_1151/three_seed_summary_waiter.log`。
+  - 2026-06-29 14:39 更新：`rpcf/run_exp023_bpda_pgd.sh` 已增加
+    `PARALLEL_RANKS`，默认 `1`，后续新启动的单 seed pipeline 会并行运行
+    rank25/30。当前 seed43 rank25 已在旧脚本中运行，未中断；seed44 预计会使用
+    新脚本并行 rank25/30。
+  - 2026-06-30 更新：该 controller 在 seed43 rank25/30 产物生成后退出，
+    未进入 seed44；三 seed watcher 因缺少 seed44 artifact 报
+    `FileNotFoundError`。seed43 产物已保留并纳入后续汇总。
+- **seed44 单独补跑启动记录：**
+  - 启动时间：2026-06-30 00:10（Asia/Shanghai）。
+  - run id：`exp023_bpda_pgd10_seed44_20260630_1030`。
+  - controller PID：`178638`。
+  - 运行范围：seed44、rank25/30、n512；`PARALLEL_RANKS=1`，rank25/30
+    并行运行。
+  - controller log：
+    `logs/exp023/exp023_bpda_pgd10_seed44_20260630_1030/controller.log`
+  - rank logs：
+    `logs/exp023/exp023_bpda_pgd10_seed44_20260630_1030/stage1_bpda_pgd_rank25.log`、
+    `logs/exp023/exp023_bpda_pgd10_seed44_20260630_1030/stage1_bpda_pgd_rank30.log`。
+  - 预期产物：
+    `ad_data/exp023/exp023_bpda_pgd10_seed44_20260630_1030_rpcf_at_bpda_pgd10_rank25.pth`、
+    `ad_data/exp023/exp023_bpda_pgd10_seed44_20260630_1030_rpcf_at_bpda_pgd10_rank30.pth`。
+  - 三 seed 自动汇总 watcher PID：`179583`；等待 seed44 controller 结束后，
+    将 seed42/43/44 的 rank25/30 BPDA artifact 合并汇总到
+    `logs/exp023/exp023_bpda_pgd10_eps0p03_seed44_20260630_1030/comparison_three_seed/`。
+  - watcher log：
+    `logs/exp023/exp023_bpda_pgd10_eps0p03_seed44_20260630_1030/three_seed_summary_waiter.log`。
+  - 结果：Pending。
+- **baseline PGD-10 补充启动记录（seed42，Madry/TRADES/FBF）：**
+  - 启动时间：2026-06-26 15:01（Asia/Shanghai）。
+  - run id：`exp023_baseline_pgd10_seed42_after_bpda_20260626_1500`。
+  - controller PID：`392807`。
+  - 运行策略：等待 seed42 rank25/30 BPDA artifact 均生成后，串行运行
+    `madry`、`trades`、`fbf` 的 PGD-10。
+  - 参数：`eps=0.03`，`pgd_steps=10`，`pgd_alpha=0.006`，
+    `attack_sample_num=512`，fold0，no-EA。
+  - controller log：
+    `logs/exp023/exp023_baseline_pgd10_seed42_after_bpda_20260626_1500/controller.log`
+  - 命令：
+    ```bash
+    EXP023_BASELINE_RUN_ID=exp023_baseline_pgd10_seed42_after_bpda_20260626_1500 \
+    WAIT_FOR_RUN_ID=exp023_bpda_pgd10_seed42_rank25-30_parallel_20260626_1108 \
+    SKIP_EXISTING=1 \
+    nohup setsid bash rpcf/run_exp023_baseline_pgd10.sh \
+      > logs/exp023/exp023_baseline_pgd10_seed42_after_bpda_20260626_1500/controller.log \
+      2>&1 < /dev/null &
+    ```
+  - 预期产物：
+    `ad_data/thubenchmark_eegnet_no_ea_exp023_baseline_pgd10_madry_pgd_eps0.03_seed42_fold0.pth`、
+    `ad_data/thubenchmark_eegnet_no_ea_exp023_baseline_pgd10_trades_pgd_eps0.03_seed42_fold0.pth`、
+    `ad_data/thubenchmark_eegnet_no_ea_exp023_baseline_pgd10_fbf_pgd_eps0.03_seed42_fold0.pth`。
+- **baseline PGD-10 环境修复：**
+  - 首次 baseline controller 未进入 `torch` 环境，`attack.py` 报
+    `ModuleNotFoundError: No module named 'torch'` 后退出。
+  - 已将 `rpcf/run_exp023_baseline_pgd10.sh` 改为使用
+    `conda run -n torch --no-capture-output python -u attack.py`。
+  - 修复后重启 run：
+    `exp023_baseline_pgd10_seed42_after_bpda_conda_20260626_2131`，
+    controller PID `490532`，已完成。
+- **baseline PGD-10 seed43/44 追加排队：**
+  - 请求：在 seed44 BPDA+PGD-10 完成后，补跑 seed43/44 的
+    Madry/TRADES/FBF 标准 PGD-10 baseline。
+  - 当前检查结果：seed43/44 的 Madry AT checkpoint 存在；seed43/44 的
+    TRADES/FBF checkpoint 原本不在 `checkpoints/` 中，不能用 seed42 checkpoint
+    代替，需先补训再评估。
+  - 已更新 `rpcf/run_exp023_baseline_pgd10.sh`：支持
+    `EXP023_BASELINE_${STRATEGY}_CHECKPOINT` 显式覆盖，并为 seed43/44 的
+    Madry AT 设置 EXP-019 tagged checkpoint 默认路径。
+  - 2026-06-30 01:03 的 Madry-only watcher（PID `190666`）已在尚未开始计算时
+    终止，避免与后续训练/评估队列抢占 GPU。
+  - 新增调度脚本：
+    `rpcf/run_exp023_train_baselines_then_pgd10.sh`。
+  - 新队列启动时间：2026-06-30 01:08（Asia/Shanghai）。
+  - run id：`exp023_baseline_train_then_pgd10_seeds43-44_20260630_0102`。
+  - controller PID：`192078`；等待 seed44 BPDA controller `178638` 退出后，
+    串行执行：
+    seed43 TRADES 训练、seed43 FBF 训练、seed44 TRADES 训练、seed44 FBF 训练，
+    然后运行 seed43/44 的 Madry/TRADES/FBF PGD-10 baseline。
+  - controller log：
+    `logs/exp023/exp023_baseline_train_then_pgd10_seeds43-44_20260630_0102/controller.log`
+  - 预期新训练 checkpoint：
+    `checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_trades_eps0.03_43_fold0_exp023_baseline_seed43-44_20260630_0102_best.pth`、
+    `checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_fbf_eps0.03_43_fold0_exp023_baseline_seed43-44_20260630_0102_best.pth`、
+    `checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_trades_eps0.03_44_fold0_exp023_baseline_seed43-44_20260630_0102_best.pth`、
+    `checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_fbf_eps0.03_44_fold0_exp023_baseline_seed43-44_20260630_0102_best.pth`。
+  - 预期 PGD-10 产物：
+    `ad_data/thubenchmark_eegnet_no_ea_exp023_baseline_pgd10_madry_pgd_eps0.03_seed43_fold0.pth`、
+    `ad_data/thubenchmark_eegnet_no_ea_exp023_baseline_pgd10_trades_pgd_eps0.03_seed43_fold0.pth`、
+    `ad_data/thubenchmark_eegnet_no_ea_exp023_baseline_pgd10_fbf_pgd_eps0.03_seed43_fold0.pth`、
+    `ad_data/thubenchmark_eegnet_no_ea_exp023_baseline_pgd10_madry_pgd_eps0.03_seed44_fold0.pth`、
+    `ad_data/thubenchmark_eegnet_no_ea_exp023_baseline_pgd10_trades_pgd_eps0.03_seed44_fold0.pth`、
+    `ad_data/thubenchmark_eegnet_no_ea_exp023_baseline_pgd10_fbf_pgd_eps0.03_seed44_fold0.pth`。
+  - 完成时间：2026-06-30 09:14（Asia/Shanghai）。
+  - 结果：Completed。
+- **三 seed BPDA+PGD-10 adaptive attack 结果：**
+  - 汇总表：
+    `logs/exp023/exp023_bpda_pgd10_eps0p03_seed44_20260630_1030/comparison_three_seed/comparison.md`
+  - JSON：
+    `logs/exp023/exp023_bpda_pgd10_eps0p03_seed44_20260630_1030/comparison_three_seed/summary.json`
+
+| Rank | BPDA purified clean | BPDA purified adv | Attack MSE | Non-adaptive purified adv | Δ adv |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 25 | 90.36%±2.44% | 80.14%±0.79% | 0.00083054±0.00000122 | 83.20%±1.09% | -3.06 pp |
+| 30 | 91.34%±2.05% | 81.05%±1.53% | 0.00084055±0.00000186 | 82.81%±0.90% | -1.76 pp |
+
+- **三 seed 标准 PGD-10 baseline 结果：**
+  - logs：
+    `log_attack/attack_thubenchmark_eegnet_no_ea_{madry,trades,fbf}_pgd_0.03_{42,43,44}_fold0_exp023_baseline_pgd10.log`
+
+| Method | Clean accuracy | PGD-10 adv accuracy | Attack MSE | Note |
+| --- | ---: | ---: | ---: | --- |
+| Madry AT | 92.58%±1.60% | 79.30%±1.55% | 0.000877±0.000001 | seed42/43/44 n512 |
+| TRADES | 93.10%±1.77% | 65.23%±2.64% | 0.000868±0.000002 | seed43/44 为本次补训 checkpoint |
+| FBF | 94.66%±1.47% | 55.66%±3.65% | 0.000861±0.000002 | seed43/44 为本次补训 checkpoint |
+
+- **seed42 当前结果：**
+  - BPDA 汇总：
+    `logs/exp023/exp023_bpda_pgd10_seed42_rank25-30_parallel_20260626_1108/comparison/comparison.md`
+  - baseline PGD-10 logs：
+    `log_attack/attack_thubenchmark_eegnet_no_ea_madry_pgd_0.03_42_fold0_exp023_baseline_pgd10.log`、
+    `log_attack/attack_thubenchmark_eegnet_no_ea_trades_pgd_0.03_42_fold0_exp023_baseline_pgd10.log`、
+    `log_attack/attack_thubenchmark_eegnet_no_ea_fbf_pgd_0.03_42_fold0_exp023_baseline_pgd10.log`。
+
+| Method | Clean accuracy | PGD-10 / BPDA adv accuracy | Attack MSE | Note |
+| --- | ---: | ---: | ---: | --- |
+| EEG_TNP+RPCF_AT rank25 | 93.16% | 80.86% | 0.000829 | BPDA+PGD-10；非 adaptive purified adv 为 84.38%，下降 3.52 pp |
+| EEG_TNP+RPCF_AT rank30 | 93.36% | 82.81% | 0.000838 | BPDA+PGD-10；非 adaptive purified adv 为 83.59%，下降 0.78 pp |
+| Madry AT | 94.34% | 79.88% | 0.000877 | 标准 PGD-10 baseline，n512 |
+| TRADES | 95.12% | 67.77% | 0.000868 | 标准 PGD-10 baseline，n512 |
+| FBF | 96.09% | 56.25% | 0.000859 | 标准 PGD-10 baseline，n512 |
+
+- **seed43 当前结果：**
+  - 临时单 seed 汇总：
+    `/tmp/exp023_seed43_current_summary/comparison.md`
+
+| Method | Clean accuracy | BPDA adv accuracy | Attack MSE | Note |
+| --- | ---: | ---: | ---: | --- |
+| EEG_TNP+RPCF_AT rank25 | 88.67% | 79.30% | 0.000831 | BPDA+PGD-10；非 adaptive purified adv 为 82.23%，下降 2.93 pp |
+| EEG_TNP+RPCF_AT rank30 | 89.26% | 80.08% | 0.000841 | BPDA+PGD-10；非 adaptive purified adv 为 81.84%，下降 1.76 pp |
+
+- **结果状态：**
+  - seed42 的 rank25/30 BPDA+PGD-10 和 Madry/TRADES/FBF PGD-10 baseline 已完成。
+  - seed43 的 rank25/30 BPDA+PGD-10 已完成。
+  - seed44 的 rank25/30 BPDA+PGD-10 已完成。
+  - seed43/44 的 TRADES/FBF baseline checkpoint 补训与 Madry/TRADES/FBF
+    PGD-10 baseline 已完成。
+  - EXP-023 三 seed adaptive attack 与 baseline 对照均已完成。
+
+### EXP-024：其他 backbone 的 RPCF_AT 与 baseline 全流程测试
+
+- **目标：**
+  - 在 `thubenchmark`、no-EA、fold0、`eps=0.03` 条件下，补全
+    `tsception`、`atcnet`、`conformer` 三个 backbone 的测试。
+  - 每个 backbone 覆盖 Madry AT、white-box AutoAttack、rank25/30 净化、
+    RPCF_AT 微调、RPCF_AT attack/净化测试，以及 clean/TRADES/FBF baseline
+    训练和攻击评估。
+- **协议：**
+  - seed：`42`
+  - fold：`0`
+  - 训练 rank：`15,20,25,30,35,40`
+  - 净化评估 rank：`25,30`
+  - RPCF_AT：selective layers、dynamic rank schedule、`online_madry_at`
+  - attack：默认 `autoattack`
+  - train cache sample：`512`
+  - purification eval sample：`512`
+- **实现：**
+  - 单 backbone pipeline：`rpcf/run_exp024_backbone.sh`
+  - 三 backbone 串行调度：`rpcf/run_exp024_all_backbones.sh`
+  - 汇总器：`rpcf/compare_exp024.py`
+  - 日志：`logs/exp024/`
+  - 攻击 artifact：`ad_data/exp024/`
+  - 训练/评估净化 artifact：`purified_data/exp024/`
+- **验证：**
+  ```bash
+  bash -n rpcf/run_exp024_backbone.sh
+  bash -n rpcf/run_exp024_all_backbones.sh
+  python -m py_compile rpcf/compare_exp024.py
+  DRY_RUN=1 SMOKE=1 EXP024_MODEL=conformer EXP024_RUN_ID=exp024_conformer_dryrun \
+    bash rpcf/run_exp024_backbone.sh
+  DRY_RUN=1 EXP024_MODELS='tsception atcnet conformer' \
+    EXP024_CHAIN_ID=exp024_other_backbones_dryrun \
+    bash rpcf/run_exp024_all_backbones.sh
+  ```
+  - 以上静态检查和 dry-run 已通过。
+- **正式命令：**
+  ```bash
+  EXP024_RUN_TAG=YYYYMMDD_HHMM \
+  EXP024_CHAIN_ID=exp024_other_backbones_seed42_YYYYMMDD_HHMM \
+  nohup setsid bash rpcf/run_exp024_all_backbones.sh \
+    > logs/exp024/exp024_other_backbones_seed42_YYYYMMDD_HHMM/controller.log \
+    2>&1 < /dev/null &
+  ```
+- **正式启动记录：**
+  - 启动时间：2026-07-01 12:08（Asia/Shanghai）。
+  - chain id：`exp024_other_backbones_seed42_20260701_1208`。
+  - chain controller PID：`617922`。
+  - 当前子流程：`exp024_other_backbones_seed42_20260701_1208_tsception`。
+  - 当前子流程 controller PID：`617927`。
+  - 当前训练进程 PID：`617942`。
+  - 当前阶段：`tsception` 的 `stage1_train_madry_at` 运行中。
+  - controller log：
+    `logs/exp024/exp024_other_backbones_seed42_20260701_1208/controller.log`
+  - 当前阶段日志：
+    `logs/exp024/exp024_other_backbones_seed42_20260701_1208_tsception/stage1_train_madry_at.log`
+  - 运行范围：`tsception`、`atcnet`、`conformer` 串行；每个 backbone 跑完整
+    9-stage pipeline。
+  - 启动后检查：`nvidia-smi` 显示训练进程 `617942` 占用约 `15384 MiB`。
+- **范围调整记录：**
+  - 2026-07-01 15:08（Asia/Shanghai）：考虑三 backbone 全流程耗时过长，本轮先只跑
+    `tsception`。
+  - 已向外层 all-backbones controller PID `617922` 发送 `TERM`，阻止当前
+    `tsception` 完成后继续进入 `atcnet` 和 `conformer`。
+  - `tsception` 子流程 PID `617927` 和训练进程 PID `617942` 保持运行。
+  - 调整后状态：`tsception stage1_train_madry_at` 运行中；训练日志显示已到
+    epoch 72，`Val Acc=0.7107`、`Test Acc=0.6881`、`Robust Acc=0.3143`。
+  - `atcnet` 和 `conformer` 本轮未启动，结果保持 `Pending`。
+- **结果：** Pending
