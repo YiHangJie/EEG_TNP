@@ -1,0 +1,13 @@
+# 原始 EEG 数据根目录配置。
+# 可用 EEG_TNP_DATA_ROOT 临时覆盖 default_root，或用 EEG_TNP_<DATASET>_ROOT 覆盖单个数据集。
+default_root: /data2/yihangjie/pythonProjects/data
+
+datasets:
+  seediv:
+    path: seediv/eeg_raw_data
+  m3cv:
+    path: m3cv
+  bciciv2a:
+    path: bciciv2a
+  thubenchmark:
+    path: THUBenchmark

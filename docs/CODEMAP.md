@@ -155,7 +155,7 @@
     - `chunk_size`
     - `num_classes`
     - `sampling_rate`
-  - 代码中 `root_path` 指向外部 raw data 路径，例如 `/home/yhj/pythonProject/data/...`。不要移动或修改这些原始数据目录。
+  - 代码中 `root_path` 从 `configs/data_roots.yaml` 读取；默认 `default_root` 为 `/data2/yihangjie/pythonProjects/data`，可通过环境变量 `EEG_TNP_DATA_ROOT` 或 `EEG_TNP_<DATASET>_ROOT` 临时覆盖。不要移动或修改这些原始数据目录。
 
 - `data/subject_ea.py`
   - 负责 subject-wise split、train-only subject EA、raw/no_ea wrapper、EA-in-forward wrapper。
@@ -258,6 +258,10 @@
 - `test_graph_loss.py` 当前未观察到有效内容，TODO：确认是否保留或补充。
 
 ## 实验配置
+
+- `configs/data_roots.yaml`
+  - 原始 EEG 数据根目录配置，`data/load.py` 会读取该文件来确定各数据集的 `root_path`。
+  - `default_root` 可通过 `EEG_TNP_DATA_ROOT` 覆盖；单个数据集可通过 `EEG_TNP_SEEDIV_ROOT`、`EEG_TNP_M3CV_ROOT`、`EEG_TNP_BCICIV2A_ROOT`、`EEG_TNP_THUBENCHMARK_ROOT` 覆盖。
 
 - `configs/<dataset>/*.yaml`
   - 净化/TN 配置文件目录。
@@ -364,10 +368,10 @@
 ## 不应修改的文件/目录
 
 - 外部 raw data
-  - `/home/yhj/pythonProject/data/seediv/eeg_raw_data`
-  - `/home/yhj/pythonProject/data/m3cv`
-  - `/home/yhj/pythonProject/data/bciciv2a`
-  - `/home/yhj/pythonProject/data/THUBenchmark`
+  - `/data2/yihangjie/pythonProjects/data/seediv/eeg_raw_data`
+  - `/data2/yihangjie/pythonProjects/data/m3cv`
+  - `/data2/yihangjie/pythonProjects/data/bciciv2a`
+  - `/data2/yihangjie/pythonProjects/data/THUBenchmark`
 
 - 仓库内实验产物和缓存
   - `cached_data/`

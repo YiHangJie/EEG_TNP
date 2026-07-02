@@ -2,8 +2,59 @@ import argparse
 import os
 import re
 import mne
+import yaml
 from torcheeg.datasets import SEEDIVDataset, M3CVDataset, BCICIV2aDataset, TSUBenckmarkDataset
 from torcheeg import transforms
+
+
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+DEFAULT_DATA_ROOT = '/data2/yihangjie/pythonProjects/data'
+DATA_ROOT_CONFIG = os.environ.get(
+    'EEG_TNP_DATA_ROOT_CONFIG',
+    os.path.join(REPO_ROOT, 'configs', 'data_roots.yaml'),
+)
+_DATA_ROOTS_CACHE = None
+
+
+def _load_data_roots_config():
+    """读取数据路径配置；环境变量可用于临时覆盖不同机器的路径。"""
+    global _DATA_ROOTS_CACHE
+    if _DATA_ROOTS_CACHE is not None:
+        return _DATA_ROOTS_CACHE
+
+    config = {'default_root': DEFAULT_DATA_ROOT, 'datasets': {}}
+    if os.path.exists(DATA_ROOT_CONFIG):
+        with open(DATA_ROOT_CONFIG, 'r', encoding='utf-8') as file:
+            loaded = yaml.safe_load(file) or {}
+        if not isinstance(loaded, dict):
+            raise ValueError(f'Data root config must be a mapping: {DATA_ROOT_CONFIG}')
+        config.update({key: value for key, value in loaded.items() if key != 'datasets'})
+        config['datasets'] = loaded.get('datasets') or {}
+
+    _DATA_ROOTS_CACHE = config
+    return config
+
+
+def _resolve_dataset_root(dataset_name):
+    config = _load_data_roots_config()
+    env_key = f"EEG_TNP_{dataset_name.upper()}_ROOT"
+    if os.environ.get(env_key):
+        return os.environ[env_key]
+
+    default_root = os.environ.get('EEG_TNP_DATA_ROOT', config.get('default_root', DEFAULT_DATA_ROOT))
+    dataset_cfg = (config.get('datasets') or {}).get(dataset_name, dataset_name)
+    if isinstance(dataset_cfg, dict):
+        dataset_path = dataset_cfg.get('path', dataset_name)
+    else:
+        dataset_path = dataset_cfg
+
+    if os.path.isabs(str(dataset_path)):
+        return str(dataset_path)
+    return os.path.join(str(default_root), str(dataset_path))
+
+
+def _data_path(dataset_name, *parts):
+    return os.path.join(_resolve_dataset_root(dataset_name), *parts)
 
 
 def _collect_labels(dataset):
@@ -28,7 +79,7 @@ def _build_info(dataset, chunk_size):
 
 def load_seediv():
     dataset = SEEDIVDataset(io_path='./cached_data/seediv',
-                            root_path='/home/yhj/pythonProject/data/seediv/eeg_raw_data',
+                            root_path=_data_path('seediv'),
                             chunk_size=200*4,
                             offline_transform=transforms.Compose([
                                 transforms.Downsample(num_points=250*4, axis=1),
@@ -45,7 +96,7 @@ def load_seediv():
 
 def load_m3cv():
     dataset = M3CVDataset(io_path='./cached_data/m3cv',
-                          root_path='/home/yhj/pythonProject/data/m3cv',
+                          root_path=_data_path('m3cv'),
                           chunk_size=250*4,
                           offline_transform=transforms.Compose([
                               transforms.Lambda(lambda x: band_filter(x, low_pass=1, high_pass=40, sampling_rate=250)),
@@ -61,7 +112,7 @@ def load_m3cv():
 
 def load_bciciv2a():
     dataset = BCICIV2aDataset(io_path='./cached_data/bciciv2a',
-                              root_path='/home/yhj/pythonProject/data/bciciv2a',
+                              root_path=_data_path('bciciv2a'),
                               chunk_size=250*7,
                               offline_transform=transforms.Compose([
                                   transforms.Lambda(lambda x: band_filter(x, low_pass=1, high_pass=49, sampling_rate=250)),
@@ -77,7 +128,7 @@ def load_bciciv2a():
 
 def load_thubenchmark():
     dataset = TSUBenckmarkDataset(io_path='./cached_data/thubenchmark',
-                                  root_path='/home/yhj/pythonProject/data/THUBenchmark',
+                                  root_path=_data_path('thubenchmark'),
                                   chunk_size=250*6,
                                   offline_transform=transforms.Compose([
                                       transforms.Lambda(lambda x: band_filter(x, low_pass=7, high_pass=33, sampling_rate=250)),
