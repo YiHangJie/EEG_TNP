@@ -59,6 +59,9 @@ def parse_args():
     parser.add_argument("--checkpoint_every", type=int, default=8)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--keep_work_dir", action="store_true")
+    parser.add_argument("--base_only", action="store_true", help="只生成/校验 base shard 后退出。")
+    parser.add_argument("--rank_shard_only", action="store_true", help="只生成指定 rank shard，不写最终统一 cache。")
+    parser.add_argument("--finalize_only", action="store_true", help="只汇总已有 rank shard 并写最终统一 cache。")
     return parser.parse_args()
 
 
@@ -77,6 +80,9 @@ def save_partial(path, clean_parts, adv_parts, clean_mses, adv_mses, completed):
 
 def main():
     args = parse_args()
+    mode_count = int(args.base_only) + int(args.rank_shard_only) + int(args.finalize_only)
+    if mode_count > 1:
+        raise ValueError("base_only, rank_shard_only and finalize_only are mutually exclusive.")
     ranks = parse_int_csv(args.ranks)
     configs = parse_path_csv(args.configs)
     rank_configs = rank_config_map(ranks, configs)
@@ -191,13 +197,23 @@ def main():
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
+    if args.base_only:
+        logging.info("Base-only RPCF cache step completed: %s", base_path)
+        print(base_path)
+        return
+
     clean_rank_parts = []
     adv_rank_parts = []
     rank_metrics = []
     for rank, config in rank_configs.items():
         rank_path = os.path.join(work_dir, f"rank{rank}.pth")
         partial_path = os.path.join(work_dir, f"rank{rank}.partial.pth")
-        if os.path.exists(rank_path) and not args.overwrite:
+        if args.finalize_only:
+            if not os.path.exists(rank_path):
+                raise FileNotFoundError(f"Missing RPCF rank shard for finalize: {rank_path}")
+            rank_payload = torch.load(rank_path, map_location="cpu")
+            logging.info("Load completed rank shard for finalize: rank=%d", rank)
+        elif os.path.exists(rank_path) and not args.overwrite:
             rank_payload = torch.load(rank_path, map_location="cpu")
             logging.info("Resume completed rank shard: rank=%d", rank)
         else:
@@ -269,6 +285,10 @@ def main():
             if os.path.exists(partial_path):
                 os.remove(partial_path)
 
+        if int(rank_payload.get("rank", rank)) != rank:
+            raise ValueError(f"Rank shard identity mismatch: expected {rank}.")
+        if rank_payload.get("config") != config:
+            raise ValueError(f"Rank {rank} config mismatch.")
         if rank_payload["x_pur"].shape != x.shape:
             raise ValueError(f"Rank {rank} clean purified shard shape mismatch.")
         if rank_payload["x_adv_pur"].shape != x.shape:
@@ -283,6 +303,11 @@ def main():
                 "mean_adv_mse": float(np.mean(rank_payload["adv_mses"])),
             }
         )
+
+    if args.rank_shard_only:
+        logging.info("Rank-shard-only RPCF cache step completed: %s", work_dir)
+        print(work_dir)
+        return
 
     payload = {
         "x": x,

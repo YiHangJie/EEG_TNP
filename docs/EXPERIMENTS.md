@@ -3107,4 +3107,28 @@
   - 调整后状态：`tsception stage1_train_madry_at` 运行中；训练日志显示已到
     epoch 72，`Val Acc=0.7107`、`Test Acc=0.6881`、`Robust Acc=0.3143`。
   - `atcnet` 和 `conformer` 本轮未启动，结果保持 `Pending`。
+- **并行重启记录：**
+  - 日期：2026-07-02 15:33 至 15:42（Asia/Shanghai）。
+  - 本轮不修改 pipeline 代码，直接并行启动三个单-backbone run；每个 run 仍使用 `rpcf/run_exp024_backbone.sh` 的 9-stage pipeline。
+  - run id / GPU 分配：
+    - `exp024_parallel_seed42_20260702_153337_tsception`：GPU 0，controller PID `53543`。
+    - `exp024_parallel_seed42_20260702_153337_atcnet_retry2`：GPU 1，controller PID `61669`。
+    - `exp024_parallel_seed42_20260702_153337_conformer_retry2`：GPU 2，controller PID `61724`。
+  - 由于本服务器 GPU 0-3 每张约 10GB，本轮通过环境变量将 `AT_BATCH_SIZE=64`、`BASELINE_BATCH_SIZE=64`、`ONLINE_AT_BATCH_SIZE=64`、`RPCF_BATCH_SIZE=32`、`ATTACK_BATCH_SIZE=16` 传入脚本，避免显存不足；未修改训练代码。
+  - 首次后台启动因非交互 shell 找不到 `conda` 失败；随后通过 `source /home/yihangjie/miniconda3/etc/profile.d/conda.sh` 后重启。
+  - `atcnet` 和 `conformer` 首次与 `tsception` 并行读写 TorchEEG cache 时遇到 `io_path corrupted` / `lmdb.MapResizedError`；等待 `tsception` 完成 `cached_data/thubenchmark` 构建后，使用 retry2 重新启动成功。
+  - 当前日志：
+    - `logs/exp024/exp024_parallel_seed42_20260702_153337_tsception/stage1_train_madry_at.log`
+    - `logs/exp024/exp024_parallel_seed42_20260702_153337_atcnet_retry2/stage1_train_madry_at.log`
+    - `logs/exp024/exp024_parallel_seed42_20260702_153337_conformer_retry2/stage1_train_madry_at.log`
+  - 启动后检查：`nvidia-smi` 显示 GPU0/1/2 分别被三个 stage1 训练任务占用，GPU3 保留空闲。
+  - 2026-07-03 10:58 状态检查：三个 backbone 的 Madry AT checkpoint 均已生成；`tsception` 仍在 stage2 `rpcf.generate_cache`，已生成 `base.pth` 和 rank15/20/25 以及 rank30 partial shard。`atcnet` 与 `conformer` 的首次 stage2 因 TN 净化内部 `cuda:0` 与外部 `cuda:1/2` 混用失败。
+  - 2026-07-03 10:59：不改代码，使用 `CUDA_VISIBLE_DEVICES=1/2` 隔离物理 GPU，并在脚本内设置 `GPU_ID=0 START_STAGE=2`，分别从 stage2 续跑 `atcnet` 和 `conformer`；新 controller PID 为 `335381` 和 `335408`。
+  - 2026-07-03 11:15：按用户要求暂停 EXP-024，向 `53543`、`335381`、`335408` 对应进程组发送 `TERM`；确认 `run_exp024_backbone` / `rpcf.generate_cache` 相关进程已退出。当前 partial cache 保留，可后续续跑。
+  - 2026-07-03 11:17：更新 `rpcf/run_exp024_all_backbones.sh`，加入 GPU 空闲检测；默认在 `EXP024_GPU_IDS` / `GPU_IDS` 指定的 GPU 中选择显存占用不超过 `EXP024_GPU_IDLE_MAX_USED_MB=100` 的卡。子流程统一以 `CUDA_VISIBLE_DEVICES=<physical_gpu> GPU_ID=0` 启动，避免 TN 净化内部设备混用。若仅运行 `START_STAGE=2 STOP_STAGE=2` 或 `START_STAGE=6 STOP_STAGE=6`，默认每张空闲 GPU 允许 `EXP024_TN_SLOTS_PER_IDLE_GPU=2` 个 TN 净化任务；同时支持 `EXP024_RUN_ID_TSCEPTION`、`EXP024_RUN_ID_ATCNET`、`EXP024_RUN_ID_CONFORMER` 覆盖单个 backbone 的 run id，便于续跑已有 partial cache。
+  - 2026-07-03 11:24：使用新调度器续跑 stage2：`EXP024_CHAIN_ID=exp024_parallel_seed42_20260702_153337_stage2_resume`，`START_STAGE=2 STOP_STAGE=2`，`EXP024_GPU_IDS=0,1,2,3`，并复用三个已有 run id。启动时 GPU1-3 忙，调度器先在空闲 GPU0 启动 `tsception` 与 `atcnet` 两个 TN 任务；随后 GPU1 释放后自动启动 `conformer`。当前 stage2 继续运行，结果仍为 Pending。
+  - 2026-07-03 11:33：再次暂停 `exp024_parallel_seed42_20260702_153337_stage2_resume`，停止旧的 per-backbone stage2 进程，保留 `*.work/base.pth`、已完成 rank shard 与 partial shard。
+  - 2026-07-03 11:38：为 RPCF cache 增加 rank 级并行能力：`rpcf.generate_cache` 新增 `--base_only`、`--rank_shard_only`、`--finalize_only` 三个显式模式；新增 `rpcf/run_exp024_stage2_rank_parallel.sh`，先确保 base shard，再将 `tsception`、`atcnet`、`conformer` 的 6 个 rank shard 分别作为独立任务调度，默认每张空闲 GPU 跑 2 个 rank，且 `EXP024_MAX_ACTIVE_RANK_JOBS` 默认限制总 rank 并发为 6。已通过 `python3 -m py_compile rpcf/generate_cache.py`、`bash -n rpcf/run_exp024_stage2_rank_parallel.sh` 和 `DRY_RUN=1` 检查；结果仍为 Pending。
+  - 2026-07-03 11:40：使用 rank 级并行脚本正式续跑 stage2，chain id 为 `exp024_parallel_seed42_20260702_153337_stage2_rank_parallel`，外层 PID `391732`。启动命令使用 `EXP024_GPU_IDS=0,1,2,3`、`EXP024_RANK_SLOTS_PER_IDLE_GPU=2`、`EXP024_MAX_ACTIVE_RANK_JOBS=6`，并复用三个已有 run id。启动后检查显示首批 6 个 rank worker 已派发：GPU0/1/2 各 2 个；调度器等待 rank 完成后继续投放剩余 shard。
+  - 2026-07-03 11:45：发现本机实际有 8 张 GPU，GPU4/5/6/7 空闲，按用户要求将 `conformer` 也提前跑上。为避免原 rank controller 后续重复派发同一 conformer rank，先对外层 controller PID `391732` 发送 `STOP`，保留已运行的 tsception/atcnet worker 继续执行；随后手动使用 `--rank_shard_only` 启动 conformer rank15/20/25/30/35/40，分配为 GPU4 两个、GPU5 两个、GPU6 两个，日志为 `logs/exp024/exp024_parallel_seed42_20260702_153337_conformer_retry2/stage2_rank*_manual.log`。确认 GPU4/5/6 分别已有两个 conformer worker；另起 watcher PID `405334`，等待 conformer 手动 rank worker 结束后自动 `CONT` 原 controller。
 - **结果：** Pending
