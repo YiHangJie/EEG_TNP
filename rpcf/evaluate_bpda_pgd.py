@@ -16,6 +16,7 @@ from utils.experiment_artifacts import eeg_classification_collate
 
 from rpcf.core import (
     DATASET_LOADERS,
+    MODEL_CHOICES,
     evaluate_classifier,
     load_model_checkpoint,
     seed_everything,
@@ -32,7 +33,7 @@ def parse_args():
     )
     parser.add_argument("--dataset", default="thubenchmark", choices=DATASET_LOADERS)
     parser.add_argument(
-        "--model", default="eegnet", choices=["eegnet", "tsception", "atcnet", "conformer"]
+        "--model", default="eegnet", choices=MODEL_CHOICES
     )
     parser.add_argument("--fold", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)

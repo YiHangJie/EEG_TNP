@@ -2,6 +2,10 @@
 set -euo pipefail
 
 # EXP-024：其他 backbone 的 Madry AT、RPCF_AT、净化测试和 baseline。
+#
+# 常用后台运行示例：
+#   nohup env EXP024_MODELS="deepconvnet tcnet" EXP024_GPU_IDS="4,5" \
+#     bash rpcf/run_exp024_all_backbones.sh > logs/exp024/exp024_deepconvnet_tcnet.nohup.log 2>&1 &
 
 DATASET="${EXP024_DATASET:-thubenchmark}"
 MODEL="${EXP024_MODEL:-conformer}"
@@ -33,6 +37,7 @@ EVAL_SAMPLE_NUM="${EVAL_SAMPLE_NUM:-512}"
 AT_BATCH_SIZE="${AT_BATCH_SIZE:-128}"
 BASELINE_BATCH_SIZE="${BASELINE_BATCH_SIZE:-128}"
 RPCF_BATCH_SIZE="${RPCF_BATCH_SIZE:-64}"
+RPCF_EVAL_BATCH_SIZE="${RPCF_EVAL_BATCH_SIZE:-128}"
 ONLINE_AT_BATCH_SIZE="${ONLINE_AT_BATCH_SIZE:-128}"
 ONLINE_AT_TRAIN_SAMPLE_NUM="${ONLINE_AT_TRAIN_SAMPLE_NUM:-}"
 ATTACK_BATCH_SIZE="${ATTACK_BATCH_SIZE:-32}"
@@ -55,6 +60,7 @@ if [[ "${SMOKE}" == "1" ]]; then
   BASELINE_EPOCHS="${SMOKE_EPOCHS:-1}"
   BASELINE_PATIENCE=1
   RPCF_EPOCHS="${SMOKE_EPOCHS:-1}"
+  RPCF_EVAL_BATCH_SIZE="${SMOKE_EVAL_BATCH_SIZE:-2}"
   TRAIN_SAMPLE_NUM="${SMOKE_TRAIN_SAMPLE_NUM:-2}"
   TRAIN_CACHE_SAMPLE_NUM="${SMOKE_CACHE_SAMPLE_NUM:-1}"
   ONLINE_AT_TRAIN_SAMPLE_NUM="${SMOKE_TRAIN_SAMPLE_NUM:-2}"
@@ -71,9 +77,9 @@ if (( START_STAGE > STOP_STAGE )); then
   exit 1
 fi
 case "${MODEL}" in
-  tsception|atcnet|conformer) ;;
+  tsception|atcnet|conformer|deepconvnet|tcnet) ;;
   *)
-    echo "EXP-024 targets other backbones only: tsception, atcnet, conformer. Got ${MODEL}." >&2
+    echo "EXP-024 targets other backbones only: tsception, atcnet, conformer, deepconvnet, tcnet. Got ${MODEL}." >&2
     exit 1
     ;;
 esac
@@ -239,8 +245,8 @@ if should_run 4; then
       --checkpoint_path "${AT_CHECKPOINT}" --output_checkpoint "${RPCF_AT_CHECKPOINT}" \
       --dataset "${DATASET}" --model "${MODEL}" --fold "${FOLD}" \
       --seed "${SEED}" --epsilon "${EPS}" --epochs "${RPCF_EPOCHS}" \
-      --batch_size "${RPCF_BATCH_SIZE}" --lr "${RPCF_LR}" \
-      --weight_decay "${RPCF_WEIGHT_DECAY}" --rank_temperature 0.5 \
+      --batch_size "${RPCF_BATCH_SIZE}" --eval_batch_size "${RPCF_EVAL_BATCH_SIZE}" \
+      --lr "${RPCF_LR}" --weight_decay "${RPCF_WEIGHT_DECAY}" --rank_temperature 0.5 \
       --consistancy_temperature 2.0 --pgd_steps 10 --online_madry_at \
       --online_at_batch_size "${ONLINE_AT_BATCH_SIZE}" \
       --online_at_pgd_steps 10 --online_at_step_size 0.006 \

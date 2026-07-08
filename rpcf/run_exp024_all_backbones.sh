@@ -2,6 +2,10 @@
 set -euo pipefail
 
 # EXP-024 GPU-aware 调度：优先选择空闲 GPU，并用 CUDA_VISIBLE_DEVICES
+#
+# 常用后台运行示例：
+#   nohup env EXP024_MODELS="deepconvnet tcnet" EXP024_GPU_IDS="4,5" \
+#     bash rpcf/run_exp024_all_backbones.sh > logs/exp024/exp024_deepconvnet_tcnet.nohup.log 2>&1 &
 # 隔离每个子流程，避免 TN 净化内部默认 cuda:0 与外部 gpu_id 混用。
 
 RUN_TAG="${EXP024_RUN_TAG:-$(date +%Y%m%d_%H%M%S)}"

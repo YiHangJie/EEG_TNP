@@ -33,4 +33,17 @@ def get_model_args(name, dataset, info):
             "num_electrodes": info['num_electrodes'],
             "num_classes": info['num_classes'],
         }
+    elif name == 'tcnet':
+        args = {
+            "num_electrodes": info['num_electrodes'],
+            "num_classes": info['num_classes'],
+        }
+    elif name == 'deepconvnet':
+        args = {
+            "chunk_size": info['chunk_size'],
+            "num_electrodes": info['num_electrodes'],
+            "num_classes": info['num_classes'],
+        }
+    else:
+        raise ValueError(f"Unsupported model: {name}")
     return args

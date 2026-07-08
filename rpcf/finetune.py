@@ -14,6 +14,7 @@ from utils.experiment_artifacts import eeg_classification_collate
 
 from rpcf.core import (
     DATASET_LOADERS,
+    MODEL_CHOICES,
     compute_rank_weights,
     configure_trainable_layers,
     evaluate_classifier,
@@ -37,7 +38,7 @@ def parse_args():
     parser.add_argument("--output_checkpoint", required=True)
     parser.add_argument("--dataset", required=True, choices=DATASET_LOADERS)
     parser.add_argument(
-        "--model", required=True, choices=["eegnet", "tsception", "atcnet", "conformer"]
+        "--model", required=True, choices=MODEL_CHOICES
     )
     parser.add_argument("--fold", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
@@ -84,6 +85,22 @@ def parse_args():
     )
     parser.add_argument("--gpu_id", type=int, default=0)
     parser.add_argument("--all_layers", action="store_true")
+    parser.add_argument(
+        "--selected_layers_override",
+        default=None,
+        help="逗号分隔的逻辑层名；用于覆盖 sensitivity.json 中的 selected_layers。",
+    )
+    parser.add_argument(
+        "--layer_selection_rule",
+        default=None,
+        help="记录层选择来源，例如 score_prefix；不影响训练逻辑。",
+    )
+    parser.add_argument(
+        "--prefix_k",
+        type=int,
+        default=None,
+        help="记录敏感性降序累加前缀长度；不影响训练逻辑。",
+    )
     parser.add_argument("--static_rank_weights", action="store_true")
     parser.add_argument("--history_prefix", required=True)
     return parser.parse_args()
@@ -118,6 +135,25 @@ def load_sensitivity(path, args, cache):
     if not selected_layers:
         raise ValueError("Sensitivity artifact has no selected layers.")
     return artifact, selected_layers
+
+
+def parse_selected_layers_override(value, sensitivity):
+    if value is None:
+        return None
+    selected_layers = [item.strip() for item in value.split(",") if item.strip()]
+    if not selected_layers:
+        raise ValueError("--selected_layers_override cannot be empty when provided.")
+    known_layers = set(sensitivity.get("logical_layers") or [])
+    known_layers.update((sensitivity.get("layers") or {}).keys())
+    unknown_layers = [layer for layer in selected_layers if layer not in known_layers]
+    if unknown_layers:
+        raise ValueError(
+            "selected layer override contains unknown layers: "
+            + ", ".join(unknown_layers)
+        )
+    if len(set(selected_layers)) != len(selected_layers):
+        raise ValueError("--selected_layers_override contains duplicate layers.")
+    return selected_layers
 
 
 def rank_weighted_ce(logits_flat, labels, rank_count, rank_weights):
@@ -379,6 +415,11 @@ def main():
     sensitivity, selected_layers = load_sensitivity(
         args.sensitivity_path, args, cache
     )
+    override_layers = parse_selected_layers_override(
+        args.selected_layers_override, sensitivity
+    )
+    if override_layers is not None:
+        selected_layers = override_layers
     dataset, info = DATASET_LOADERS[args.dataset]()
     raw_train_dataset, val_dataset, _, split_path = prepare_subject_fold(
         dataset_name=args.dataset,
@@ -539,6 +580,12 @@ def main():
         "split_path": split_path,
         "ranks": cache["ranks"],
         "selected_layers": selected_layers,
+        "selected_layers_override": args.selected_layers_override,
+        "layer_selection_rule": (
+            args.layer_selection_rule
+            or ("override" if args.selected_layers_override else "sensitivity_selected_layers")
+        ),
+        "prefix_k": args.prefix_k,
         "all_layers": args.all_layers,
         "static_rank_weights": args.static_rank_weights,
         "online_madry_at": args.online_madry_at,

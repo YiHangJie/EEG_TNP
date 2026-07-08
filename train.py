@@ -10,7 +10,7 @@ import random
 import numpy as np
 from tqdm import tqdm
 
-from torcheeg.models import EEGNet, TSCeption, ATCNet, Conformer
+from models.registry import MODEL_CHOICES, MODEL_CLASSES
 
 from models.model_args import get_model_args
 from data.load import load_seediv, load_m3cv, load_bciciv2a, load_thubenchmark
@@ -27,7 +27,7 @@ def seed_everything(seed=42):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='seediv', choices=['seediv','m3cv', 'bciciv2a', 'thubenchmark'], help='choose dataset')
-    parser.add_argument('--model', type=str, default='eegnet', choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
+    parser.add_argument('--model', type=str, default='eegnet', choices=MODEL_CHOICES, help='choose model')
     parser.add_argument('--epochs', type=int, default=400, help='number of epochs to train')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size for training')
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
@@ -101,12 +101,7 @@ if __name__ == '__main__':
         logging.info(f'Split path: {split_path}')
         logging.info(f"sample num in train set: {len(train_dataset)}, sample num in val set: {len(val_dataset)}, sample num in test set: {len(test_dataset)}")
         # initialize model
-        model_dict = {
-            'eegnet': EEGNet,
-            'tsception': TSCeption,
-            'atcnet': ATCNet,
-            'conformer': Conformer
-        }
+        model_dict = MODEL_CLASSES
         model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
         model.to(device)
         logging.info(f'Model: {args.model}, Parameter Num: {sum(p.numel() for p in model.parameters())}')

@@ -155,14 +155,14 @@ def main():
     purification_rows = []
     for method, path in purification_paths.items():
         payload = torch_load_cpu(path)
-        validate_purification(payload, path, args)
+        meta = validate_purification(payload, path, args)
         artifacts.setdefault(method, {})["purification"] = path
         for metric in payload["metrics"]:
             purification_rows.append(
                 {
                     "method": method,
                     "rank": int(metric["rank"]),
-                    "sample_num": int(metric["sample_num"]),
+                    "sample_num": int(metric.get("sample_num", meta["sample_num"])),
                     "purified_clean_accuracy": metric["purified_clean_accuracy"],
                     "purified_adv_accuracy": metric["purified_adv_accuracy"],
                     "mean_clean_mse": metric["mean_clean_mse"],

@@ -8,7 +8,7 @@
 
 - `train.py`
   - 普通 EEG 分类训练入口。
-  - 支持 `seediv`、`m3cv`、`bciciv2a`、`thubenchmark` 数据集，以及 `eegnet`、`tsception`、`atcnet`、`conformer` 模型。
+  - 支持 `seediv`、`m3cv`、`bciciv2a`、`thubenchmark` 数据集，以及 `eegnet`、`tsception`、`atcnet`、`conformer`、`tcnet`、`deepconvnet` 模型。
   - 通过 `data.subject_ea.iter_subject_folds` 构造 subject split；当前脚本在 fold 循环中 `if index >= 1: break`，实际只训练第一个 fold。
   - 日志写入 `log_train/`，最佳 checkpoint 写入 `checkpoints/`。
 
@@ -90,9 +90,13 @@
     checkpoint，再调用 `run_exp023_baseline_pgd10.sh` 评估 seed43/44 的
     Madry/TRADES/FBF PGD-10。
   - `run_exp024_backbone.sh`、`run_exp024_all_backbones.sh`、`compare_exp024.py`：
-    EXP-024 其他 backbone 扩展测试；对 `tsception`、`atcnet`、`conformer`
+    EXP-024 其他 backbone 扩展测试；对 `tsception`、`atcnet`、`conformer`、`deepconvnet`、`tcnet`
     串行执行 Madry AT、RPCF cache/sensitivity、RPCF_AT 在线微调、AutoAttack、
     rank25/30 净化测试，并训练/评估 clean、TRADES、FBF baseline。
+  - `run_exp025_layer_prefix.sh`、`compare_exp025.py`：EXP-025 敏感层前缀预算曲线；
+    复用已有 AT checkpoint、RPCF train cache 和 sensitivity artifact，按敏感性分数降序
+    依次累加可训练层，为每个前缀预算单独微调 RPCF_AT、执行 white-box attack、
+    rank25/30 净化并汇总 clean/adv/purified 指标。
   - 默认 rank 为 `15,20,25,30,35,40`，正式长实验必须通过 `nohup` 后台启动。
 
 - `train_AT_ea_forward.py`
@@ -340,7 +344,7 @@
 
 - 新分类模型
   - 优先新增 `models/<new_model>.py` 或使用 TorchEEG 现有模型。
-  - 更新 `models/model_args.py` 和相关入口脚本的 `model_dict`/`choices`。
+  - 当前统一注册表为 `models/registry.py`；新增模型后同步更新 `models/model_args.py`、RPCF 逻辑层定义和相关入口脚本。
   - 默认行为必须保持旧模型不变。
 
 - 新训练 idea

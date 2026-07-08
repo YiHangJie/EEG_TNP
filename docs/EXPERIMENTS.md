@@ -4,6 +4,69 @@
 
 如果实验没有实际运行，**Results 必须写为 `Pending`**。不要编造实验结果、指标、日志或结论。
 
+## AI 阅读规则
+
+AI 处理本文件时，默认不要全文阅读。除非用户明确要求完整审查全部实验记录，否则应按下面顺序读取：
+
+- 先读文件开头的规则、闭环 checklist、编号规则和实验通用模板。
+- 再读“实验索引表”，根据 `EXP-XXX`、`IDEA-XXX`、关键词、run id、脚本名、方法名或数据集定位相关条目。
+- 只展开阅读与当前任务直接相关的实验条目，以及它们引用的上下游实验。
+- 如果任务涉及研究结论、方向取舍或论文叙事，再同步阅读相关 `DEC-XXX` 和 `docs/方法进展梳理.md` 片段。
+- 如果无法确定相关实验，先用 `rg` 搜索关键词，不要直接阅读该文档的全文。
+
+## 实验索引表
+
+本表用于帮助 AI 和研究者快速定位实验。新增或完成实验时，应同步更新对应行的状态、相关 idea 和关键词；详细命令、指标和结论仍以实验正文为准。
+
+| EXP | 状态 | 相关 idea | 主题 / 关键词 |
+| --- | --- | --- | --- |
+| `EXP-001` | 已完成 | `IDEA-001` | PTR rank growth；固定 rank；JS 阈值；MSE gate 初始问题 |
+| `EXP-002` | 已完成 | `IDEA-001` | JS=0.02；MSE gate 0.08；保真约束 |
+| `EXP-003` | 已完成 | `IDEA-001` | rank growth 轨迹；TensorLy TR 替代分析 |
+| `EXP-004` | 已完成 | `IDEA-001` | full-sweep；JS/MSE 诊断；早停偏差 |
+| `EXP-005` | 已完成 | `IDEA-002` | 高频能量占比；新增恢复成分；频谱诊断 |
+| `EXP-006` | 已完成 | `IDEA-002` | rank 5-20；细粒度高频增量 |
+| `EXP-007` | 已完成 | `IDEA-003` | Optuna；离线 rank-selection；JS/MSE/margin |
+| `EXP-008` | 已完成 | `IDEA-003` | 单指标 ablation；两两组合 selector |
+| `EXP-009` | 已完成 | `IDEA-003` | n512；r5-40 step5；full-sweep 轨迹 |
+| `EXP-010` | 已完成 | `IDEA-003` | n512；Optuna；threshold；js_mse |
+| `EXP-011` | 已完成 | `IDEA-004` | entropy；rank-selection；Optuna ablation |
+| `EXP-012` | 已完成 | `IDEA-002`、`IDEA-003`、`IDEA-004` | eps=0.1；rank-growth pipeline；跨 eps 复验 |
+| `EXP-013` | 已完成 | `IDEA-003` | eps=0.1；js_mse 在线早停；计算开销 |
+| `EXP-014` | 已完成 | `IDEA-005` | PTR_3d_rank_soft_mask；rank penalty sweep |
+| `EXP-015` | Stopped | `IDEA-006` | JS_MSE；跨 dataset/model/seed/fold/eps；完整复验 |
+| `EXP-016` | 已完成 | None | 对抗训练；逐 epoch PGD；工程 smoke |
+| `EXP-017` | Completed | `IDEA-007` | RPCF 首轮；legacy seed protocol |
+| `EXP-018` | 已完成 | `IDEA-007` | RPCF；consistancy；普通 EEG_TNP+AT；公平对比 |
+| `EXP-019` | 已完成 | `IDEA-007` | 五方法；seed43；公平复验 |
+| `EXP-020` | 已完成 | `IDEA-008` | eps=0.05；五方法；三 seed |
+| `EXP-021` | 已完成 | `IDEA-009` | RPCF_AT；eps0.03；三 seed |
+| `EXP-022` | 已完成 | `IDEA-010` | RPCF_AT；eps0.05；三 seed |
+| `EXP-023` | 结果 Pending | `IDEA-011` | BPDA+PGD-10；adaptive attack；smoke 已通过 |
+| `EXP-024` | 已完成 | Pending | 其他 backbone；RPCF_AT；baseline 全流程 |
+| `EXP-025` | Pending | Pending | RPCF_AT；敏感层降序累加微调；四 backbone 预算曲线 |
+
+## 实验完成闭环 Checklist
+
+每次实验从 `运行中` 变为 `已完成`、`失败` 或决定长期暂停时，更新本实验条目后，应按下面顺序检查研究闭环。没有触发的项目写 `不需要`，不要空着。
+
+- `IDEAS.md`：如果实验改变了相关 idea 的可信度、状态或下一步，应更新对应 `IDEA-XXX` 的状态、相关实验、风险或备注。
+- `EXPERIMENTS.md`：本条实验必须补齐实际命令、关键设置、输出路径、结果、观察、问题、结论和下一步；未实际运行的结果保持 `Pending`。
+- `DECISIONS.md`：如果实验结果会影响后续研究方向、默认候选、是否放弃某路线、baseline 公平性或计算资源投入，应新增或更新一个 `DEC-XXX`。
+- `方法进展梳理.md`：如果实验改变了论文叙事、阶段性证据链、主方法定位或下一步 presentation 口径，应同步更新。
+- `CODEMAP.md`：如果实验引入了新的入口脚本、pipeline、输出目录、重要配置开关或安全扩展点，应同步更新。
+- `PROMPTS.md`：如果本次形成了可复用的 AI 操作流程，应补充或修改提示词。
+
+建议在每个实验条目的 `下一步` 中显式写出闭环状态，例如：
+
+```text
+- **闭环检查：**
+  - `IDEAS.md`：已更新 / 不需要
+  - `DECISIONS.md`：已新增 `DEC-XXX` / 不需要
+  - `方法进展梳理.md`：已更新 / 不需要
+  - `CODEMAP.md`：已更新 / 不需要
+```
+
 ## 编号规则
 
 - 使用连续编号：`EXP-001`、`EXP-002`、`EXP-003`，以此类推。
@@ -3131,4 +3194,124 @@
   - 2026-07-03 11:38：为 RPCF cache 增加 rank 级并行能力：`rpcf.generate_cache` 新增 `--base_only`、`--rank_shard_only`、`--finalize_only` 三个显式模式；新增 `rpcf/run_exp024_stage2_rank_parallel.sh`，先确保 base shard，再将 `tsception`、`atcnet`、`conformer` 的 6 个 rank shard 分别作为独立任务调度，默认每张空闲 GPU 跑 2 个 rank，且 `EXP024_MAX_ACTIVE_RANK_JOBS` 默认限制总 rank 并发为 6。已通过 `python3 -m py_compile rpcf/generate_cache.py`、`bash -n rpcf/run_exp024_stage2_rank_parallel.sh` 和 `DRY_RUN=1` 检查；结果仍为 Pending。
   - 2026-07-03 11:40：使用 rank 级并行脚本正式续跑 stage2，chain id 为 `exp024_parallel_seed42_20260702_153337_stage2_rank_parallel`，外层 PID `391732`。启动命令使用 `EXP024_GPU_IDS=0,1,2,3`、`EXP024_RANK_SLOTS_PER_IDLE_GPU=2`、`EXP024_MAX_ACTIVE_RANK_JOBS=6`，并复用三个已有 run id。启动后检查显示首批 6 个 rank worker 已派发：GPU0/1/2 各 2 个；调度器等待 rank 完成后继续投放剩余 shard。
   - 2026-07-03 11:45：发现本机实际有 8 张 GPU，GPU4/5/6/7 空闲，按用户要求将 `conformer` 也提前跑上。为避免原 rank controller 后续重复派发同一 conformer rank，先对外层 controller PID `391732` 发送 `STOP`，保留已运行的 tsception/atcnet worker 继续执行；随后手动使用 `--rank_shard_only` 启动 conformer rank15/20/25/30/35/40，分配为 GPU4 两个、GPU5 两个、GPU6 两个，日志为 `logs/exp024/exp024_parallel_seed42_20260702_153337_conformer_retry2/stage2_rank*_manual.log`。确认 GPU4/5/6 分别已有两个 conformer worker；另起 watcher PID `405334`，等待 conformer 手动 rank worker 结束后自动 `CONT` 原 controller。
+  - 2026-07-03 16:29：检查 stage3 自动衔接与多 GPU 调度。`rpcf/run_exp024_all_backbones.sh` 会在 `EXP024_GPU_IDS=0,1,2,3,4,5,6,7` 中按显存空闲选择物理 GPU，并以 `CUDA_VISIBLE_DEVICES=<physical> GPU_ID=0` 启动各 backbone；`rpcf/analyze_sensitivity.py`、`rpcf.finetune`、`rpcf.evaluate_attack`、`rpcf.evaluate_purification` 均使用 `--gpu_id` 构造 device，因此可配合该隔离方式运行。已执行 `DRY_RUN=1 START_STAGE=3` 验证 all-backbone 调度命令可正常展开。发现旧 stage3 watcher 未携带 10GB 显存下更稳的 batch size 设置，已替换为 PID `721414`，在自动启动 stage3+ 时传入 `AT_BATCH_SIZE=64`、`BASELINE_BATCH_SIZE=64`、`ONLINE_AT_BATCH_SIZE=64`、`RPCF_BATCH_SIZE=32`、`ATTACK_BATCH_SIZE=16`。
+  - 2026-07-04 12:41：状态检查。stage2 三个 final RPCF cache 均已生成（各约 2.6GB），自动 watcher 于 2026-07-03 19:13 启动 stage3+。`atcnet` 已完成 stage3、stage4、stage5，目前运行到 `stage6_purify_madry_at`；已生成 `atcnet_retry2_rpcf_at_best.pth` 与 `finetune_rpcf_at.json`。`tsception` 与 `conformer` 已完成 stage3 sensitivity，但均在 stage4 `rpcf.finetune` 的 initial PGD 评估处 CUDA OOM 退出，需要后续用更小 `RPCF_BATCH_SIZE` / `ONLINE_AT_BATCH_SIZE` 或独占空闲 GPU 续跑 stage4。
+  - 2026-07-04 12:46：按用户要求立即续跑 `tsception` 和 `conformer`，从 `START_STAGE=4` 开始，chain id 为 `exp024_parallel_seed42_20260702_153337_stage4_retry_lowmem`，外层 PID `1112791`。本轮加入 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`，并进一步降低显存相关 batch：`RPCF_BATCH_SIZE=8`、`ONLINE_AT_BATCH_SIZE=16`、`ATTACK_BATCH_SIZE=8`、`AT_BATCH_SIZE=32`、`BASELINE_BATCH_SIZE=32`。调度器将 `tsception` 分配到物理 GPU2，将 `conformer` 分配到物理 GPU7；已确认子进程环境包含 `CUDA_VISIBLE_DEVICES=2/7` 和 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`。
+  - 2026-07-06 10:19：复查 `tsception` stage4 后续风险。低显存重试已在 2026-07-04 18:10 保存 `tsception_rpcf_at_best.pth`，stage5 的 `madry_at` / `rpcf_at` AutoAttack 产物均已生成，stage6 的 rank25/30 净化产物也已生成。未发现类似 conformer 重复启动导致 stage5 进程被 kill 的风险；`stage5_attack_madry_at.log` 和 `stage5_attack_rpcf_at.log` 均正常输出对应 `.pth`。
+  - 2026-07-06 10:19：发现 `tsception` stage9 汇总失败于 `rpcf/compare_exp024.py` 的 `KeyError: 'sample_num'`，原因是 `rpcf.evaluate_purification` 将 `sample_num` 写在 artifact `meta` 中而非每个 rank 的 `metrics` 中。已将汇总器改为 `metric.get("sample_num", meta["sample_num"])` 兼容旧/现有产物，并重跑 stage9 成功生成 `comparison.md`、`full_test_attack.csv`、`purification.csv`、`summary.json`。
+  - 2026-07-06 10:29：复查 EXP-024 完成度。`tsception` stage9 已完成；`conformer` 的 attack、purification、baseline attack 产物齐全，但 stage9 旧日志因 `sample_num` schema 兼容问题失败。使用修复后的 `rpcf.compare_exp024` 重跑 `conformer` stage9，已生成 `comparison.md`、`full_test_attack.csv`、`purification.csv`、`summary.json`。
+  - 2026-07-06 10:30：`atcnet_retry2` 目前完成到 stage6：`madry_at` / `rpcf_at` attack 与 rank25/30 purification 产物齐全，但 stage7/8/9 尚未完成。原因是旧脚本在 stage6 后触发 `rpcf/run_exp024_backbone.sh: line 299: --ranks: command not found` 后退出；当前脚本该断行问题已不存在，`DRY_RUN=1 START_STAGE=7 STOP_STAGE=9` 可正常展开，后续需要单独续跑 `atcnet` stage7-9。
+  - 2026-07-06 10:35：按用户要求续跑 `atcnet_retry2` stage7-9，chain id 为 `exp024_atcnet_stage7_9_resume`，外层 controller PID `2471607`。使用 `nohup setsid env ... bash rpcf/run_exp024_all_backbones.sh` 启动，调度器将任务分配到物理 GPU2；当前进入 `stage7_train_baseline_clean`，训练进程已上卡，日志为 `logs/exp024/exp024_parallel_seed42_20260702_153337_atcnet_retry2/stage7_train_baseline_clean.log`，外层日志为 `logs/exp024/exp024_atcnet_stage7_9_resume.nohup.log`。
+- **完成记录：**
+  - 2026-07-06 21:51（Asia/Shanghai）：`atcnet_retry2` stage9 完成，三个 backbone 的 comparison 均已生成。
+  - `tsception`：`logs/exp024/exp024_parallel_seed42_20260702_153337_tsception/comparison/`
+  - `conformer`：`logs/exp024/exp024_parallel_seed42_20260702_153337_conformer_retry2/comparison/`
+  - `atcnet`：`logs/exp024/exp024_parallel_seed42_20260702_153337_atcnet_retry2/comparison/`
+- **结果汇总：**
+
+  | Backbone | RPCF_AT trainable ratio | Full AA Madry | Full AA RPCF_AT | Δ RPCF_AT-Madry | Rank25 Madry+TNP | Rank25 RPCF_AT+TNP | Δ | Rank30 Madry+TNP | Rank30 RPCF_AT+TNP | Δ |
+  | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | `tsception` | 35.10% | 38.08% | 38.20% | +0.12 | 48.63% | 53.32% | +4.69 | 47.85% | 48.44% | +0.59 |
+  | `conformer` | 6.60% | 72.41% | 66.29% | -6.12 | 77.34% | 73.05% | -4.30 | 75.78% | 71.68% | -4.10 |
+  | `atcnet` | 66.44% | 86.27% | 85.14% | -1.12 | 87.50% | 86.91% | -0.59 | 87.11% | 85.94% | -1.17 |
+
+  这里的 `Madry+TNP` 指 `madry_at` checkpoint 遭遇自身 white-box AutoAttack 后再执行 rank25/30 EEG_TNP 净化；`RPCF_AT+TNP` 指 `rpcf_at` checkpoint 遭遇自身 white-box AutoAttack 后再执行同 rank 净化。
+- **观察：**
+  - `RPCF_AT` 并没有在跨 backbone 上稳定优于 `Madry_AT + EEG_TNP`。
+  - `tsception` 是唯一正例，rank25 净化后提升明显（+4.69 个百分点），rank30 和未净化 AutoAttack 只有小幅提升。
+  - `conformer` 是明确负例：未净化 AutoAttack、rank25、rank30 全部下降约 4-6 个百分点。
+  - `atcnet` 本身 Madry AT 已很强，RPCF_AT 的未净化和净化后指标均略低；且本轮 40% 逻辑层规则实际微调了 66.44% 参数，参数效率并不好。
+  - 因此 EXP-021/022 在 EEGNet 上得到的“RPCF_AT 提高净化后鲁棒性”不能直接外推到其他 backbone。
+- **结论：**
+  - EXP-024 支持把 RPCF_AT 表述为“EEGNet 上有效、跨 backbone 需要条件化”的方法，而不是稳定支配 `Madry_AT + EEG_TNP` 的通用改进。
+  - 后续 EXP-025 的敏感层前缀预算曲线很关键：需要检查当前固定 40% 层数规则是否导致 conformer/atcnet 的负迁移，尤其是 atcnet 可训练参数比例过高的问题。
+- **闭环检查：**
+  - `DECISIONS.md`：已新增 `DEC-020`。
+  - `方法进展梳理.md`：已补充 EXP-024 跨 backbone 结论。
+  - `CODEMAP.md`：不需要。
+  - `PROMPTS.md`：不需要。
+- **结果：** 已完成
+- **DeepConvNet/TCNet 扩展复跑：**
+  - 日期：2026-07-07（Asia/Shanghai）。
+  - 动机：按用户要求引入更权威/更多样的 EEG backbone；`deepconvnet` 参考 Braindecode `Deep4Net`/`deep4.py` 结构在本项目内自包含实现，`tcnet` 直接复用 TorchEEG `TCNet`。
+  - 新增模型接入：`deepconvnet`、`tcnet` 已加入 `models/registry.py`、`models/model_args.py`、`train.py`、`train_AT.py`、`attack.py`、`purify.py` 和 `rpcf/*` 入口。
+  - RPCF 逻辑层：`deepconvnet` 使用 `conv_time_spat/conv_2/conv_3/conv_4/final_layer`；`tcnet` 使用 `eegnet/tcn_blocks.0/tcn_blocks.1/classifier`。
+  - 运行脚本：继续复用 `rpcf/run_exp024_all_backbones.sh` 与 `rpcf/run_exp024_backbone.sh`，仅设置 `EXP024_MODELS="deepconvnet tcnet"`。
+  - 验证：
+    ```bash
+    python3 -m py_compile models/model_args.py models/deepconvnet.py models/registry.py rpcf/core.py train_AT.py attack.py purify.py
+    conda run -n torch --no-capture-output python - <<'PY'
+    import torch
+    from models.registry import MODEL_CLASSES
+    from models.model_args import get_model_args
+    from rpcf.core import logical_layer_names
+    info = {'chunk_size': 1024, 'num_electrodes': 64, 'num_classes': 4, 'sampling_rate': 250}
+    for name in ['deepconvnet', 'tcnet']:
+        model = MODEL_CLASSES[name](**get_model_args(name, 'thubenchmark', info))
+        print(name, tuple(model(torch.randn(2, 64, 1024)).shape), logical_layer_names(name, model))
+    PY
+    EXP024_MODELS="deepconvnet tcnet" EXP024_GPU_IDS="4,5" EXP024_GPU_IDLE_MAX_USED_MB=99999 DRY_RUN=1 STOP_STAGE=1 \
+      bash rpcf/run_exp024_all_backbones.sh
+    ```
+  - 首次启动：`exp024_deepconvnet_tcnet_seed42_20260707_1430`，外层 PID `2983001`，分配 GPU1/2；stage1 立即失败，原因是训练管线输入为 `[B,1,C,T]`，而新增 `deepconvnet` 与 TorchEEG `TCNet` 原生 forward 期望 `[B,C,T]`。
+  - 修复：`DeepConvNet.forward` 与 `ProjectTCNet.forward` 均兼容单例维度 `[B,1,C,T] -> [B,C,T]`；已用 `[2,1,64,1500]` 假 batch 验证输出为 `[B,num_classes]`。
+  - 正式 retry：`exp024_deepconvnet_tcnet_seed42_20260707_1435_retry1`，外层 controller PID `2984943`；`deepconvnet` 子 controller PID `2984961`，物理 GPU1；`tcnet` 子 controller PID `2985037`，物理 GPU2。
+  - 正式 retry 命令：
+    ```bash
+    nohup setsid env EXP024_RUN_TAG=20260707_1435 \
+      EXP024_CHAIN_ID=exp024_deepconvnet_tcnet_seed42_20260707_1435_retry1 \
+      EXP024_MODELS="deepconvnet tcnet" EXP024_GPU_IDS="1,2" \
+      PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+      AT_BATCH_SIZE=64 BASELINE_BATCH_SIZE=64 RPCF_BATCH_SIZE=8 \
+      RPCF_EVAL_BATCH_SIZE=2 ONLINE_AT_BATCH_SIZE=16 ATTACK_BATCH_SIZE=8 \
+      bash rpcf/run_exp024_all_backbones.sh \
+      > logs/exp024/exp024_deepconvnet_tcnet_seed42_20260707_1435_retry1.nohup.log \
+      2>&1 < /dev/null &
+    ```
+  - 启动后检查：`deepconvnet` 已进入 stage1 Madry AT，训练日志到 epoch2；`tcnet` 已进入 stage1 Madry AT，训练日志到 epoch1；GPU1/2 均有对应训练进程。
+  - 结果：Pending。
+
+
+### EXP-025：RPCF_AT 敏感层降序累加微调预算曲线
+
+- **状态：** Pending
+- **动机：** 当前主方法已基本确定，后续重点转向补实验、消融、调参、可视化和低秩分析。本实验检查 EXP-024 固定 40% 敏感层规则是否过于静态，是否限制了不同 backbone 的 RPCF_AT 微调潜力。
+- **核心设置：**
+  - backbone：`eegnet`、`tsception`、`conformer`、`atcnet`。
+  - 数据与协议：默认对齐 EXP-024，`thubenchmark`、`seed=42`、`fold=0`、`eps=0.03`、`AutoAttack`。
+  - 层选择：读取对应 `sensitivity.json` 中的 `layers[*].score`，按分数降序排序，依次运行 `top1, top2, ..., all` 前缀预算。
+  - 每个预算 checkpoint 单独执行 white-box attack，再做 rank25/rank30 净化和评测；不复用 EXP-024 的净化缓存。
+- **新增入口：**
+  - 运行脚本：`rpcf/run_exp025_layer_prefix.sh`
+  - 汇总脚本：`rpcf/compare_exp025.py`
+  - 日志结构：`logs/exp025/<run_id>/<backbone>/budget_<k>/`
+  - 汇总输出：`logs/exp025/<run_id>/<backbone>/comparison/`
+- **运行命令：**
+  ```bash
+  EXP025_RUN_ID=exp025_layer_prefix_seed42_YYYYMMDD_HHMMSS \
+  EXP025_MODELS="eegnet tsception conformer atcnet" \
+  CUDA_VISIBLE_DEVICES=0 GPU_ID=0 \
+  nohup setsid bash rpcf/run_exp025_layer_prefix.sh \
+    > logs/exp025/exp025_layer_prefix_seed42_YYYYMMDD_HHMMSS/controller.log \
+    2>&1 < /dev/null &
+  ```
+  - 如果本地缺少 EEGNet 的 AT checkpoint、six-rank RPCF train cache 或 sensitivity artifact，需要先补生成，或显式传入：
+    `EXP025_AT_CHECKPOINT_EEGNET`、`EXP025_CACHE_EEGNET`、`EXP025_SENSITIVITY_EEGNET`。
+- **验证：**
+  ```bash
+  bash -n rpcf/run_exp025_layer_prefix.sh
+  python3 -m py_compile rpcf/finetune.py rpcf/compare_exp025.py
+  ```
+- **启动记录：**
+  - 2026-07-06 12:27（Asia/Shanghai）：按用户要求使用空闲 GPU4-7 启动 EXP-025。
+  - `tsception`：run id `exp025_layer_prefix_seed42_20260706_1225_tsception`，物理 GPU4，controller PID `2574941`，日志 `logs/exp025/exp025_layer_prefix_seed42_20260706_1225_tsception/controller.log`。
+  - `conformer`：run id `exp025_layer_prefix_seed42_20260706_1225_conformer`，物理 GPU5，controller PID `2574853`，日志 `logs/exp025/exp025_layer_prefix_seed42_20260706_1225_conformer/controller.log`。
+  - `atcnet`：run id `exp025_layer_prefix_seed42_20260706_1225_atcnet`，物理 GPU6，controller PID `2574990`，日志 `logs/exp025/exp025_layer_prefix_seed42_20260706_1225_atcnet/controller.log`。
+  - `eegnet`：run id `exp025_layer_prefix_seed42_20260706_1225_eegnet`，物理 GPU7；先用 `EXP018_RUN_ID=exp025_eegnet_prep_seed42_20260706_1225` 补 Madry AT checkpoint、six-rank RPCF train cache 和 sensitivity artifact，完成后自动进入 EEGNet EXP-025。外层启动 PID `2575612`，当前链式 shell/训练进程见 `2575614` / `2575618` / `2575686`，总日志 `logs/exp025/exp025_eegnet_prep_then_layer_prefix_seed42_20260706_1225/controller.log`。
+  - 本轮显存相关参数：`RPCF_BATCH_SIZE=8`、`RPCF_EVAL_BATCH_SIZE=2`、`ONLINE_AT_BATCH_SIZE=16`、`ATTACK_BATCH_SIZE=8`，并设置 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`。
 - **结果：** Pending
+- **闭环检查：**
+  - `IDEAS.md`：不需要；本实验不是新方法，只是既定 RPCF_AT 的预算曲线。
+  - `DECISIONS.md`：Pending；需等待预算曲线结果后再判断是否替代固定 40% 规则。
+  - `方法进展梳理.md`：Pending；需等待结果后再更新论文叙事。
+  - `CODEMAP.md`：已更新 EXP-025 入口。

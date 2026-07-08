@@ -90,6 +90,23 @@
 - 只有在提供的数据支持时，才添加观察、问题、结论和下一步。
 ```
 
+## 实验完成后的闭环更新
+
+```text
+请根据下面的实验日志、指标或人工记录，完成一次实验闭环更新：
+
+<在这里粘贴 EXP 编号、commands、metrics、logs、notes 或当前判断>
+
+要求：
+- 先阅读相关 `IDEA-XXX`、`docs/EXPERIMENTS.md` 中对应 `EXP-XXX` 条目、`docs/DECISIONS.md` 和 `docs/方法进展梳理.md` 的相关部分。
+- 更新 `docs/EXPERIMENTS.md` 中该实验的状态、结果、观察、问题、结论和下一步；没有实际证据的字段写 `Pending`。
+- 按 `docs/EXPERIMENTS.md` 的“实验完成闭环 Checklist”逐项判断是否需要更新 `IDEAS.md`、`DECISIONS.md`、`方法进展梳理.md`、`CODEMAP.md` 或 `PROMPTS.md`。
+- 如果实验影响后续研究方向、默认候选、baseline 公平性或资源投入，必须新增或更新 `DEC-XXX`。
+- 如果实验改变论文叙事或阶段性证据链，应更新 `docs/方法进展梳理.md`。
+- 不要编造实验结果；没有日志或指标支撑的结论必须标记为 `Pending` 或写成待确认问题。
+- 最后总结修改了哪些文档文件、没有更新哪些文件以及原因。
+```
+
 ## 只做代码审查
 
 ```text

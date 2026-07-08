@@ -19,7 +19,7 @@ from data.load import load_bciciv2a, load_m3cv, load_seediv, load_thubenchmark
 from data.subject_ea import get_protocol_tag, prepare_subject_fold
 from models.model_args import get_model_args
 from purify import purify
-from torcheeg.models import ATCNet, Conformer, EEGNet, TSCeption
+from models.registry import MODEL_CHOICES, MODEL_CLASSES
 from utils.experiment_artifacts import eeg_classification_collate, safe_token, short_protocol_tag
 from utils.reproducibility import seed_everything, stable_subset_indices
 
@@ -29,7 +29,7 @@ def parse_args():
     parser.add_argument('--dataset', type=str, default='thubenchmark',
                         choices=['seediv', 'm3cv', 'bciciv2a', 'thubenchmark'])
     parser.add_argument('--model', type=str, default='eegnet',
-                        choices=['eegnet', 'tsception', 'atcnet', 'conformer'])
+                        choices=MODEL_CHOICES)
     parser.add_argument('--fold', type=int, default=0)
     parser.add_argument('--config', type=str, required=True, help='purification config file under configs/<dataset>/')
     parser.add_argument('--sample_num', type=int, default=512, help='number of random train samples to purify')

@@ -10,7 +10,7 @@ import torch
 import numpy as np
 import yaml
 
-from torcheeg.models import EEGNet, TSCeption, ATCNet, Conformer
+from models.registry import MODEL_CHOICES, MODEL_CLASSES
 from torcheeg.datasets.constants import SEED_IV_CHANNEL_LOCATION_DICT, M3CV_CHANNEL_LOCATION_DICT
 from torcheeg.datasets.constants.motor_imagery import BCICIV2A_LOCATION_DICT
 from torcheeg.datasets.constants.ssvep import TSUBENCHMARK_CHANNEL_LOCATION_DICT
@@ -48,7 +48,7 @@ from utils.reproducibility import seed_everything, stable_subset_indices
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='seediv', choices=['seediv','m3cv', 'bciciv2a', 'thubenchmark'], help='choose dataset')
-    parser.add_argument('--model', type=str, default='eegnet', choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
+    parser.add_argument('--model', type=str, default='eegnet', choices=MODEL_CHOICES, help='choose model')
     parser.add_argument('--at_strategy', type=str, default=None, choices=AT_STRATEGIES,
                         help='adversarial training strategy of the evaluated classifier; inferred from artifact paths when omitted')
     parser.add_argument('--fold', type=int, default=0, help='which fold to use')
@@ -490,12 +490,7 @@ if __name__ == '__main__':
     logging.info('')
 
     # load model
-    model_dict = {
-        'eegnet': EEGNet,
-        'tsception': TSCeption,
-        'atcnet': ATCNet,
-        'conformer': Conformer
-    }
+    model_dict = MODEL_CLASSES
     model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
     model.to(device)
     checkpoint_path = resolve_checkpoint_path(args, protocol_tag)

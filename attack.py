@@ -10,7 +10,7 @@ import numpy as np
 from tqdm import tqdm
 from contextlib import contextmanager
 
-from torcheeg.models import EEGNet, TSCeption, ATCNet, Conformer
+from models.registry import MODEL_CHOICES, MODEL_CLASSES
 
 from models.model_args import get_model_args
 from data.load import load_seediv, load_m3cv, load_bciciv2a, load_thubenchmark
@@ -30,7 +30,7 @@ from utils.reproducibility import seed_everything, stable_subset_indices
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='seediv', choices=['seediv','m3cv', 'bciciv2a', 'thubenchmark'], help='choose dataset')
-    parser.add_argument('--model', type=str, default='eegnet', choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
+    parser.add_argument('--model', type=str, default='eegnet', choices=MODEL_CHOICES, help='choose model')
     parser.add_argument('--at_strategy', type=str, default='clean', choices=['madry', 'fbf', 'trades', 'clean'], help='adversarial training strategy')
     parser.add_argument('--fold', type=int, default=0, help='which fold to use')
     parser.add_argument('--attack', type=str, default='fgsm', choices=['fgsm', 'pgd', 'cw', 'autoattack'], help='choose attack')
@@ -225,12 +225,7 @@ if __name__ == '__main__':
         )
 
     # load model
-    model_dict = {
-        'eegnet': EEGNet,
-        'tsception': TSCeption,
-        'atcnet': ATCNet,
-        'conformer': Conformer
-    }
+    model_dict = MODEL_CLASSES
     model = model_dict[args.model](**get_model_args(args.model, args.dataset, info))
     model.to(device)
     model.eval()

@@ -10,7 +10,7 @@ configure_runtime_env()
 
 import torch
 from torch import nn
-from torcheeg.models import ATCNet, Conformer, EEGNet, TSCeption
+from models.registry import MODEL_CLASSES, MODEL_CHOICES
 
 from attack.autoattack import AutoAttack
 from attack.cw import CW
@@ -29,12 +29,7 @@ DATASET_LOADERS = {
     "bciciv2a": load_bciciv2a,
     "thubenchmark": load_thubenchmark,
 }
-MODEL_CLASSES = {
-    "eegnet": EEGNet,
-    "tsception": TSCeption,
-    "atcnet": ATCNet,
-    "conformer": Conformer,
-}
+# MODEL_CLASSES is imported from models.registry.
 ATTACK_CLASSES = {
     "fgsm": FGSM,
     "pgd": PGD,
@@ -235,6 +230,12 @@ def logical_layer_names(model_name, model):
                     ),
                 )
             )
+    elif model_name == "tcnet":
+        names = ["eegnet"]
+        names.extend(f"tcn_blocks.{index}" for index in range(len(model.tcn_blocks)))
+        names.append("classifier")
+    elif model_name == "deepconvnet":
+        names = ["conv_time_spat", "conv_2", "conv_3", "conv_4", "final_layer"]
     else:
         raise ValueError(f"Unsupported model for logical layer registry: {model_name}")
 

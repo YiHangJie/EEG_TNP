@@ -7,6 +7,16 @@
 - 使用连续编号：`DEC-001`、`DEC-002`、`DEC-003`，以此类推。
 - 尽可能把决策关联到相关的 `IDEA-xxx` 和 `EXP-xxx`。
 
+## 触发条件
+
+实验完成后，如果出现以下任一情况，应新增或更新决策记录，而不是只写在 `EXPERIMENTS.md`：
+
+- 改变后续研究主线、候选方法优先级或是否继续某个 idea。
+- 改变 baseline、公平对比协议、随机种子策略、数据划分或关键评估口径。
+- 发现实现链路中的 bug、偏差或混杂因素，且会影响已有结果解释。
+- 决定投入或停止投入长时间计算资源。
+- 形成论文叙事中的关键判断，例如“保留为诊断指标，但不作为主方法”。
+
 ## 决策通用模板
 
 ### DEC-XXX：决策标题
@@ -467,3 +477,52 @@
   - `IDEA-010`
 - **相关实验：**
   - `EXP-022`
+
+### DEC-019：方法冻结，后续转入实验补强与效率优化阶段
+
+- **日期：** 2026-07-04
+- **背景：**
+  - 经过 rank-growth、selector、soft-rank、RPCF、RPCF_AT、adaptive attack 和 backbone 扩展等阶段，当前项目的主方法形态已经收敛。
+  - `EXP-021` 和 `EXP-022` 支持 RPCF_AT 作为后续 RPCF 主配置；`EXP-023/024` 已转向 adaptive attack、baseline 补全和跨 backbone 验证。
+  - 当前工作环境已经转为多 GPU，实验效率、可续跑调度、日志稳定性和产物管理会直接影响后续补实验速度。
+- **考虑过的选项：**
+  - 选项 A：继续发明新的主方法或大幅修改现有 pipeline。
+  - 选项 B：冻结当前方法，把主要精力投入补实验、消融、超参数、可视化、低秩分析和多 GPU 实验效率。
+- **最终选择：**
+  - 选择 B。
+- **原因：**
+  - 当前方法链路已经足以支撑论文主线，继续频繁改方法会削弱实验可比性和叙事稳定性。
+  - 后续更关键的是把证据链补完整：跨 seed/fold/backbone/dataset/eps、必要消融、adaptive attack、低秩与可视化分析。
+  - 多 GPU 环境下，独立 seed、backbone、rank shard、baseline 和分析任务应尽量并行化，同时保持随机种子、数据划分、日志和输出路径可追踪。
+- **影响：**
+  - 默认不再提出或实现新的主方法结构；除非发现明确 bug、公平性问题或用户显式要求，否则不改动核心方法逻辑。
+  - 后续代码修改应优先服务于实验效率和证据补强，例如可续跑脚本、dry-run、并行调度、结果汇总、可视化和分析脚本。
+  - 新实验应优先复用现有 pipeline 和配置开关，保证与已有结果可比；超参数搜索和消融必须显式记录搜索范围、随机种子和输出目录。
+  - 多 GPU 长实验应继续使用 `nohup` 后台运行，日志实时写入稳定路径，并优先设计为可断点续跑和可独立 shard。
+- **相关 idea：**
+  - `IDEA-009`
+  - `IDEA-010`
+  - `IDEA-011`
+- **相关实验：**
+  - `EXP-021`
+  - `EXP-022`
+  - `EXP-023`
+  - `EXP-024`
+
+### DEC-020：RPCF_AT 的跨 backbone 结论需要从“通用优于 Madry+TNP”收窄为条件化收益
+
+- **日期：** 2026-07-07
+- **背景：**
+  - `EXP-024` 完成 `tsception`、`conformer`、`atcnet` 三个 backbone 的 Madry AT、RPCF_AT、clean/TRADES/FBF baseline、white-box AutoAttack 和 rank25/30 EEG_TNP 净化评估。
+  - 该实验用于检验 `EXP-021/022` 在 EEGNet 上得到的 RPCF_AT 收益是否能外推到其他 backbone。
+- **结论：**
+  - `tsception` 上 RPCF_AT 有收益：rank25 purified adversarial accuracy 从 Madry+TNP 的 `48.63%` 提升到 `53.32%`，但 rank30 只从 `47.85%` 小幅到 `48.44%`，未净化 AutoAttack 也几乎持平。
+  - `conformer` 上 RPCF_AT 明显负迁移：未净化 AutoAttack 从 `72.41%` 降到 `66.29%`，rank25/30 净化后也分别下降 `4.30/4.10` 个百分点。
+  - `atcnet` 上 RPCF_AT 略弱于 Madry+TNP：未净化 AutoAttack 下降 `1.12` 个百分点，rank25/30 净化后下降 `0.59/1.17` 个百分点；同时固定 40% 逻辑层规则实际微调了 `66.44%` 参数。
+- **决策：**
+  - 不再把 RPCF_AT 表述为跨 backbone 稳定优于 `Madry_AT + EEG_TNP` 的通用方法。
+  - 当前更稳妥的表述是：RPCF_AT 在 EEGNet 和部分 backbone/rank 上能改善净化适配，但收益依赖 backbone、层预算和 rank；其核心价值需要通过预算曲线和敏感层选择消融进一步界定。
+  - `EXP-025` 应优先分析“敏感性降序累加预算”是否能缓解 conformer/atcnet 的负迁移；若全预算曲线仍不优于 Madry+TNP，则论文主张应转向“RPCF_AT 是一种可选的 purification adaptation 策略，而非默认支配性改进”。
+- **相关实验：**
+  - `EXP-024`
+  - `EXP-025`

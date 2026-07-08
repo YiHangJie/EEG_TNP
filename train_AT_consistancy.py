@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from data.load import load_bciciv2a, load_m3cv, load_seediv, load_thubenchmark
 from data.subject_ea import get_protocol_tag, iter_subject_folds
 from models.model_args import get_model_args
-from torcheeg.models import ATCNet, Conformer, EEGNet, TSCeption
+from models.registry import MODEL_CHOICES, MODEL_CLASSES
 from utils.experiment_artifacts import (
     as_label_tensor,
     build_checkpoint_path,
@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument('--dataset', type=str, default='seediv',
                         choices=['seediv', 'm3cv', 'bciciv2a', 'thubenchmark'], help='choose dataset')
     parser.add_argument('--model', type=str, default='eegnet',
-                        choices=['eegnet', 'tsception', 'atcnet', 'conformer'], help='choose model')
+                        choices=MODEL_CHOICES, help='choose model')
     parser.add_argument('--at_strategy', type=str, default='madry', choices=['madry'],
                         help='first consistancy version only supports Madry AT')
     parser.add_argument('--fold', type=int, default=0, help='which subject split fold to train')
