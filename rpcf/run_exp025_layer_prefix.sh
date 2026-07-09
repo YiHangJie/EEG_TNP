@@ -113,6 +113,9 @@ exp024_tag_for_model() {
     tsception) printf '%s\n' "exp024_parallel_seed42_20260702_153337_tsception" ;;
     conformer) printf '%s\n' "exp024_parallel_seed42_20260702_153337_conformer_retry2" ;;
     atcnet) printf '%s\n' "exp024_parallel_seed42_20260702_153337_atcnet_retry2" ;;
+    deepconvnet|tcnet)
+      printf '%s\n' "exp024_deepconvnet_tcnet_seed42_20260707_1435_retry1_${model}"
+      ;;
     *) printf '%s\n' "" ;;
   esac
 }
@@ -230,7 +233,7 @@ EOF
 
 for model in ${MODELS}; do
   case "${model}" in
-    eegnet|tsception|conformer|atcnet) ;;
+    eegnet|tsception|conformer|atcnet|deepconvnet|tcnet) ;;
     *) echo "Unsupported EXP-025 model: ${model}" >&2; exit 1 ;;
   esac
   model_root="${LOG_ROOT}/${model}"
@@ -252,11 +255,13 @@ for model in ${MODELS}; do
       *)
         filtered_budgets=()
         IFS=',' read -r -a wanted_budgets <<< "${BUDGET_FILTER}"
+        max_prefix="${budgets[$((${#budgets[@]} - 1))]%%$'\t'*}"
         for line in "${budgets[@]}"; do
           prefix_k="${line%%$'	'*}"
           for wanted in "${wanted_budgets[@]}"; do
-            if [[ "${prefix_k}" == "${wanted}" ]]; then
+            if [[ "${prefix_k}" == "${wanted}" || ( "${wanted}" == "max" && "${prefix_k}" == "${max_prefix}" ) ]]; then
               filtered_budgets+=("${line}")
+              break
             fi
           done
         done
