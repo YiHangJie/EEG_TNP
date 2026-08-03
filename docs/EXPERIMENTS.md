@@ -45,6 +45,12 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
 | `EXP-023` | 结果 Pending | `IDEA-011` | BPDA+PGD-10；adaptive attack；smoke 已通过 |
 | `EXP-024` | 已完成 | Pending | 其他 backbone；RPCF_AT；baseline 全流程 |
 | `EXP-025` | Pending | Pending | RPCF_AT；敏感层降序累加微调；四 backbone 预算曲线 |
+| `EXP-026` | Stopped | `IDEA-013`、`IDEA-014`、`IDEA-015` | RPCF_AT；特征级净化分布适配；用户主动停止 |
+| `EXP-027` | 运行中 | `IDEA-016` | EEGNet；样本级动态 rank；oracle headroom；paired bootstrap |
+| `EXP-028` | 已完成 | `IDEA-002` | trial-level HOSVD；clean/adv/perturb；多视角低秩谱 |
+| `EXP-029` | 运行中 | `IDEA-002` | EXP-028 同批样本；六 rank 净化；purified trial-level HOSVD |
+| `EXP-030` | 已完成（四种 TN-only 策略均不支持） | `IDEA-017` | EEG_TNP；TN-only 自动定秩；Oracle headroom recovery |
+| `EXP-031` | Running | `IDEA-009`、`IDEA-011`、`IDEA-012` | 全层静态-rank RPCF_AT；三数据集；六 backbone；五 seed；四攻击 |
 
 ## 实验完成闭环 Checklist
 
@@ -3316,3 +3322,535 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
   - `DECISIONS.md`：Pending；需等待预算曲线结果后再判断是否替代固定 40% 规则。
   - `方法进展梳理.md`：Pending；需等待结果后再更新论文叙事。
   - `CODEMAP.md`：已更新 EXP-025 入口。
+
+### EXP-026：RPCF_AT 特征级净化分布适配
+
+- **状态：** Stopped；实现与 smoke 已完成，正式矩阵未完成
+- **目标：** 在相同 RPCF_AT 初始化、six-rank cache、sensitivity Top-40% 层和在线 Madry AT 协议下，公平比较 class-balanced control、CMMD、prototype 和 trial-level contrastive learning。
+- **协议：**
+  - dataset/model：`thubenchmark`；`eegnet/tsception/atcnet/conformer/deepconvnet/tcnet`。
+  - seed/fold/eps：`42/0/0.03`。
+  - train rank：`15,20,25,30,35,40`；正式 eval rank：`25,30`。
+  - cache batch：确定性 `4 classes × 2 trials`；正式训练 n512、100 epochs、完整训练 split 在线 PGD-10。
+  - 所有新方法的 clean feature 均为 detached teacher，penultimate feature 按样本 L2 normalize。
+- **实现：**
+  - `rpcf/feature_alignment.py`：六模型分类前 feature adapter、biased multi-RBF CMMD、prototype/margin、trial-level contrastive loss、分层 holdout 和 class-balanced sampler。
+  - `rpcf/finetune.py`：新增显式 feature objective、holdout、sampler 和 history schema；默认 `feature_objective=none` 保持旧行为。
+  - 预筛：`rpcf/run_exp026_prescreen_model.sh`、`rpcf/run_exp026_prescreen.sh`、`rpcf/select_exp026_hparams.py`。
+  - 正式实验：`rpcf/run_exp026_backbone.sh`、`rpcf/run_exp026_all_backbones.sh`、`rpcf/compare_exp026.py`、`rpcf/compare_exp026_all.py`。
+- **预筛网格：**
+  - EEGNet/TSCeption/Conformer，cache 分层 80/20，10 epochs。
+  - CMMD/contrastive weight：`0.01,0.1,1.0`；contrastive temperature `0.1`。
+  - Prototype weight：`0.01,0.1,1.0`，分别比较 margin off 与 `margin=1.0, margin_weight=0.1`。
+  - 选择分数：三模型平均 `0.5×Δ holdout rank25/30 adv-pur acc + 0.5×Δ validation PGD acc`。
+- **验证：**
+  - `python3 -m py_compile` 已覆盖全部新增/修改 Python 入口；所有 shell 已通过 `bash -n`。
+  - `conda run -n torch --no-capture-output python -m unittest test_rpcf test_rpcf_exp026`：26 tests passed。
+  - 六 backbone × balanced control/CMMD/prototype/contrastive 的真实 cache stage1 smoke 已完成；每配置只运行 1 个 cache batch、8 个在线 AT 样本和 PGD-1 validation。
+  - smoke feature dim：EEGNet 752、TSCeption 64、ATCNet 96、Conformer 32、DeepConvNet 2800、TCNet 12；18 个 feature-loss smoke 均为有限非零值，contrastive skipped batch 均为 0。
+  - EEGNet 80/20 holdout smoke 得到 train/holdout `408/104`，逐 rank 与 rank25/30 聚合指标成功写入 history。
+  - `/tmp` 微型 artifact 已端到端通过参数选择器与严格汇总器，确认 metadata、checkpoint、source_indices、labels 和 rank 校验链可用。
+- **正式后台命令：**
+  ```bash
+  EXP026_PRESCREEN_ID=exp026_prescreen_seed42_YYYYMMDD_HHMMSS \
+    EXP026_GPU_IDS=2,3,4 \
+    nohup setsid bash rpcf/run_exp026_prescreen.sh \
+    > logs/exp026/exp026_prescreen_seed42_YYYYMMDD_HHMMSS/controller.log \
+    2>&1 < /dev/null &
+
+  EXP026_RUN_ID=exp026_formal_seed42_YYYYMMDD_HHMMSS \
+    EXP026_SELECTED_ENV=logs/exp026/<prescreen>/selection/selected_hparams.env \
+    EXP026_GPU_IDS=2,3,4,5,6,7 \
+    nohup setsid bash rpcf/run_exp026_all_backbones.sh \
+    > logs/exp026/exp026_formal_seed42_YYYYMMDD_HHMMSS/controller.log \
+    2>&1 < /dev/null &
+  ```
+- **预设有效性标准：** rank25/30 purified adversarial accuracy 平均高于 balanced control 至少 `0.5 pp`，且完整 AutoAttack 不下降超过 `1.0 pp`。
+- **正式预筛启动记录：**
+  - 启动时间：2026-07-13 17:17（Asia/Shanghai）。
+  - run id：`exp026_prescreen_seed42_20260713_1715`；controller PID：`265410`。
+  - GPU：EEGNet/TSCeption/Conformer 分别使用物理 GPU2/3/4，并以 `CUDA_VISIBLE_DEVICES=<physical> GPU_ID=0` 隔离。
+  - controller：`logs/exp026/exp026_prescreen_seed42_20260713_1715/controller.log`；三个模型各自实时写入 `<model>/controller.log` 和 `<config>/run.log`。
+  - 启动检查：controller 与三个首个 balanced control 进程均存活，cache 已开始加载；结果仍为 Pending。
+  - 自动正式实验 watcher：run id `exp026_formal_seed42_20260713_1715`，PID `268016`；等待 `selection/selected_hparams.env` 生成后，将以 GPU2-7 自动启动六 backbone 的 24 次正式训练及后续攻击/净化/汇总。
+- **停止记录：**
+  - 2026-07-16 14:12（Asia/Shanghai）：按用户要求主动停止 EXP-026，以释放 GPU 给 EXP-027 五卡双进程净化。
+  - 对独立 session/进程组 `268016` 发送 `SIGTERM`；外层 controller、ATCNet 子 controller、contrastive 微调和 `tee` 全部退出，无残留 EXP-026 进程。
+  - 停止时正在运行 ATCNet contrastive 微调；已有 checkpoint、partial、history 和日志全部保留，未删除或覆盖任何产物。
+  - GPU4 释放后，EXP-027 于 14:12 自动获得五张空闲卡并开始十任务净化。
+- **结果：** Pending；主动停止不表示方法失败，未完成的正式矩阵不能支持跨模型或跨 seed 结论。
+- **闭环检查：**
+  - `IDEAS.md`：已将 IDEA-013/014/015 标记为实现保留、正式结论 Pending。
+  - `DECISIONS.md`：不需要；本次仅为资源调度停止，不是方法取舍结论。
+  - `方法进展梳理.md`：不需要；没有新增实证结论。
+  - `CODEMAP.md`：不需要；没有入口变化。
+
+### EXP-027：EEGNet 样本级动态 Rank Oracle Headroom
+
+- **日期：** 2026-07-16
+- **状态：** 实现与 smoke 已完成，n512 正式实验运行中
+- **相关 idea：** `IDEA-016`
+- **目标：** 在投入可学习 selector 前，测量“每个 clean/adversarial trial 共同选择一个最终 rank”相对最佳固定 rank 的理论鲁棒上限；本实验不训练 selector，不研究阶段级 rank trajectory。
+- **核心协议：**
+  - dataset/model/seed/fold/eps/sample：`thubenchmark / EEGNet / 42 / 0 / 0.03 / 512`。
+  - 候选 rank：`15,20,25,30,35,40`。
+  - Madry AT checkpoint：`checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.03_42_fold0_exp025_eegnet_prep_seed42_20260706_1225_at_best.pth`。
+  - RPCF_AT checkpoint：复用 EXP-025 `budget_2` 的 `block2,block1` selective checkpoint，约 6.61% 可训练参数：`checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_madry_eps0.03_42_fold0_exp025_layer_prefix_seed42_20260706_1225_eegnet_eegnet_budget_2_rpcf_at_best.pth`。
+  - 两个分类器使用相同 source indices 和 labels，但各自使用自身 checkpoint 生成的 white-box AutoAttack adversarial examples。
+  - Madry AT 重新生成完整测试集 attack payload，再由净化入口按固定 `seed+fold*1000` 选择 n512；RPCF_AT 复用 EXP-025 自身完整 attack 及 rank25/30 产物，只补 rank15/20/35/40。
+- **GPU 调度：**
+  - 正式净化在 GPU `0-7` 中每 60 秒轮询，必须同时找到五张显存占用不超过 `100 MiB` 的卡才启动单波十任务。
+  - 五张卡按物理编号排序；每张卡用两个独立 `CUDA_VISIBLE_DEVICES=<physical>` 进程，进程内统一 `--gpu_id 0`。
+  - 配对顺序固定为：Madry `15/20`、Madry `25/30`、Madry `35/40`、RPCF_AT `15/20`、RPCF_AT `35/40`。
+  - 每个任务有独立 output、`.work` partial checkpoint 和实时日志；完成产物可通过 `SKIP_EXISTING=1` 复用。
+- **Oracle 定义：**
+  - 最佳固定 rank：先最大化 adversarial accuracy，再最大化 clean accuracy，最后取较低 rank。
+  - robust-first paired oracle：同一 clean/adv trial 选择共同 rank，优先级依次为 adversarial 正确、clean 正确、adversarial true-class margin、clean true-class margin、较低 rank。
+  - 使用 10,000 次 paired bootstrap 估计 oracle 相对最佳固定 rank 的 adversarial headroom 95% CI。
+- **新增入口：**
+  - `rpcf/run_exp027_oracle_rank.sh`：attack、五卡双进程净化和 oracle 三阶段可续跑 pipeline；支持 `DRY_RUN`、`SMOKE`、`START_STAGE/STOP_STAGE`、`SKIP_EXISTING`。
+  - `rpcf/analyze_exp027_oracle_rank.py`：合并/对齐多 rank payload，重新计算逐样本 logits、预测、正确性、margin、MSE，执行 fixed/oracle 选择及 bootstrap。
+  - `test_rpcf_exp027.py`：合成 payload 测试 tie-break、best fixed、rank 合并、source-index 对齐、metadata 校验和 bootstrap 可复现性。
+- **预期产物：** `fixed_rank_metrics.csv`、`oracle_summary.csv`、`oracle_selected_rows.csv`、`rank_distribution.csv`、`summary.json`、`comparison.md`、`fixed_vs_oracle.png`、`rank_distribution.png`。
+- **运行命令：**
+  ```bash
+  EXP027_RUN_ID=exp027_oracle_rank_seed42_YYYYMMDD_HHMMSS \
+    nohup setsid bash rpcf/run_exp027_oracle_rank.sh \
+    > logs/exp027/exp027_oracle_rank_seed42_YYYYMMDD_HHMMSS/controller.log \
+    2>&1 < /dev/null &
+  ```
+- **验证：**
+  - `python3 -m py_compile rpcf/analyze_exp027_oracle_rank.py test_rpcf_exp027.py`：通过。
+  - `conda run -n torch --no-capture-output python -m unittest test_rpcf_exp027`：8 tests passed。
+  - `bash -n rpcf/run_exp027_oracle_rank.sh`：通过。
+  - 正式模式 `DRY_RUN=1 SKIP_EXISTING=0`：确认十个净化任务按五张 GPU 严格配对，顺序与预设映射一致。
+  - `SMOKE=1`：run id `exp027_smoke_seed42_20260716_1301`；n2、rank15/20 全链路通过。GPU2 同时运行 Madry rank15/20，GPU3 同时运行 RPCF_AT rank15/20；两个分类器分别生成自身 n2 AutoAttack。八类 oracle 产物齐全，位于 `/tmp/exp027_smoke_seed42_20260716_1301/logs/oracle/`。n2 指标不作研究结论。
+- **预设决策标准：**
+  - 强支持：RPCF_AT robust headroom 至少 `2.0 pp`、95% CI 下界大于 0，且 clean accuracy 相对最佳鲁棒 fixed rank 下降不超过 `1.0 pp`。
+  - 弱信号：headroom 为 `0.5–2.0 pp`，或 CI 下界包含 0；暂不训练 selector。
+  - 不支持：RPCF_AT headroom 小于 `0.5 pp`。
+  - Madry AT 与 RPCF_AT 均强支持时，才主张动态 rank headroom 不依赖 RPCF_AT；仅 RPCF_AT 强支持时，只表述为条件化协同。
+- **限制：** Oracle 使用真实标签，只表示理论上限，不是可部署防御结果；EXP-027 不要求运行 adaptive attack。
+- **正式启动记录：**
+  - 启动时间：2026-07-16 13:03（Asia/Shanghai）。
+  - run id：`exp027_oracle_rank_seed42_20260716_1305`；controller PID：`1499261`，session id 与 PID 相同，已由 `setsid` 脱离终端。
+  - 命令：
+    ```bash
+    nohup setsid env \
+      EXP027_RUN_ID=exp027_oracle_rank_seed42_20260716_1305 \
+      PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+      bash rpcf/run_exp027_oracle_rank.sh \
+      > logs/exp027/exp027_oracle_rank_seed42_20260716_1305/controller.log \
+      2>&1 < /dev/null &
+    ```
+  - 启动检查：controller 存活，`run_config.txt` 已记录 n512、六 rank、五卡阈值与 checkpoint；stage1 Madry AutoAttack 已在物理 GPU2 上运行。attack 完成后 controller 将等待五张卡同时空闲，再启动十个净化进程。
+  - 2026-07-16 13:59：Madry 完整 AutoAttack 结束并生成 587 MiB payload；随后因仅四张卡低于 100 MiB，按设计每 60 秒等待，不提前占卡。
+  - 2026-07-16 14:12：EXP-026 主动停止并释放 GPU4 后，调度器选中物理 GPU2/3/4/5/6，一次性启动十个净化进程；配对依次为 Madry `15/20`、`25/30`、`35/40`，RPCF_AT `15/20`、`35/40`。
+  - controller/log：`logs/exp027/exp027_oracle_rank_seed42_20260716_1305/controller.log`；逐任务日志位于同目录 `purification/`。
+- **结果：** Pending
+- **闭环检查：**
+  - `IDEAS.md`：已新增 `IDEA-016`。
+  - `DECISIONS.md`：Pending；正式结果完成后记录是否进入 selector 实现阶段。
+  - `方法进展梳理.md`：Pending；结果改变论文叙事时再更新。
+  - `CODEMAP.md`：已登记 pipeline 与 oracle 分析入口。
+
+### EXP-028：EEGNet Trial-level HOSVD 低秩性分析
+
+- **日期：** 2026-07-16
+- **状态：** 已完成；定量结论待单独整理
+- **相关 idea：** `IDEA-002`（低秩/频谱诊断基础）
+- **目标：** 从 subject 内 trial、time、channel 和 frequency 四种展开视角，定量比较 clean EEG、PGD adversarial EEG 与 perturbation 的奇异值能量集中度，判断信号和扰动的低秩性是否成立，以及对抗扰动是否系统性改变有效秩。
+- **协议：**
+  - dataset/model/protocol：`thubenchmark / EEGNet / train_only_subject_no_ea_subject_split`。
+  - seed/fold：`42/0`；train/val/test=`6395/799/801`，40 类。
+  - 从 test split 按 seed42 随机抽取 n512；攻击为 `eps=0.03`、PGD-200、`alpha=2/255`，batch size 32。
+  - 分析视角：`trial,time,channel,frequency`；同时报告 `raw` 和 `trial_centered`。
+  - channel view 使用 `interpolated_grid`，frequency representation 使用保留相位的 complex FFT；subject 至少包含 3 个入选 trial。
+  - 每个 subject/data type/centering/view 记录 `rank90/rank95/rank99`、effective rank、top1/top5 energy 和完整奇异值谱。
+- **checkpoint 准备：** 默认 clean EEGNet checkpoint 原本缺失。runner 先用 `train_AT.py --at_strategy clean --epsilon 0 --no_ea`、400 epochs、patience20、batch128、AdamW lr0.001/weight decay0.0001 补训，生成 `checkpoints/thubenchmark_eegnet_train_only_subject_no_ea_subject_split_clean_eps0_42_fold0_best.pth`；完成后自动进入分析。
+- **新增入口：** `trial_lowrank_analysis/run_trial_lowrank_analysis.sh`，支持两阶段续跑、`DRY_RUN`、`SKIP_EXISTING`、物理 GPU 隔离和稳定日志。`analyze_trial_hosvd_lowrank.py` 在 PGD 完成后释放分类器显存，避免后续 CPU HOSVD 阶段占用 GPU。
+- **验证：**
+  - `python3 -m py_compile trial_lowrank_analysis/analyze_trial_hosvd_lowrank.py`：通过。
+  - `bash -n trial_lowrank_analysis/run_trial_lowrank_analysis.sh`：通过。
+  - 隔离到 `/tmp` 的正式参数 `DRY_RUN=1 SKIP_EXISTING=0`：两阶段命令展开通过，确认先训练 checkpoint 再运行四视角分析。
+- **正式启动记录：**
+  - 启动时间：2026-07-16 13:44（Asia/Shanghai）。
+  - run id：`exp028_trial_lowrank_seed42_20260716_1344`；controller PID/session ID：`1527624`。
+  - 物理 GPU7，进程内 `--gpu_id 0`；启动前显存 18 MiB。
+  - 命令：
+    ```bash
+    nohup setsid env \
+      TRIAL_LOWRANK_RUN_ID=exp028_trial_lowrank_seed42_20260716_1344 \
+      TRIAL_LOWRANK_PHYSICAL_GPU=7 \
+      PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+      bash trial_lowrank_analysis/run_trial_lowrank_analysis.sh \
+      > logs/exp028/exp028_trial_lowrank_seed42_20260716_1344/controller.log \
+      2>&1 < /dev/null &
+    ```
+  - controller：`logs/exp028/exp028_trial_lowrank_seed42_20260716_1344/controller.log`。
+  - clean 训练实时日志：`log_train_AT/train_thubenchmark_eegnet_no_ea_clean_eps0_42_fold0_0.001_0.0001_128_20260716_134431.log`。
+  - 低秩阶段日志：`logs/exp028/exp028_trial_lowrank_seed42_20260716_1344/stage2_lowrank_analysis.log`；脚本内部镜像日志为输出目录下 `analysis.log`。
+- **预期产物：** `trial_lowrank_analysis/outputs/exp028_trial_lowrank_seed42_20260716_1344/` 下的 `hosvd_summary.csv`、`metadata.csv`、`spectra.npz`、`bundle.pt`、`run_config.json`、raw/trial-centered cumulative-energy 与 rank95 图。
+- **完成记录：**
+  - 2026-07-16 17:35（Asia/Shanghai）正常结束，controller 输出
+    `EXP-028 pipeline finished`。
+  - `hosvd_summary.csv`、`metadata.csv`、`spectra.npz`、`bundle.pt`、
+    `run_config.json` 和四张主图均已生成；`bundle.pt` 约 563 MiB。
+- **结果：** 完整产物已经生成；本次仅确认运行闭环，不在启动 EXP-029 时提前解释低秩性结论。
+- **闭环检查：**
+  - `IDEAS.md`：不需要；这是既有低秩/频谱假设的诊断实验。
+  - `DECISIONS.md`：Pending；结果若改变动态 rank 叙事再更新。
+  - `方法进展梳理.md`：Pending；结果完成后再更新论文口径。
+  - `CODEMAP.md`：已登记 runner 和显存释放行为。
+
+### EXP-029：EXP-028 同批净化样本 Trial-level HOSVD
+
+- **日期：** 2026-07-16
+- **状态：** 正式运行中；结果 Pending
+- **相关 idea：** `IDEA-002`
+- **目标：** 对 EXP-028 完全相同的 n512 clean/PGD-200 trial 执行 rank `15,20,25,30,35,40` EEG_TNP 净化，再复用相同 HOSVD 协议，观察净化 rank 如何改变 clean、adversarial 和净化后配对扰动的低秩谱。
+- **配对定义与公平性：**
+  - 不复用 EXP-027 的 AutoAttack payload，因为 EXP-027 与 EXP-028 的攻击类型和随机抽样实现不同，不能逐样本配对。
+  - 直接读取 `trial_lowrank_analysis/outputs/exp028_trial_lowrank_seed42_20260716_1344/bundle.pt`。
+  - `perturb_pur(rank)` 定义为 `adv_pur(rank) - clean_pur(rank)`，与 EXP-028 的 `adv-clean` 定义对应；它不是 input-output reconstruction residual。
+  - 通过 `original_split_index` 对净化 payload 进行重排，并严格校验 labels 和 clean/adv 原张量一致性。
+- **协议：**
+  - dataset/model/seed/fold/eps：`thubenchmark/eegnet/42/0/0.03`。
+  - 输入攻击：沿用 EXP-028 的 PGD-200，`alpha=2/255`，n512。
+  - ranks：`15,20,25,30,35,40`；配置为对应 `PTR3d_8_2048_rank*_3d_interpolate.yaml`。
+  - HOSVD：`trial,time,channel,frequency`；`raw/trial_centered`；complex FFT；interpolated grid；`min_trials=3`。
+- **GPU 调度：**
+  - 从物理 GPU `0-7` 中等待三张显存占用不超过 `100 MiB` 的卡。
+  - 每张 GPU 同时两个独立净化进程：`15/20`、`25/30`、`35/40`。
+  - 每个进程使用独立 output、work dir 和实时日志；支持 partial checkpoint 和续跑。
+  - 净化完成后释放 GPU，第三阶段只在 CPU 上执行 HOSVD。
+- **新增入口：**
+  - `trial_lowrank_analysis/prepare_purification_input.py`
+  - `trial_lowrank_analysis/analyze_purified_trial_hosvd_lowrank.py`
+  - `trial_lowrank_analysis/run_exp029_purified_trial_lowrank.sh`
+- **验证：**
+  - 新增 Python 文件 `py_compile`：通过。
+  - runner `bash -n`：通过。
+  - `test_trial_lowrank_analysis_purified.py`：3 tests passed。
+  - 隔离正式参数 `DRY_RUN=1 SKIP_EXISTING=0`：确认六 rank 严格按三卡双进程展开。
+  - CPU 合成 smoke：4 个真实 EXP-028 trial、rank15/20、四视角、两种中心化，共输出 48 行 summary；summary、spectra、逐 rank 图和 rank 趋势图均生成。
+- **正式启动记录：**
+  - 启动时间：2026-07-16 18:13（Asia/Shanghai）。
+  - run id：`exp029_purified_trial_lowrank_seed42_20260716_1808`；controller PID：`1718054`。
+  - 命令：
+    ```bash
+    nohup setsid env \
+      EXP029_RUN_ID=exp029_purified_trial_lowrank_seed42_20260716_1808 \
+      PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+      bash trial_lowrank_analysis/run_exp029_purified_trial_lowrank.sh \
+      > logs/exp029/exp029_purified_trial_lowrank_seed42_20260716_1808/controller.log \
+      2>&1 < /dev/null &
+    ```
+  - EXP-028 同批输入已导出到 `ad_data/exp029/exp029_purified_trial_lowrank_seed42_20260716_1808_exp028_pgd200.pth`，约 376 MiB。
+  - controller 已存活并进入三张空闲 GPU 等待；EXP-027 完成释放资源后会自动启动六个净化进程。
+- **预期产物：**
+  - 净化 payload：`purified_data/exp029/eval/exp029_purified_trial_lowrank_seed42_20260716_1808_rank*.pth`。
+  - 分析输出：`trial_lowrank_analysis/outputs/exp029_purified_trial_lowrank_seed42_20260716_1808/hosvd_summary.csv`、`comparison_summary.csv`、`spectra.npz`、`analysis_manifest.pt`、`run_config.json`、逐 rank 图和 rank 趋势图。
+- **结果：** Pending；必须等六 rank 净化和完整 CPU HOSVD 都结束后再做结论。
+
+### EXP-030：EEG_TNP 内生自动定秩防御与 Oracle Headroom Recovery
+
+- **日期：** 2026-07-20
+- **状态：** 已完成；四种 TN-only 自动秩代理均未通过 fixed rank25 gate
+- **相关 idea：** `IDEA-017`
+- **研究问题：**
+  - 不使用测试标签、各 rank 分类正确性或额外深度学习 selector，仅通过 Tensor Ring 内部的 bond relevance、阶段级剪枝/回生和可选 masked self-validation，能否为每个 EEG trial 自动确定净化 rank？
+  - 自动定秩 EEG_TNP 能否超过最佳固定 rank，并逼近 EXP-027 的 robust-first oracle 防御性能，同时减少过度净化造成的 clean 语义和重构损失？
+- **Oracle 参照：**
+  - 复用 EXP-027 的相同协议和已有六-rank oracle 结果，不重新定义上限。
+  - Madry AT：最佳 fixed rank25 `84.57%` robust，oracle `88.67%`，headroom `4.10 pp`。
+  - RPCF_AT：最佳 fixed rank25 `85.55%` robust，oracle `89.45%`，headroom `3.91 pp`。
+  - 定义 `headroom_recovery=(auto_rank_adv_acc-best_fixed_adv_acc)/(oracle_adv_acc-best_fixed_adv_acc)`；同时报告 `oracle_regret=oracle_adv_acc-auto_rank_adv_acc`。
+- **核心协议：**
+  - dataset/model/split：`thubenchmark / EEGNet / train_only_subject_no_ea_subject_split`。
+  - seed/fold/eps/sample：`42 / 0 / 0.03 / 512`。
+  - 分类器严格复用 EXP-027 的 Madry AT 与 EXP-025 `budget_2` RPCF_AT selective checkpoint。
+  - 攻击 payload、source indices 和 labels 严格复用 EXP-027；两个分类器继续使用各自 white-box AutoAttack，不跨方法复用 adversarial examples。
+  - 自动定秩从 `max_rank=40` 的 over-complete PTR 开始；不将 `15,20,25,30,35,40` 作为运行时分类性能候选，也不允许 rank inference 读取 classifier logits。
+- **待实现方法：**
+  - `auto_rank_ard`：每条可变 bond 使用相邻 core 的 gauge-balanced 配对切片贡献更新 relevance precision，在 coarse-to-fine 阶段边界执行物理剪枝。
+  - `auto_rank_ard_regrow`：在前者基础上，根据下一阶段 two-site residual spectrum 对被结构证据支持的 component 有界回生。
+  - `auto_rank_ard_masked`：加入样本内 masked self-validation，阻止只改善 observed reconstruction、不能改善 held-out reconstruction 的 component 扩张。
+  - 三个变体均不使用测试标签、true-class margin、预测正确性或额外神经网络。
+- **对照与消融：**
+  - 主对照：EXP-027 最佳 fixed rank25 与 robust-first oracle。
+  - fixed-rank 曲线：复用 EXP-027 rank `15,20,25,30,35,40` 结果。
+  - 历史动态方法：在完全相同 payload/checkpoint 上评估 `PTR_3d_rank_growth` 与 `PTR_3d_rank_soft_mask`；若预算不足，至少完成 n64 pilot，并明确禁止与旧 checkpoint 的 EXP-010/014 数值直接混用。
+  - 消融：uniform scalar relevance、无 core balancing、仅 prune 不 regrow、无 masked self-validation。
+- **运行阶段：**
+  1. 合成 Tensor Ring 单元测试：已知 bond ranks、相邻切片成对剪枝、gauge-rescaling 稳定性、物理 shape 更新、stage trajectory 与固定 seed 可复现性。
+  2. `SMOKE=1`：n2、短迭代，只验证 Madry/RPCF 两方法从 attack payload 到自动定秩 payload、评估和汇总的完整链路。
+  3. pilot：n64，检查自动 rank 是否退化到统一最小/最大值以及是否至少不弱于 fixed rank25；pilot 不作为正式论文结果。
+  4. formal：只有 pilot 通过后运行 n512；EEG_TNP 净化继续遵守“一张物理 GPU 同时两个独立进程”，每个进程使用隔离 output/work/log，进程内统一 `--gpu_id 0`。
+- **输出：**
+  - 自动定秩 purification payload 与逐样本 `source_index/label` 对齐信息。
+  - `auto_rank_metrics.csv`、`headroom_comparison.csv`、`sample_rank_vectors.csv`、`stage_rank_trajectories.csv`、`rank_distribution.csv`、`bootstrap_summary.json`、`summary.json`、`comparison.md`。
+  - fixed/auto/oracle accuracy 图、headroom recovery 图、最终 bond-rank 分布与阶段 trajectory 图。
+- **评估指标：**
+  - 主指标：purified adversarial accuracy、相对 fixed rank25 的 robust gain、10,000 次 paired bootstrap 95% CI、headroom recovery 与 oracle regret。
+  - 保真指标：purified clean accuracy、clean/adv reconstruction MSE、相对 fixed rank25 的 clean/MSE 变化。
+  - 结构指标：每样本/每 bond/每阶段 rank、分布分位数、剪枝/回生计数、有效参数量。
+  - 效率指标：单样本平均/中位净化时间、峰值显存、相对六-rank sweep 与 fixed rank25 的开销。
+- **预注册决策标准：**
+  - 强支持：Madry AT 与 RPCF_AT 均满足 `headroom_recovery >= 50%`，相对 fixed rank25 的 paired robust gain 95% CI 下界大于 0，且 clean accuracy 下降不超过 `1.0 pp`。对应当前点估计目标约为 Madry `>=86.62%`、RPCF_AT `>=87.50%` robust accuracy。
+  - 条件化支持：只有 RPCF_AT 达到强支持，表述为自动定秩与 RPCF_AT 的条件化协同；只有 Madry 达标则不能主张 RPCF_AT 带来自动定秩优势。
+  - 弱信号：任一主方法回收 `25%–50%` oracle headroom，或 robust gain CI 包含 0；继续做机制诊断，但不进入大规模跨 seed/backbone。
+  - 不支持：两方法均回收不足 `25%`，或自动 rank 明显坍缩为几乎统一的边界 rank，或 clean accuracy 下降超过 `1.0 pp`。
+- **验证要求：**
+  - 新增 Python 文件执行 `py_compile`；新增 shell runner 执行 `bash -n`。
+  - 单元测试不得读取 classifier/label 来更新 rank；测试 rank inference 对 label permutation 不变。
+  - `DRY_RUN=1` 检查命令、GPU 双进程映射、输出隔离和断点续跑。
+  - n2 smoke 只验证工程链路，不报告为防御结果。
+- **限制与后续：**
+  - EXP-030 首先回答非 adaptive 的同协议 headroom recovery；若达到强支持，再对完整自动定秩流程执行 unrolled optimization、BPDA 和必要的 EOT adaptive attack。
+  - 自动结构秩可能无法完整预测分类最优秩；即使低于 oracle，也应分别判断是 rank inference 失败、TN 表达受限，还是 oracle 依赖分类边界信息。
+  - masked self-validation 对独立噪声有更强依据，但对相关的 adversarial perturbation 不提供理论安全保证。
+- **计划代码与产物路径：**
+  - 代码：`TN/rank_growth/PTR_3d_rank_ard.py`、`rpcf/run_exp030_auto_rank.sh`、`rpcf/analyze_exp030_auto_rank.py`、`test_tn_rank_ard.py`。
+  - 配置：`configs/thubenchmark/PTR3d_rank_ard_8_2048_r40_3d_interpolate.yaml`。
+  - 日志：`logs/exp030/<run_id>/`。
+  - 净化结果：`purified_data/exp030/`。
+- **第一版实现：**
+  - `PTR_3d_rank_ard` 对每条已激活时间 bond 计算相邻 core 切片 Frobenius 范数乘积；该乘积在
+    reciprocal gauge rescaling 下保持不变。按累计成对能量选择 component，并同步裁剪相邻 core 的共享维。
+  - 每个分辨率阶段结束后重建 contraction path 与 optimizer；`auto_rank_ard_regrow` 仅在归一化重构残差
+    达到阈值时追加少量 component，最终阶段只剪枝不回生。
+  - `evaluate_auto_rank` 的 rank inference 调用只收到单个 EEG tensor，显式传入 `classifier=None`；
+    分类器在所有净化张量和 rank diagnostics 都完成后才加载，仅用于事后防御评估。
+  - 已新增 prune-only、regrow、masked self-validation 三种正式配置，以及 8-step smoke 配置；baseline
+    `PTR_3d`、`PTR_3d_rank_growth` 和 `PTR_3d_rank_soft_mask` 行为不变。
+- **已执行验证：**
+  - `python3 -m py_compile`：新增 Python 入口及修改文件全部通过。
+  - `bash -n rpcf/run_exp030_auto_rank.sh` 与 `git diff --check`：通过。
+  - `conda run -n torch --no-capture-output python -m unittest test_tn_rank_ard`：6 tests passed；
+    覆盖 gauge-rescaling 不变性、能量/min-rank 选择、物理 shape 裁剪与回生、固定 seed、classifier 拒绝、
+    label permutation 不进入 rank API，以及 n64/n2 对 n512 fixed payload 的 source-index 子集对齐。
+  - `DRY_RUN=1 PILOT=1 SKIP_EXISTING=0`：确认 Madry/RPCF_AT 两个任务在同一物理 GPU 上成对启动，
+    output/work/log 互相隔离。
+  - n2 smoke：run id `exp030_auto_rank_smoke_seed42_20260720_1226`；两个方法的净化 payload、
+    `sample_rank_vectors.csv`、`stage_rank_trajectories.csv`、summary、comparison 和两张图全部生成。
+    smoke 仅使用 8 个优化 step，其分类/MSE 数值不作为研究结果。
+- **实现诊断与修复：**
+  - 首次 n64 pilot `exp030_auto_rank_ard_regrow_pilot_seed42_20260720_1230` 于 12:28 启动；首批各 4 个
+    样本显示最终阶段物理剪枝后没有后续结构适配，adversarial MSE 约 `0.178`。12:32 主动停止独立进程组，
+    保留 partial 作为失败诊断，不将其并入后续结果。
+  - 修复为最终 rank 冻结后额外执行 256 step 无标签 full-target refit。full-iteration n2 校准
+    `exp030_auto_rank_ard_regrow_fulln2_refit_seed42_20260720_1234` 全链路通过；平均 adversarial MSE
+    降至约 `0.041`，同两个 source 的 fixed rank25 MSE 约为 `0.092`。n2 分类数值不作统计结论。
+- **n64 pilot 启动记录：**
+  - 修复后启动时间：2026-07-20 12:37（Asia/Shanghai）。
+  - run id：`exp030_auto_rank_ard_regrow_pilot_refit_seed42_20260720_1237`；
+    controller PID：`3758630`，通过 `nohup setsid` 脱离终端。
+  - 命令：
+    ```bash
+    nohup setsid env \
+      EXP030_RUN_ID=exp030_auto_rank_ard_regrow_pilot_refit_seed42_20260720_1237 \
+      PILOT=1 EXP030_VARIANT=auto_rank_ard_regrow \
+      EXP030_GPU_IDS=0,1,2,3,4,5,6,7 \
+      PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+      bash rpcf/run_exp030_auto_rank.sh \
+      > logs/exp030/exp030_auto_rank_ard_regrow_pilot_refit_seed42_20260720_1237/controller.log \
+      2>&1 < /dev/null &
+    ```
+  - 启动检查：物理 GPU0 同时运行 Madry/RPCF_AT 两个独立 `evaluate_auto_rank` worker；
+    各自使用独立 `.work` partial、payload 和实时日志。
+  - pilot 只有在两方法均不弱于相同 n64 source subset 的 fixed rank25，且 clean drop 不超过 `1.0 pp`
+    时才允许 runner 进入 n512 formal；pilot 指标不作为论文结果。
+- **n64 pilot 结果：**
+  - 运行于 2026-07-20 13:17 完整结束；Madry AT、RPCF_AT 两个净化 worker、评估与 oracle 汇总均
+    `status=0`。当前没有 EXP-030 进程运行。
+  - Madry AT：相同 n64 subset 上 fixed rank25 的 clean/adv accuracy 为
+    `93.75%/89.06%`，自动定秩为 `95.31%/84.38%`；robust gain `-4.69 pp`，
+    10,000 次 paired bootstrap 95% CI 为 `[-10.94, 0.00] pp`，clean delta
+    `+1.56 pp`，adversarial mean rank `34.40`，rescued/lost 为 `0/3`。
+  - RPCF_AT：相同 n64 subset 上 fixed rank25 的 clean/adv accuracy 为
+    `93.75%/90.62%`，自动定秩为 `93.75%/85.94%`；robust gain `-4.69 pp`，
+    95% CI 为 `[-12.50, +1.56] pp`，clean delta `0.00 pp`，adversarial mean rank
+    `34.40`，rescued/lost 为 `1/4`。
+  - 自动定秩 clean/adv MSE 分别约为 `0.02664/0.02640`（Madry）和
+    `0.02664/0.02639`（RPCF_AT）。第一版方法能获得较好的输入重构，但偏向约 rank34 的较高秩，
+    并未把“结构重构相关性”转化成分类鲁棒性，反而在两种分类器上均损失 `4.69 pp` robust accuracy。
+  - `summary.json` 中 `headroom_recovery=null`：pilot fixed/auto 是 n64 subset 指标，而复用的
+    EXP-027 oracle 是完整 n512 指标，二者不能直接相减。pilot 决策只使用同一 n64 subset 上的
+    fixed-vs-auto paired comparison。
+- **结果：** `not_supported`。预注册 pilot gate 要求两种方法均不弱于相同 n64 subset 的 fixed
+  rank25；实际两者均下降 `4.69 pp`，因此 runner 按计划没有启动 n512 formal。该 n64 结果只用于
+  机制筛选，不作为正式论文防御结果。
+- **第二策略：masked-CV 与 log-MSE knee：**
+  - 新增 `PTR_3d_rank_cv`：保持 over-complete rank40，隐藏连续时间块训练，在最终阶段比较
+    rank `15,20,25,30,35,40` 的 core truncation held-out MSE，并以 one-standard-error 规则定秩。
+  - n2 full-iteration 校准 `exp030_auto_rank_masked_cv_fulln2_seed42_20260720_1351` 显示该方案
+    对两个样本均选择 rank15，最终 MSE 约 `0.21`；说明从单个 masked rank40 网络直接按 component
+    norm 截断不能得到与独立低秩优化等价的模型，因此停止进入 n64，保留为失败诊断。
+  - 据此新增 `auto_rank_log_mse_knee`：严格复用 EXP-027 六个独立 fixed-rank TNP 输出，仅根据每个
+    输入的 `rank -> reconstruction MSE` 曲线，在 log-MSE 累计最小包络上取相对端点连线最大垂距的
+    diminishing-return knee。规则无可学习参数，不接收 label、classifier logits、预测或 margin。
+  - 运行前无标签检查显示 clean/adv 选择均主要分布于 rank20/25/30，未坍缩到边界；该分布在正式
+    n512 结果中得到确认，但没有转化为相对 fixed rank25 的鲁棒收益。
+  - 该策略当前以六次 TNP 净化换取样本级自动选择，首先验证无标签 knee 是否具有防御收益；若成立，
+    后续再研究共享优化、warm-start 或 nested cores 降低六秩 sweep 开销。
+- **log-MSE knee n512 启动记录：**
+  - 启动时间：2026-07-20 13:59（Asia/Shanghai）；run id：
+    `exp030_auto_rank_log_mse_knee_seed42_20260720_1402`；controller PID：`3817771`。
+  - 使用 `nohup setsid` 后台运行；stage1 顺序构建 Madry/RPCF_AT 自动秩 payload，stage2 在空闲 GPU
+    上重算分类结果并执行 10,000 次 paired bootstrap；2026-07-20 14:00 完整结束，所有阶段 status=0。
+  - 日志：`logs/exp030/exp030_auto_rank_log_mse_knee_seed42_20260720_1402/controller.log`；
+    结果目录：`logs/exp030/exp030_auto_rank_log_mse_knee_seed42_20260720_1402/analysis/`。
+- **log-MSE knee n512 结果：**
+  - Madry AT：fixed rank25 clean/adv 为 `91.02%/84.57%`，knee 为 `90.62%/84.38%`；robust
+    gain `-0.20 pp`，10,000 次 paired bootstrap 95% CI `[-1.37, +0.98] pp`，clean delta
+    `-0.39 pp`，headroom recovery `-4.8%`，rescued/lost 为 `4/5`。
+  - RPCF_AT：fixed rank25 clean/adv 为 `90.62%/85.55%`，knee 为 `90.23%/85.16%`；robust
+    gain `-0.39 pp`，95% CI `[-1.76, +1.17] pp`，clean delta `-0.39 pp`，headroom recovery
+    `-10.0%`，rescued/lost 为 `6/8`。
+  - adversarial mean rank 为 Madry `26.17`、RPCF_AT `26.12`；两者均约 `53–54%` 选择 rank25，
+    其余主要分布于 rank20/30，说明规则没有坍缩。但其 adversarial rank 与 oracle 完全一致的比例仅
+    为 `11.72%/11.91%`，平均绝对 rank 差为 `9.57/9.50`。
+  - 同一 trial 的 clean/adv knee rank 仅有 `39.65%/41.60%` 一致，平均绝对差约 `4.09/4.02`；
+    输入重构曲线对很小的输入变化会移动 knee，却没有稳定追踪分类边界需要的 rank。
+- **总体结果：** `not_supported`。log-MSE knee 基本守住但没有超过 fixed rank25，且两个方法的
+  headroom recovery 均为负。EXP-030 因此支持“oracle headroom 客观存在”，但不支持“纯 TN
+  component/reconstruction evidence 足以自动恢复该 headroom”。
+- **第三策略预注册：two-site SVD spectral rounding：**
+  - 继续严格保持 TN-only：rank inference 不接收 labels、classifier、logits、prediction、margin 或 oracle。
+  - 从完整训练的 over-complete rank40 PTR 出发，在最终分辨率将每对相邻时间 cores 合并为矩阵，
+    执行 SVD 后用 unknown-noise optimal hard threshold `tau=omega(beta)*median(singular_values)` 定秩；
+    `omega(beta)=0.56*beta^3-0.95*beta^2+1.82*beta+1.43`，rank 限制于 `[15,40]`。
+  - 使用截断 SVD 的 `U` 与 `S*Vh` 重建相邻 cores，因此每次裁剪都是 two-site Frobenius 意义下的
+    局部最优近似，不再按 component norm 直接删除可能错位的切片；完成一次 sweep 后 full-target refit 256 steps。
+  - 先执行合成测试、n2 smoke 和 full-iteration n2 校准；只有 MSE 恢复且 rank 不坍缩，才运行 n64 gate。
+  - full-iteration n2 `exp030_auto_rank_spectral_fulln2_seed42_20260720_1429` 中，OHT raw rank
+    仅为 `1–7`，十条 bond 全部被 min-rank 截到 15；逐 bond retained energy 约 `0.84–0.92`，但误差
+    沿 sweep 累积，256-step refit 后 clean/adv MSE 仍约 `0.203/0.204`。因此判定校准失败，不进入 n64。
+- **第四策略预注册：independent masked-CV rank sweep：**
+  - 候选 rank 固定为 `15,20,25,30,35,40`；每个候选都以独立 TN 参数从头拟合，不从 rank40
+    core 截断，也不在候选之间共享可能错位的 component。
+  - rank inference 只使用连续隐藏时间块的 held-out reconstruction MSE；每个候选执行 512-step
+    coarse-to-fine masked fit，以 one-standard-error 规则选择最低可接受 rank。
+  - rank 冻结后丢弃所有 masked candidate TN，并以所选 rank 从头执行与 fixed baseline 对齐的
+    2048-step full-target PTR，最终防御输出不含 mask 缺口。
+  - 选择 API 不接收 labels、classifier、logits、prediction、margin 或 oracle。先做 smoke/full-n2；
+    若重构正常且 selected rank 非工程异常，再运行 n64 gate。
+  - 新增 `PTR_3d_rank_sweep_cv` 与正式/smoke 配置；所有候选共享同一样本初始化 seed 和同一组
+    holdout blocks，但 TN 参数、optimizer 与训练过程相互独立，避免初始化噪声混入容量比较。
+  - 验证：相关 Python 文件通过 `py_compile`，runner 通过 `bash -n` 与 `git diff --check`；
+    `test_tn_rank_sweep_cv test_tn_rank_ard test_tn_rank_spectral test_exp030_rank_knee` 共 23 tests passed；
+    `DRY_RUN=1` 确认同一物理 GPU 上 Madry/RPCF 双进程和隔离输出。
+  - n2 smoke `exp030_auto_rank_independent_cv_smoke_seed42_20260720_1446` 完成，payload、CSV、JSON
+    与图均齐全；40-step 最终拟合未收敛，分类/MSE 只用于工程链路检查。
+  - full-iteration n2 校准
+    `exp030_auto_rank_independent_cv_fulln2_seed42_20260720_1448` 完成；最终 clean/adv MSE 约为
+    `0.136/0.153–0.154`，四个输入选出 rank `15/20/30`，无 NaN、OOM 或边界统一坍缩。
+    n2 accuracy 不作统计结论。
+- **independent masked-CV n64 运行与结果：**
+  - 启动时间：2026-07-20 14:49（Asia/Shanghai）；run id：
+    `exp030_auto_rank_independent_cv_n64_seed42_20260720_1451`；controller PID `3858992`，
+    session id 与 PID 相同，已由 `nohup setsid` 脱离终端。
+  - 物理 GPU0 同时运行 Madry/RPCF_AT 两个独立 `evaluate_auto_rank` worker；每个候选 512 step，
+    选秩后 fixed structure 从头 2048 step，partial 每 4 个样本保存。日志位于
+    `logs/exp030/exp030_auto_rank_independent_cv_n64_seed42_20260720_1451/`。
+  - 2026-07-20 15:39 完成；Madry/RPCF 两个 worker 均为 `status=0`，10,000 次 paired
+    bootstrap 与全部 CSV/JSON/图正常生成，无残留进程、OOM、NaN 或 traceback。
+  - Madry AT：fixed rank25 clean/adv 为 `93.75%/89.06%`，自动秩为
+    `90.62%/89.06%`；robust gain `0.00 pp`，95% CI `[-6.25,+6.25] pp`，
+    clean delta `-3.12 pp`，rescued/lost 为 `2/2`。
+  - RPCF_AT：fixed rank25 clean/adv 为 `93.75%/90.62%`，自动秩为
+    `89.06%/90.62%`；robust gain `0.00 pp`，95% CI `[-6.25,+6.25] pp`，
+    clean delta `-4.69 pp`，rescued/lost 为 `2/2`。
+  - 自动秩没有坍缩：Madry/RPCF adversarial mean rank 分别为 `27.81/28.28`，六个 rank
+    均有样本被选择。但同一 trial 的 clean/adv rank 一致率都只有 `20.31%`，平均绝对 rank
+    差分别为 `9.53/9.06`，说明 held-out reconstruction 选择对微小输入变化仍不稳定。
+  - **结论：** `not_supported`。鲁棒准确率仅与 fixed rank25 持平，且 clean 降幅超过预注册
+    `1.0 pp` 上限，因此不启动 n512，不把该策略作为受支持的防御结果。
+- **闭环检查：**
+  - `IDEAS.md`：已更新 `IDEA-017` 状态和第一版风险判断。
+  - `DECISIONS.md`：已新增 `DEC-021/022/023`；四种纯 TN 重构代理均不进入主方法。
+  - `方法进展梳理.md`：不需要；四种策略均未支持改变当前论文主方法。
+  - `CODEMAP.md`：已登记 ARD、masked-CV、spectral rounding、independent sweep、净化评估、
+    分析与 runner 入口。
+
+### EXP-031：全层静态-rank RPCF_AT + EEG_TNP 完整鲁棒性实验
+
+- **状态：** Running（smoke 已通过；正式 run `exp031_full_20260729_174215` 断点续跑中）
+- **目标：** 从头训练并完整评估在线 RPCF_AT（Madry 初始化、全层微调、六 rank
+  静态均匀权重、无 feature loss）与 fixed rank25/30 EEG_TNP 在跨数据集、跨 backbone、
+  跨 seed 条件下的标准准确率和鲁棒准确率。
+- **正式矩阵：**
+  - dataset：`thubenchmark`、`seediv`、`bciciv2a`；fold：`0`。
+  - backbone：`eegnet`、`deepconvnet`、`tsception`、`atcnet`、`conformer`、`tcnet`。
+  - seed：`42/43/44/45/46`；训练 epsilon：`0.03`。
+  - raw 方法：Madry、TRADES、FBF、EA-forward+Madry、RPCF_AT。
+  - TNP 只配对 Madry/RPCF_AT；不对 TRADES、FBF、EA-forward 追加 TNP。
+- **训练协议：**
+  - 普通 baseline 与 EA-forward：最多 400 epochs、patience 20、batch 128、AdamW
+    `lr=1e-3, weight_decay=1e-4`。Madry/EA 为 PGD-10、step `0.006`；TRADES
+    `beta=0.1`；FBF `replays=3`。
+  - 若 OOM，runner 将该 dataset/backbone 的 batch 按 `128→64→32→16` 锁入
+    `actual_batch_sizes.json`；旧 task status 因 batch 不一致自动失效，续跑时同条件 baseline
+    会按新 batch 重跑。
+  - RPCF cache：Madry checkpoint、完整训练 split 稳定抽样 n512、AutoAttack、六 rank
+    `15/20/25/30/35/40`。同 dataset/seed 的 EEGNet cache 作为 canonical clean 净化来源；
+    其他 backbone 只复用 clean fixed-rank 净化，仍生成自身 white-box adversarial 与 adv-pur。
+    AutoAttack 分块默认 batch 32；若 OOM，按 dataset/backbone 将其
+    `32→16→8→4` 锁入 `actual_cache_attack_batch_sizes.json` 后断点续跑。分块大小只控制
+    峰值显存，不改变 n512 样本、攻击参数、checkpoint 或六 rank 净化协议。
+  - RPCF_AT：100 epochs、完整训练 split 在线 PGD-10、step `0.006`、全层、
+    `static_rank_weights=true`（每个 rank 恒为 `1/6`）、`feature_objective=none`；其余现有
+    CE/KL 系数不变。六-rank fine-tuning batch 默认64，OOM 时按 dataset/backbone
+    `64→32→16→8` 锁入 `actual_rpcf_batch_sizes.json`；eval batch 同步设为 train batch 的
+    两倍（上限128）。同批多个 seed 同时 OOM 只降一档，避免并发重复降档。
+- **攻击与净化协议：**
+  - FGSM：Linf `eps=0.03`；PGD：200 steps、`alpha=2/255`、无 random start；
+    AutoAttack：standard Linf `eps=0.03`；CW：L2、200 steps、`lr=0.1,c=10000,kappa=1`，
+    `eps=0.03` 只作为实验条件标签，不作为 CW 约束。
+  - 四攻击覆盖完整 test split，并由各方法自身 checkpoint 生成 white-box adversarial examples。
+    standard/robust accuracy、攻击 MSE/L2 均在完整 test split 上计算；为控制 1800 个 payload 的
+    磁盘规模，正式 EXP-031 artifact 只持久化按 `seed + fold*1000` 确定性选出的最多 n512 条
+    clean/adv 张量，同时记录 `evaluation_sample_num`、完整 source-index 覆盖与 artifact subset 字段。
+  - TNP 从上述严格配对的最多 n512 attack artifact 评估，单 payload 同时评估
+    rank25/30。每个 dataset/seed 的 `eegnet/madry/autoattack` TNP payload 作为 canonical
+    clean 净化来源；复用前严格校验 metadata、labels、source indices 与 clean tensor。
+  - adaptive：只运行 `thubenchmark/eegnet/RPCF_AT/seeds42–46/rank25–30` 的
+    BPDA+PGD-10（`eps=0.03, alpha=0.006`），共 10 个任务。
+- **任务与资源：**
+  - 正式 dry-run 必须为：普通 AT 270、EA-forward 90、RPCF cache 90、RPCF_AT 90、
+    white-box attack 1800、双-rank TNP payload 720、BPDA 10；另有 3 个串行数据准备任务。
+  - 只接受物理 GPU `0–6`；worker 统一 `CUDA_VISIBLE_DEVICES=<physical>`、内部 `gpu_id=0`。
+    训练/攻击一卡一任务；TNP 每卡最多两个隔离进程；忙卡等待。
+  - `planned_tasks.csv`、task status、实时 task log、controller log、batch manifest 与所有产物
+    均按独立 run id 隔离；历史 checkpoint/cache 不属于复用候选。
+- **运行命令：**
+  - 只检查完整计划：`DRY_RUN=1 bash rpcf/run_exp031.sh`
+  - smoke：`SMOKE=1 bash rpcf/run_exp031.sh`
+  - 首次后台运行前：`mkdir -p logs/exp031`
+  - 正式后台：`nohup setsid env EXP031_RUN_ID=exp031_full_$(date +%Y%m%d_%H%M%S) GPU_IDS=0,1,2,3,4,5,6 bash rpcf/run_exp031.sh > logs/exp031/controller.nohup.log 2>&1 < /dev/null &`
+  - 单任务重试：`EXP031_RUN_ID=<run_id> START_STAGE=<n> STOP_STAGE=<n> TASK_ID=<task_id> bash rpcf/run_exp031.sh`
+- **汇总与验收：**
+  - `rpcf.summarize_exp031` 输出条件长表、五 seed `mean ± sample std`、严格配对
+    `RPCF_AT−Madry`、跨 dataset/backbone 表、BPDA 表和 `completeness.json`。
+  - accuracy 必须在 `[0,1]`；每个聚合计数必须为 5；Madry/RPCF TNP 的 labels/source
+    indices 必须严格对齐；攻击、RPCF history 或产物协议任一不一致都会阻止 `completed=true`。
+- **Results：** Pending。
+- **运行记录：** 2026-07-31 正式 run 在首个 THU/EEGNet/seed46 RPCF cache 的
+  AutoAttack batch32 上 OOM；未生成失败 cache。新增独立 cache attack batch manifest 与
+  `32→16→8→4` 自动降档后，沿用同一 run id 续跑，已完成任务不会被覆盖。
+  2026-08-03，run 已完成62个任务后在 THU/DeepConvNet/seed46 RPCF_AT 的六-rank
+  fine-tuning batch64 上 OOM。新增 RPCF_AT 独立 batch manifest 与并发单档降级，依据现有失败日志
+  将 THU/DeepConvNet 锁为 train/eval batch32/64；兼容保留5个已完成 EEGNet RPCF_AT 状态后续跑。
+  2026-08-03 无人值守审计发现，按现有 float32 payload 结构完整矩阵预计约需 `2.349 TB`，
+  高于当时 `2.169 TB` 可用空间。现改为“完整 test 计算、确定性 n512 张量留存”，预计总持久化
+  规模约 `1.231 TB`（不含小量 checkpoint/log 和瞬时 work shard），余量约 `0.938 TB`。同时：
+  正式 attack 复用同 dataset/backbone cache 阶段已验证的安全 AutoAttack batch；cache、RPCF checkpoint、
+  attack、TNP、BPDA 与中间 rank/partial shard 改为同目录临时文件后原子替换；runner 只检查当前
+  attempt 新增日志中的 OOM，避免历史 OOM 误降档；TNP 已降为单进程后再次 OOM 不再空转重试。
+  相关 `py_compile`、`bash -n`、`git diff --check` 和 `test_exp031.py` 13 tests 均通过。当前正式
+  controller PID `959662` 继续运行，五个 THU/DeepConvNet RPCF_AT 已稳定进入 epoch 5–6。
+- **闭环检查：**
+  - `IDEAS.md`：不新增方法 idea；本实验整合已有 IDEA-009/011/012 的完整复验。
+  - `DECISIONS.md`、`方法进展梳理.md`：结果 Pending，暂不更新研究结论。
+  - `CODEMAP.md`：已登记新 runner、汇总器、共享 clean cache 与六模型 EA-forward 入口。

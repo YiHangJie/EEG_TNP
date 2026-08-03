@@ -11,6 +11,8 @@ configure_runtime_env()
 import numpy as np
 import torch
 
+from rpcf.exp031_artifacts import atomic_torch_save
+
 from data.subject_ea import get_protocol_tag, prepare_subject_fold
 from purify import purify
 from utils.experiment_artifacts import eeg_classification_collate, safe_token
@@ -57,6 +59,10 @@ def parse_args():
     parser.add_argument("--tag", default="rpcf")
     parser.add_argument("--output_dir", default="./purified_data/rpcf_train")
     parser.add_argument("--output_path", default=None)
+    parser.add_argument(
+        "--shared_clean_path", default=None,
+        help="同一 EXP-031 dataset/seed 的 canonical cache；只复用 clean fixed-rank 净化。",
+    )
     parser.add_argument("--checkpoint_every", type=int, default=8)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--keep_work_dir", action="store_true")
@@ -67,7 +73,7 @@ def parse_args():
 
 
 def save_partial(path, clean_parts, adv_parts, clean_mses, adv_mses, completed):
-    torch.save(
+    atomic_torch_save(
         {
             "x_pur": torch.stack(clean_parts, dim=0) if clean_parts else None,
             "x_adv_pur": torch.stack(adv_parts, dim=0) if adv_parts else None,
@@ -77,6 +83,34 @@ def save_partial(path, clean_parts, adv_parts, clean_mses, adv_mses, completed):
         },
         path,
     )
+
+
+def load_shared_clean_cache(path, args, ranks, x, labels, source_indices):
+    """严格校验共享 clean cache，杜绝跨 split、seed、rank 或样本顺序误复用。"""
+    if not path:
+        return None
+    shared = validate_rpcf_cache(torch.load(path, map_location="cpu"))
+    meta = shared["meta"]
+    expected = {
+        "dataset": args.dataset,
+        "fold": args.fold,
+        "seed": args.seed,
+        "source_split": "train",
+    }
+    for key, value in expected.items():
+        if meta.get(key) != value:
+            raise ValueError(
+                f"Shared clean cache {key} mismatch: {meta.get(key)!r} != {value!r}."
+            )
+    if list(shared["ranks"]) != list(ranks):
+        raise ValueError("Shared clean cache rank order mismatch.")
+    if list(shared["source_indices"]) != list(source_indices):
+        raise ValueError("Shared clean cache source_indices mismatch.")
+    if not torch.equal(shared["labels"].long(), labels.long()):
+        raise ValueError("Shared clean cache labels mismatch.")
+    if not torch.equal(shared["x"].float(), x.float()):
+        raise ValueError("Shared clean cache clean tensor mismatch.")
+    return shared
 
 
 def main():
@@ -104,6 +138,7 @@ def main():
         args.sample_num,
         args.tag,
     )
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     if os.path.exists(output_path) and not args.overwrite:
         validate_rpcf_cache(torch.load(output_path, map_location="cpu"))
         print(output_path)
@@ -184,7 +219,7 @@ def main():
         x = torch.cat(x_parts, dim=0)
         x_adv = torch.cat(x_adv_parts, dim=0)
         labels = torch.cat(label_parts, dim=0)
-        torch.save(
+        atomic_torch_save(
             {
                 "x": x,
                 "x_adv": x_adv,
@@ -198,6 +233,9 @@ def main():
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
+    shared_clean = load_shared_clean_cache(
+        args.shared_clean_path, args, ranks, x, labels, selected_indices
+    )
     if args.base_only:
         logging.info("Base-only RPCF cache step completed: %s", base_path)
         print(base_path)
@@ -237,15 +275,24 @@ def main():
 
             args.config = config
             args.visualize = False
+            shared_rank_index = ranks.index(rank)
             for sample_index in range(completed, x.size(0)):
-                clean_pur, clean_mse = purify(
-                    args,
-                    sample_index,
-                    x[sample_index],
-                    info["sampling_rate"],
-                    device,
-                    logging,
-                )
+                if shared_clean is None:
+                    clean_pur, clean_mse = purify(
+                        args,
+                        sample_index,
+                        x[sample_index],
+                        info["sampling_rate"],
+                        device,
+                        logging,
+                    )
+                else:
+                    clean_pur = shared_clean["x_pur_by_rank"][
+                        sample_index, shared_rank_index
+                    ]
+                    clean_mse = torch.mean(
+                        (clean_pur.float() - x[sample_index].float()) ** 2
+                    ).item()
                 adv_pur, adv_mse = purify(
                     args,
                     sample_index + x.size(0),
@@ -282,7 +329,7 @@ def main():
                 "clean_mses": clean_mses,
                 "adv_mses": adv_mses,
             }
-            torch.save(rank_payload, rank_path)
+            atomic_torch_save(rank_payload, rank_path)
             if os.path.exists(partial_path):
                 os.remove(partial_path)
 
@@ -340,10 +387,12 @@ def main():
             "configs": configs,
             "rank_metrics": rank_metrics,
             "tag": args.tag,
+            "shared_clean_path": args.shared_clean_path,
+            "shared_clean_reused": shared_clean is not None,
         },
     }
     payload = validate_rpcf_cache(payload)
-    torch.save(payload, output_path)
+    atomic_torch_save(payload, output_path)
     logging.info("Saved unified RPCF cache: %s", output_path)
     if not args.keep_work_dir:
         shutil.rmtree(work_dir)

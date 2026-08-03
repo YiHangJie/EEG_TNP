@@ -97,12 +97,43 @@
     复用已有 AT checkpoint、RPCF train cache 和 sensitivity artifact，按敏感性分数降序
     依次累加可训练层，为每个前缀预算单独微调 RPCF_AT、执行 white-box attack、
     rank25/30 净化并汇总 clean/adv/purified 指标。
+  - `feature_alignment.py`、`run_exp026_prescreen*.sh`、`run_exp026_*backbone*.sh`、
+    `run_exp026_after_prescreen.sh`、`compare_exp026*.py`：EXP-026 特征级净化分布适配；提供六 backbone 分类前特征 adapter、
+    CMMD/prototype/trial-level contrastive loss、4×2 class-balanced sampler、三模型统一参数预筛，
+    以及六模型各自 white-box AutoAttack、rank25/30 净化和严格汇总。所有新目标默认关闭。
+  - `run_exp027_oracle_rank.sh`：EXP-027 EEGNet 样本级动态 rank oracle pipeline；复用 EXP-025 checkpoint，
+    为 Madry AT 生成自身完整测试集 AutoAttack，补齐两方法六个 rank 的 n512 净化产物。正式净化阶段等待五张空闲 GPU，
+    每卡同时启动两个隔离进程，并支持 `DRY_RUN`、`SMOKE`、阶段续跑和 partial checkpoint。
+  - `analyze_exp027_oracle_rank.py`：严格合并/重排多 rank purification payload，重新计算逐样本 logits、正确性和
+    true-class margin，输出最佳固定 rank、robust-first paired oracle、rank 分布与 10,000 次 paired bootstrap CI。
+  - `evaluate_auto_rank.py`、`analyze_exp030_auto_rank.py`、`run_exp030_auto_rank.sh`：EXP-030
+    EEG_TNP 内生自动定秩链路。净化入口在 rank 推断完成后才加载分类器，保存每个输入的 bond-rank vector、
+    stage trajectory 和 partial checkpoint；分析入口严格对齐 EXP-027 fixed rank25/oracle，输出 headroom
+    recovery 与 paired bootstrap。runner 支持 `SMOKE`、`PILOT`、`DRY_RUN`、阶段续跑和单卡双进程。
+  - `build_exp030_rank_knee_payload.py`、`run_exp030_rank_knee.sh`：EXP-030 第二种无标签自动定秩链路；
+    严格合并 EXP-027 六秩 payload，按样本在 log reconstruction-MSE 曲线上取最大 chord-distance knee，
+    组合自动秩 payload 后复用 EXP-030 分析器。runner 支持 `DRY_RUN`、阶段续跑与已有产物复用。
+  - `exp031.py`、`run_exp031.sh`、`summarize_exp031.py`：EXP-031 三数据集×六 backbone×五 seed
+    的全层静态-rank RPCF_AT + EEG_TNP 完整鲁棒性矩阵。Python runner 生成严格
+    `planned_tasks.csv`，按 DAG 使用物理 GPU0–6，支持 TNP 每卡双进程、忙卡等待、阶段续跑、
+    单任务重试、smoke/dry-run、训练 batch `128→64→32→16` 与 RPCF cache AutoAttack
+    batch `32→16→8→4`、RPCF_AT fine-tuning batch `64→32→16→8` 的独立 OOM manifest；
+    同批并发 OOM 只触发一次降档；正式 shell 入口要求通过
+    `nohup setsid` 启动。汇总器对五 seed 计数、accuracy 范围、攻击协议、RPCF history、
+    Madry/RPCF TNP 配对与 source indices 做严格完整性检查。
+  - `exp031_artifacts.py`：EXP-031 长跑专用的原子 `torch.save`、攻击安全 batch 解析和
+    full-test 攻击 artifact 确定性 n512 留存工具。攻击指标仍在完整 test split 上计算；仅持久化
+    EEG_TNP 后续所需的 clean/adv 子集，并记录完整覆盖与 subset seed 审计字段，避免完整矩阵写满磁盘。
+  - `generate_cache.py --shared_clean_path`、`evaluate_purification.py --shared_clean_path`：
+    在同一 EXP-031 run 内复用 fixed-rank clean 净化。复用前严格核验 dataset/fold/seed/rank、
+    labels、source indices 与 clean tensor；adversarial examples 和 adversarial purification
+    始终按 checkpoint/攻击独立生成。
   - 默认 rank 为 `15,20,25,30,35,40`，正式长实验必须通过 `nohup` 后台启动。
 
 - `train_AT_ea_forward.py`
   - EA-in-forward 特殊训练入口。
   - 使用 raw/no_ea 输入，将 subject-wise EA 放到模型 forward 中执行。
-  - 当前支持 `eegnet_ea_forward`、`conformer_ea_forward` 和 `madry`。
+  - 当前支持 EEGNet、DeepConvNet、TSCeption、ATCNet、Conformer、TCNet 六种 `<backbone>_ea_forward` 模型和 `madry`；EEGNet/Conformer 保留原 wrapper 以兼容旧 checkpoint 键。
 
 - `attack_ea_forward.py`
   - EA-in-forward 模型的 subject-aware 攻击入口。
@@ -135,6 +166,30 @@
 - `trial_lowrank_analysis/analyze_trial_hosvd_lowrank.py`
   - 从 trial/time/channel/frequency 等视角分析 clean、adv、perturbation 的低秩谱。
   - 默认输出到 `trial_lowrank_analysis/outputs/`。
+  - PGD 对抗样本生成完成后释放分类器显存；后续 subject-wise HOSVD 在 CPU 上运行。
+
+- `trial_lowrank_analysis/run_trial_lowrank_analysis.sh`
+  - EXP-028 两阶段后台 runner：缺少匹配的 no-EA clean EEGNet checkpoint 时先用 `train_AT.py --at_strategy clean` 补训，成功后自动运行 n512/PGD-200 低秩分析。
+  - 支持 `DRY_RUN`、`START_STAGE/STOP_STAGE`、`SKIP_EXISTING`、固定物理 GPU 隔离和稳定日志/输出目录。
+
+- `trial_lowrank_analysis/prepare_purification_input.py`
+  - 将 EXP-028 `bundle.pt` 中的同批 clean/PGD-200 trial 转换为
+    `rpcf.evaluate_purification` 可读取的 attack payload。
+  - 使用 metadata 中的 `original_split_index` 保留样本身份，后续即使净化入口重排样本，
+    也能恢复成 EXP-028 原顺序。
+
+- `trial_lowrank_analysis/analyze_purified_trial_hosvd_lowrank.py`
+  - 对多 rank 的 `clean_pur`、`adv_pur` 和 `adv_pur-clean_pur` 复用 EXP-028
+    trial/time/channel/frequency、raw/trial-centered HOSVD 协议。
+  - 严格校验 source-index、labels、clean/adv 张量和实验 metadata，输出逐 rank 谱、
+    rank95/effective-rank 趋势图以及与 EXP-028 原始 summary 合并的 comparison CSV。
+  - 不重复保存多 GB 净化张量，只保存轻量 analysis manifest；原始张量继续由各 rank
+    purification payload 持有。
+
+- `trial_lowrank_analysis/run_exp029_purified_trial_lowrank.sh`
+  - EXP-029 三阶段后台 runner：导出 EXP-028 输入、六 rank EEG_TNP 净化、CPU HOSVD。
+  - 正式净化等待三张空闲 GPU，每张同时运行两个独立 rank 进程；支持
+    `DRY_RUN`、`SMOKE`、`START_STAGE/STOP_STAGE`、`SKIP_EXISTING` 和 partial 续跑。
 
 - Shell pipeline
   - `train.sh`、`train_AT.sh`、`attack.sh`：批量训练/对抗训练/攻击脚本。
@@ -213,7 +268,21 @@
     - `TN.PTR_3d_fs.PTR_3d_fs`
     - `TN.PTR_tfs.PTR_tfs`
     - `TN.rank_growth.PTR_3d_rank_growth`
+    - `TN.rank_growth.PTR_3d_rank_ard`
+    - `TN.rank_growth.PTR_3d_rank_cv`
+    - `TN.rank_growth.PTR_3d_rank_spectral`
+    - `TN.rank_growth.PTR_3d_rank_sweep_cv`
     - `TN.rank_growth.PTR_3d_rank_soft_mask`
+  - `TN/rank_growth/PTR_3d_rank_ard.py`：使用相邻 core 的 gauge-invariant 成对切片贡献执行
+    bond-wise relevance 估计，在 coarse-to-fine 阶段边界物理剪枝，并可由归一化重构残差触发有界回生；
+    rank 推断不接收标签或分类器。
+  - `TN/rank_growth/PTR_3d_rank_cv.py`：在单个 over-complete TN 上隐藏连续时间块，并用
+    one-standard-error 规则比较候选 core truncation；EXP-030 诊断表明该截断近似会破坏重构。
+  - `TN/rank_growth/PTR_3d_rank_spectral.py`：对相邻 cores 做 two-site SVD rounding，并用
+    unknown-noise optimal hard threshold 估计各 bond rank。
+  - `TN/rank_growth/PTR_3d_rank_sweep_cv.py`：六个候选 rank 使用相同样本 seed/mask、彼此独立
+    短程拟合，按 held-out 时间块 MSE 的 one-SE 规则选秩，再以选中 rank 从头完整重训；rank
+    inference 不接收标签、分类器或 logits。
   - `TN/opt.py` 定义 YAML config 的默认 `Config` 和 `yaml_config_parser`。
   - `TN/utils.py` 提供 TN 参数构造和若干通用工具。
   - TODO：新增或修改 TN 架构前，应进一步阅读对应模型文件的训练接口和 shape 约定。

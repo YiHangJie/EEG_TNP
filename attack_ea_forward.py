@@ -21,8 +21,14 @@ from attack.pgd import PGD
 from attack.square import Square
 from data.load import load_bciciv2a, load_m3cv, load_seediv, load_thubenchmark
 from data.subject_ea import RAW_PROTOCOL_TAG, prepare_subject_ea_forward_fold
-from models.eegnet_ea_forward import SubjectEAConformer, SubjectEAEEGNet
-from models.model_args import get_model_args
+from rpcf.exp031_artifacts import (
+    atomic_torch_save,
+    compact_exp031_attack_artifact,
+    resolve_exp031_attack_batch,
+)
+from models.eegnet_ea_forward import (
+    EA_FORWARD_MODEL_CHOICES, build_subject_ea_model,
+)
 from utils.experiment_artifacts import (
     build_checkpoint_path,
     eeg_subject_classification_collate,
@@ -45,7 +51,7 @@ def parse_args():
     parser.add_argument('--dataset', type=str, default='thubenchmark',
                         choices=['seediv', 'm3cv', 'bciciv2a', 'thubenchmark'])
     parser.add_argument('--model', type=str, default='eegnet_ea_forward',
-                        choices=['eegnet_ea_forward', 'conformer_ea_forward'])
+                        choices=EA_FORWARD_MODEL_CHOICES)
     parser.add_argument('--at_strategy', type=str, default='madry', choices=['madry'])
     parser.add_argument('--fold', type=int, default=0)
     parser.add_argument('--attack', type=str, default='autoattack',
@@ -62,6 +68,7 @@ def parse_args():
                         help='use raw data and apply EA inside model forward')
     parser.add_argument('--checkpoint_path', type=str, default=None)
     parser.add_argument('--checkpoint_tag', type=str, default=None)
+    parser.add_argument('--output_path', type=str, default=None)
     parser.add_argument('--save_adv', action='store_true')
     parser.add_argument('--adv_output_tag', type=str, default=None)
     return parser.parse_args()
@@ -233,13 +240,7 @@ class SubjectAwareAutoAttack:
 
 
 def create_model(args, info, ea_matrices, device):
-    model_map = {
-        'eegnet_ea_forward': ('eegnet', SubjectEAEEGNet),
-        'conformer_ea_forward': ('conformer', SubjectEAConformer),
-    }
-    base_model, model_cls = model_map[args.model]
-    model_args = get_model_args(base_model, args.dataset, info)
-    model = model_cls(ea_matrices=ea_matrices, **model_args)
+    model = build_subject_ea_model(args.model, args.dataset, info, ea_matrices)
     return model.to(device)
 
 
@@ -313,6 +314,10 @@ def main():
     )
     logging.info(f'Attacking EA-forward {args.attack} on {args.dataset} with {args.model}')
     logging.info(args)
+    args.batch_size = resolve_exp031_attack_batch(
+        args.output_path, args.dataset, args.model, args.batch_size
+    )
+    logging.info("Validated attack batch size: %d", args.batch_size)
 
     dataset_dict = {
         'seediv': load_seediv,
@@ -345,6 +350,9 @@ def main():
             f'Using attack_sample_num={attack_sample_num}; selection_seed={selection_seed}; '
             f'source index preview: {selected_indices[:20]}'
         )
+    else:
+        selected_indices = list(range(len(test_dataset)))
+        selection_seed = None
     logging.info(f'EA matrices shape: {tuple(ea_matrices.shape)}')
     logging.info(f'Subject to index: {subject_to_index}')
 
@@ -407,12 +415,30 @@ def main():
     logging.info(f'After Attack - Test Accuracy: {ad_evaluate_acc * 100:.2f}%, Test Loss: {ad_evaluate_loss:.4f}')
 
     mse = torch.nn.functional.mse_loss(ad_data, clean_data)
+    l2 = (ad_data - clean_data).flatten(1).norm(p=2, dim=1).mean()
+    attack_protocol = {
+        'fgsm': {'norm': 'Linf', 'eps': args.eps, 'steps': 1},
+        'pgd': {
+            'norm': 'Linf', 'eps': args.eps, 'steps': 200,
+            'alpha': 2 / 255, 'random_start': False,
+        },
+        'autoattack': {
+            'norm': 'Linf', 'eps': args.eps, 'version': 'standard',
+        },
+        'cw': {
+            'norm': 'L2', 'steps': 200, 'lr': 0.1, 'c': 10000,
+            'kappa': 1, 'eps_is_constraint': False,
+        },
+    }[args.attack]
     logging.info(f'MSE between clean data and adversarial data: {mse.item():.6f}')
 
-    if args.save_adv:
+    if args.save_adv or args.output_path:
         os.makedirs('./ad_data', exist_ok=True)
         adv_output_path, model_tag = build_adv_output_path(args)
+        adv_output_path = args.output_path or adv_output_path
+        os.makedirs(os.path.dirname(adv_output_path) or '.', exist_ok=True)
         adv_meta = {
+            'kind': 'rpcf_attack_eval' if args.output_path else 'ea_forward_attack',
             'dataset': args.dataset,
             'model': args.model,
             'fold': args.fold,
@@ -420,6 +446,7 @@ def main():
             'protocol': RAW_PROTOCOL_TAG,
             'protocol_short': short_protocol_tag(False),
             'use_ea': False,
+            'source_split': 'test',
             'model_tag': model_tag,
             'at_strategy': args.at_strategy,
             'attack': args.attack,
@@ -427,13 +454,46 @@ def main():
             'checkpoint_path': checkpoint_path,
             'adv_output_tag': args.adv_output_tag,
             'attack_sample_num': args.attack_sample_num,
+            'sample_num': len(selected_indices),
+            'selection_strategy': (
+                'full_test_split' if args.attack_sample_num is None
+                else 'random_without_replacement'
+            ),
+            'selection_seed_rule': (
+                None if args.attack_sample_num is None else 'seed + fold * 1000'
+            ),
+            'selection_seed': selection_seed,
             'clean_accuracy': evaluate_acc,
+            'clean_loss': evaluate_loss,
             'adv_accuracy': ad_evaluate_acc,
+            'adv_loss': ad_evaluate_loss,
             'mse': mse.item(),
+            'attack_mse': mse.item(),
+            'attack_l2_mean': l2.item(),
+            'attack_protocol': attack_protocol,
             'subject_indices': subject_indices,
             'subject_to_index': subject_to_meta(subject_to_index),
         }
-        torch.save((ad_data, labels, adv_meta), adv_output_path)
+        if args.output_path:
+            stored, artifact_audit = compact_exp031_attack_artifact(
+                clean_data, ad_data, labels, selected_indices, adv_output_path,
+                args.seed, args.fold, subject_indices,
+            )
+            (stored_clean, stored_adversarial, stored_labels, stored_indices,
+             stored_subject_indices) = stored
+            adv_meta.update(artifact_audit)
+            adv_meta['actual_attack_batch_size'] = args.batch_size
+            adv_meta['subject_indices'] = stored_subject_indices
+            atomic_torch_save({
+                'clean': stored_clean,
+                'adversarial': stored_adversarial,
+                'labels': stored_labels,
+                'subject_indices': stored_subject_indices,
+                'source_indices': stored_indices,
+                'meta': adv_meta,
+            }, adv_output_path)
+        else:
+            torch.save((ad_data, labels, adv_meta), adv_output_path)
         logging.info(f'Saved adversarial data: {adv_output_path}')
 
     logging.info('Test model on 512 random samples for adversarial training')

@@ -10,6 +10,8 @@ configure_runtime_env()
 import numpy as np
 import torch
 
+from rpcf.exp031_artifacts import atomic_torch_save
+
 from purify import purify
 
 from rpcf.core import (
@@ -49,6 +51,10 @@ def parse_args():
         ),
     )
     parser.add_argument("--gpu_id", type=int, default=0)
+    parser.add_argument(
+        "--shared_clean_path", default=None,
+        help="同一 EXP-031 dataset/seed 的 canonical 测试净化 payload。",
+    )
     parser.add_argument("--checkpoint_every", type=int, default=8)
     parser.add_argument("--output_path", required=True)
     parser.add_argument("--overwrite", action="store_true")
@@ -87,8 +93,39 @@ def validate_attack_payload(payload, args):
     return clean, adversarial, labels, [int(i) for i in payload["source_indices"]], meta
 
 
+def load_shared_clean_payload(path, args, ranks, clean, labels, source_indices):
+    """校验共享 fixed-rank clean 净化与当前攻击子集完全同源。"""
+    if not path:
+        return None
+    shared = torch.load(path, map_location="cpu")
+    required = {"clean", "clean_pur_by_rank", "labels", "source_indices", "ranks", "meta"}
+    missing = sorted(required - set(shared)) if isinstance(shared, dict) else sorted(required)
+    if missing:
+        raise ValueError(f"Shared clean purification missing keys: {missing}.")
+    meta = shared["meta"]
+    for key, expected in {
+        "dataset": args.dataset, "fold": args.fold, "seed": args.seed, "eps": args.eps,
+    }.items():
+        actual = meta.get(key)
+        matches = abs(float(actual) - float(expected)) <= 1e-12 if key == "eps" else actual == expected
+        if not matches:
+            raise ValueError(f"Shared clean purification {key} mismatch: {actual!r} != {expected!r}.")
+    if list(shared["ranks"]) != list(ranks):
+        raise ValueError("Shared clean purification rank order mismatch.")
+    if list(shared["source_indices"]) != list(source_indices):
+        raise ValueError("Shared clean purification source_indices mismatch.")
+    if not torch.equal(torch.as_tensor(shared["labels"]).long(), labels.long()):
+        raise ValueError("Shared clean purification labels mismatch.")
+    if not torch.equal(torch.as_tensor(shared["clean"]).float(), clean.float()):
+        raise ValueError("Shared clean purification clean tensor mismatch.")
+    clean_pur = torch.as_tensor(shared["clean_pur_by_rank"]).float()
+    if clean_pur.shape[:2] != (clean.size(0), len(ranks)):
+        raise ValueError("Shared clean purification tensor shape mismatch.")
+    return clean_pur
+
+
 def save_partial(path, clean_parts, adv_parts, clean_mses, adv_mses, completed):
-    torch.save(
+    atomic_torch_save(
         {
             "clean_pur": torch.stack(clean_parts) if clean_parts else None,
             "adv_pur": torch.stack(adv_parts) if adv_parts else None,
@@ -130,6 +167,9 @@ def main():
     adversarial = adversarial.index_select(0, index_tensor)
     labels = labels.index_select(0, index_tensor)
     source_indices = [attack_source_indices[position] for position in selected_positions]
+    shared_clean = load_shared_clean_payload(
+        args.shared_clean_path, args, ranks, clean, labels, source_indices
+    )
 
     dataset, info = DATASET_LOADERS[args.dataset]()
     del dataset
@@ -137,6 +177,22 @@ def main():
         args.model, args.dataset, info, args.checkpoint_path, device
     )
     model.eval()
+    raw_clean_loader = torch.utils.data.DataLoader(
+        torch.utils.data.TensorDataset(clean, labels),
+        batch_size=args.batch_size, shuffle=False,
+    )
+    raw_adv_loader = torch.utils.data.DataLoader(
+        torch.utils.data.TensorDataset(adversarial, labels),
+        batch_size=args.batch_size, shuffle=False,
+    )
+    raw_clean_metric = evaluate_classifier(model, raw_clean_loader, device)
+    raw_adv_metric = evaluate_classifier(model, raw_adv_loader, device)
+    raw_subset_metrics = {
+        "standard_accuracy": raw_clean_metric["accuracy"],
+        "standard_loss": raw_clean_metric["loss"],
+        "robust_accuracy": raw_adv_metric["accuracy"],
+        "robust_loss": raw_adv_metric["loss"],
+    }
     work_dir = f"{args.output_path}.work"
     if args.overwrite and os.path.isdir(work_dir):
         shutil.rmtree(work_dir)
@@ -166,16 +222,23 @@ def main():
                     adv_mses = list(partial["adv_mses"])
             args.config = config
             args.visualize = False
+            shared_rank_index = ranks.index(rank)
             for sample_index in range(completed, sample_num):
-                clean_pur, clean_mse = purify(
-                    args,
-                    sample_index,
-                    clean[sample_index],
-                    info["sampling_rate"],
-                    device,
-                    logging,
-                    classifier=model,
-                )
+                if shared_clean is None:
+                    clean_pur, clean_mse = purify(
+                        args,
+                        sample_index,
+                        clean[sample_index],
+                        info["sampling_rate"],
+                        device,
+                        logging,
+                        classifier=model,
+                    )
+                else:
+                    clean_pur = shared_clean[sample_index, shared_rank_index]
+                    clean_mse = torch.mean(
+                        (clean_pur.float() - clean[sample_index].float()) ** 2
+                    ).item()
                 adv_pur, adv_mse = purify(
                     args,
                     sample_index + sample_num,
@@ -213,7 +276,7 @@ def main():
                 "clean_mses": clean_mses,
                 "adv_mses": adv_mses,
             }
-            torch.save(rank_payload, rank_path)
+            atomic_torch_save(rank_payload, rank_path)
             if os.path.exists(partial_path):
                 os.remove(partial_path)
 
@@ -253,6 +316,7 @@ def main():
         "source_indices": source_indices,
         "ranks": ranks,
         "metrics": metrics,
+        "raw_subset_metrics": raw_subset_metrics,
         "meta": {
             "kind": "rpcf_purification_eval",
             "dataset": args.dataset,
@@ -271,9 +335,11 @@ def main():
             "source_indices": source_indices,
             "ranks": ranks,
             "configs": configs,
+            "shared_clean_path": args.shared_clean_path,
+            "shared_clean_reused": shared_clean is not None,
         },
     }
-    torch.save(payload, args.output_path)
+    atomic_torch_save(payload, args.output_path)
     logging.info("Saved purification evaluation: %s", args.output_path)
     if not args.keep_work_dir:
         shutil.rmtree(work_dir)

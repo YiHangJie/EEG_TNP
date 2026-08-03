@@ -1333,6 +1333,12 @@ def main() -> None:
         "Adversarial generation stage finished: elapsed=%s",
         format_elapsed(time.perf_counter() - run_start),
     )
+    # 后续 HOSVD 全部在 CPU 张量上进行，及时释放分类器显存，避免长时间的
+    # subject-wise SVD 阶段无意义地阻塞同机其他 GPU 调度器。
+    del model
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
+        logging.info("Released classifier GPU memory before low-rank SVD stage.")
     subject_counts = metadata.groupby("subject_id").size()
     eligible_subjects = int((subject_counts >= args.min_trials).sum())
     planned_svd_calls = (

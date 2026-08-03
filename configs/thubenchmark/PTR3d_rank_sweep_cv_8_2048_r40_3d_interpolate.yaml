@@ -1,0 +1,36 @@
+model: PTR_3d_rank_sweep_cv
+strategy: 3d_interpolate
+lr: 0.008
+
+num_iterations: 2048
+max_batch_size: 262144
+
+seed: 42
+
+stage: 4
+payload_position: first_core
+iterations_for_upsampling:
+  - 256
+  - 512
+  - 1024
+
+max_rank: 40
+rank_sweep_candidates:
+  - 15
+  - 20
+  - 25
+  - 30
+  - 35
+  - 40
+rank_sweep_cv_iterations: 512
+rank_sweep_mask_fraction: 0.125
+rank_sweep_mask_blocks: 32
+rank_sweep_one_se_multiplier: 1.0
+rank_sweep_seed: 42
+
+lr_decay_factor: 0.9
+lr_decay_factor_until_next_upsampling: 0.1
+warmup_steps: 50
+
+loss_fn_str: L2
+regularization_weight: 0.0

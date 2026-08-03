@@ -78,6 +78,8 @@
   - 改造 analyze_tr_rank_predictions.py 的代码有 bug。
 - **相关实验：**
   - `EXP-005`
+  - `EXP-028`
+  - `EXP-029`
 - **备注：**
   - 暂无。
 
@@ -380,3 +382,99 @@
   - seed42 单 seed 只能作为 backbone 泛化的初步证据，不能替代跨 seed 统计。
 - **相关实验：**
   - `EXP-024`：Pending
+
+### IDEA-013：RPCF_AT + Class-conditional MMD
+
+- **状态：** 已实现；EXP-026 已主动停止，正式结论 Pending
+- **动机：** RPCF_AT 主要依赖 logit-level CE/KL，未显式约束不同类别的 clean 与多-rank净化表征分布。
+- **核心假设：** 在分类层前按类别对齐 clean、clean-purified 和 adversarial-purified 特征分布，可以缓解净化引起的 backbone-dependent distribution shift。
+- **方法：** clean feature 作为 detached teacher；对每个 rank 和 batch 内类别计算 multi-kernel RBF biased MMD，并对 clean-pur/adv-pur 等权、按动态 rank 权重聚合。训练使用确定性 4 类×2 trial 均衡 batch。
+- **预期实现：** 在 `rpcf/feature_alignment.py` 中新增统一特征 adapter、CMMD 与均衡 sampler；通过 `rpcf.finetune --feature_objective cmmd` 显式启用，不改变 baseline 默认行为。
+- **评估指标：** full clean/AutoAttack、rank25/30 purified clean/adversarial accuracy，以及相对 class-balanced RPCF_AT control 的增益。
+- **风险：** n512 cache 和 batch8 只能提供小样本类条件估计；biased MMD 与 median bandwidth 的效果可能依赖 backbone。
+- **相关实验：** `EXP-026`：Stopped，结果 Pending
+
+### IDEA-014：RPCF_AT + Prototype Learning
+
+- **状态：** 已实现；EXP-026 已主动停止，正式结论 Pending
+- **动机：** 仅做全局一致性无法保证净化样本靠近其对应类别的 clean 表征中心。
+- **核心假设：** 对齐 clean prototype 与各 rank adversarial-purified prototype，并约束净化 prototype 的类间 margin，可以提升类别条件净化适配而避免中心坍缩。
+- **方法：** 使用 L2-normalized penultimate feature；clean prototype detached；按 rank 对齐 adv-pur prototype。预筛比较无 margin 与 `margin=1.0, margin_weight=0.1`。
+- **预期实现：** 通过 `rpcf.finetune --feature_objective prototype` 启用，margin 和权重均显式记录到 history。
+- **评估指标：** 同 IDEA-013，并记录 prototype alignment/margin loss。
+- **风险：** 每 batch 每类只有两个 trial，prototype 方差仍较高；margin 过强可能损伤原始鲁棒边界。
+- **相关实验：** `EXP-026`：Stopped，结果 Pending
+
+### IDEA-015：RPCF_AT + Trial-level Contrastive Learning
+
+- **状态：** 已实现；EXP-026 已主动停止，正式结论 Pending
+- **动机：** 同一 trial 的攻击与多-rank净化视图具有天然实例一致性，可直接用于约束净化表征。
+- **核心假设：** 以 clean trial 为 anchor，将对应 cached adversarial 和各 rank adversarial-purified view 拉近，并推远其他 trial 的全部派生 view，可以增强跨 rank 稳定性。
+- **方法：** clean anchor detached；同 trial 的 `x_adv` 与六 rank `x_adv_pur` 为 positives；其他 trial（包括同类别 trial）的所有派生 view 为 negatives；temperature 固定为 0.1。
+- **预期实现：** 通过 `rpcf.finetune --feature_objective contrastive` 启用；batch 少于两个 trial 时安全跳过并记录计数。
+- **评估指标：** 同 IDEA-013，并记录 contrastive loss 与 skipped batch 数。
+- **风险：** 将同类别其他 trial 视为 negative 可能排斥类内共享结构；cached adversarial 来自初始化 AT checkpoint，可能随微调逐渐陈旧。
+- **相关实验：** `EXP-026`：Stopped，结果 Pending
+
+### IDEA-016：样本级动态 Rank 的防御上限
+
+- **状态：** 已实现并通过 smoke，EXP-027 正式运行中
+- **动机：** 固定 rank 对所有 trial 使用同一净化强度，无法同时适配样本难度、攻击残留和信号保真差异。在投入 selector 训练前，应先确认“每个样本选择一个最终 rank”是否客观存在足够大的鲁棒收益空间。
+- **核心假设：** 对同一 clean/adversarial trial 在 `15,20,25,30,35,40` 中联合选择一个 rank，可在基本保持 clean accuracy 的同时显著超过最佳固定 rank；若 Madry AT 与 RPCF_AT 均成立，则该上限不依赖 RPCF_AT，若仅 RPCF_AT 成立，则只能解释为二者的条件化协同。
+- **方法：** 在 `thubenchmark / EEGNet / seed42 / fold0 / eps0.03 / n512` 上分别使用 Madry AT 和 RPCF_AT selective 自身的 white-box AutoAttack。最佳固定 rank 依次按 adversarial accuracy、clean accuracy、低 rank 决定；逐样本 robust-first oracle 依次按 adversarial 正确、clean 正确、adversarial true-class margin、clean true-class margin、低 rank 决定。
+- **评估指标：** oracle 相对最佳固定 rank 的 adversarial headroom、clean accuracy 变化、10,000 次 paired bootstrap 95% CI、oracle rank 分布和 rescued/lost trial 数。
+- **决策标准：** RPCF_AT headroom 至少 `2.0 pp`、95% CI 下界大于 0 且 clean 下降不超过 `1.0 pp` 才是强支持；`0.5–2.0 pp` 或 CI 包含 0 仅记为弱信号；小于 `0.5 pp` 不支持进入 selector 阶段。
+- **风险：** oracle 使用真实标签，只表示理论上限，不能作为可部署防御；当前只研究每个样本一个最终 rank，不涉及净化阶段内 rank trajectory，也不替代后续 adaptive attack。
+- **相关实验：** `EXP-027`：运行中
+
+### IDEA-017：EEG_TNP 内生自动定秩与阶段级 Bond Adaptation
+
+- **状态：** 四种 TN-only 代理均不支持；暂不继续以纯重构证据逼近 oracle
+- **动机：**
+  - EXP-027 在 `thubenchmark / EEGNet / seed42 / fold0 / eps0.03 / n512` 上确认了样本级 rank 的显著理论空间：Madry AT 与 RPCF_AT 相对最佳固定 rank25 的 robust oracle headroom 分别为 `+4.10 pp` 和 `+3.91 pp`。
+  - 但 EXP-027 oracle 在测试时使用真实标签、各 rank 正确性和 true-class margin，不能部署；额外训练深度学习 rank selector 又会扩大攻击面并削弱“模型无关张量净化”的方法定位。
+  - EXP-014 的单标量 soft-prefix gate 只学到较窄的 effective-rank 分布，说明 `MSE + 线性 rank cost` 与统一 `rho` 不足以表示样本级、bond级结构差异。
+- **核心假设：**
+  - 从 over-complete Tensor Ring 出发，联合估计每条可变 bond 上各 latent component 的相关性，并成对压缩相邻 core 中证据不足的切片，可以在一次 EEG_TNP 优化内得到样本特有的 bond-rank vector，而不需要枚举后再由分类性能挑选 rank。
+  - 在 coarse-to-fine 净化过程中于每个分辨率阶段重新执行 bond pruning，并在后续阶段仅对被结构化残差支持的 component 进行 regrowth，可以形成样本特有的阶段级 rank trajectory。
+  - 这种内生自动定秩能够减少低 rank 的语义欠拟合和高 rank 的扰动过拟合，从而收回 EXP-027 oracle headroom 的一部分。
+- **方法：**
+  - 新建 `PTR_3d_rank_ard`，初始化 `max_rank=40`，不改变现有 `PTR_3d`、`PTR_3d_rank_growth` 或 `PTR_3d_rank_soft_mask` baseline。
+  - 为每条可变时间 bond 的每个 component 维护 relevance precision；使用经过 core balancing/canonicalization 的相邻 core 配对切片贡献，交替更新 TN cores 与 relevance，避免 TR gauge scaling 造成虚假剪枝。
+  - 在阶段边界物理剪除低相关性 component，并重建 contraction path 与 optimizer state；记录每条 bond 的 active rank、pruned/regrown components 和阶段轨迹。
+  - 将 masked self-validation 作为显式变体：只用部分时空位置拟合，检查新增 component 是否改善 held-out reconstruction；最终 rank 确定后再使用完整输入重构。
+  - rank inference 完全由当前样本和 TN 优化状态决定，不使用标签、分类 logits、预测正确性或 true-class margin；分类器只用于净化结束后的防御评估。
+  - 第二策略不再从单个 over-complete core 的 component norm 截断，而是对六个独立 fixed-rank TNP 重构的样本级 log-MSE 曲线取 diminishing-return knee；该规则参数无关且仍不读取分类器，但计算成本暂为六次净化。
+  - 第三策略改用 two-site SVD rounding：合并相邻 cores 后在联合矩阵上做局部最优低秩近似，以未知噪声 optimal hard threshold 自动确定 bond rank，从根本上避免 component permutation/gauge 下的逐切片错配。
+  - 第四策略不再裁剪 over-complete core，而是让六个候选 rank 各自独立完成短程 masked TN 优化，以 held-out 时间块误差 one-SE 选秩，再从头完整拟合选中结构。
+- **预期实现：**
+  - `TN/rank_growth/PTR_3d_rank_ard.py`：bond-wise relevance、成对切片剪枝、stage-wise prune/regrow 和 rank trajectory。
+  - `configs/thubenchmark/PTR3d_rank_ard_8_2048_r40_3d_interpolate.yaml`：与 EXP-027 固定 rank 配置对齐的自动定秩配置。
+  - 扩展 `TN/rank_growth/__init__.py`、`TN/utils.py`、`purify.py`，仅通过新 model/config 显式启用。
+  - 新增 EXP-030 runner、汇总入口和合成 Tensor Ring 自动定秩测试。
+- **评估指标：**
+  - purified clean/adversarial accuracy、重构 MSE、相对最佳 fixed rank 的 robust gain、相对 EXP-027 oracle 的 headroom recovery ratio 与 oracle regret。
+  - 最终 bond-rank vector、样本级 mean/max rank、阶段级 rank trajectory、rank 分布宽度、剪枝/回生计数、有效参数量和净化墙钟时间。
+  - 与 fixed rank25、现有 hard rank-growth/soft-mask 和 EXP-027 oracle 对照。
+- **风险：**
+  - 自动结构秩不必然等于分类最优秩；EXP-028/029 已显示 clean 与 adversarial 整体低秩谱非常接近，因此纯张量证据未必能收回全部 oracle headroom。
+  - EXP-030 第一版 `auto_rank_ard_regrow` 已实证暴露这一风险：虽然 clean/adv reconstruction MSE
+    约为 `0.0266`，但最终 mean rank 偏向 `34.4`，Madry AT 与 RPCF_AT 的 n64 robust accuracy
+    均比相同 subset 的 fixed rank25 低 `4.69 pp`。因此更好的重构或更高的 bond relevance
+    不能直接作为分类最优净化秩的代理。
+  - 第二策略 log-MSE knee 在 n512 上能产生合理的 rank20/25/30 分布，但 Madry/RPCF_AT 相对
+    fixed rank25 仍为 `-0.20/-0.39 pp`；与 oracle rank 的一致率只有约 `12%`。这进一步说明即使
+    样本级 reconstruction-complexity knee 非退化，也没有足够的分类边界信息恢复 oracle headroom。
+  - 第四策略 independent masked-CV 在 n64 上形成覆盖六个候选的非退化分布，Madry/RPCF robust
+    accuracy 均与 fixed rank25 持平，但 clean accuracy 分别下降 `3.12/4.69 pp`；同一 trial 的
+    clean/adv rank 一致率仅 `20.31%`。独立训练消除了 core truncation 的工程失真，却仍不能让
+    held-out reconstruction error 对齐 defense-optimal rank。
+  - TR 存在 gauge 与 component permutation 不变性，若不先做 core balancing，直接按单侧切片范数剪枝可能得到错误 rank。
+  - coarse 阶段过早剪枝可能删除高分辨率阶段需要的结构；regrowth 必须限制在 held-out residual 明确支持的方向，并作为必要消融。
+  - 无额外深度网络不等于免疫 adaptive attack；若初步性能成立，仍需用 unrolled/BPDA/EOT surrogate 攻击完整自动定秩流程。
+- **相关实验：**
+  - `EXP-027`：Oracle 上限与目标值
+  - `EXP-029`：不同 fixed rank 对净化后结构复杂度的影响
+  - `EXP-030`：已完成；四种 TN-only 策略均不支持
+- **备注：**
+  - 方法依据来自 automatic Tensor Ring rank determination、相邻 core coupled shrinkage、TT/TR rounding 与 rank-adaptive approximation；创新点不应表述为“首次自动确定 TR rank”，而应聚焦其在 EEG 对抗净化中的逐样本、bond级和阶段级结合。

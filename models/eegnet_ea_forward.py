@@ -3,6 +3,30 @@ from torch import nn
 from torcheeg.models import Conformer, EEGNet
 
 
+EA_FORWARD_BASE_MODELS = (
+    'eegnet',
+    'deepconvnet',
+    'tsception',
+    'atcnet',
+    'conformer',
+    'tcnet',
+)
+EA_FORWARD_MODEL_CHOICES = tuple(
+    f'{model_name}_ea_forward' for model_name in EA_FORWARD_BASE_MODELS
+)
+
+
+def ea_forward_base_model_name(model_name: str) -> str:
+    """把 EA-forward 模型名映射到通用 backbone 注册名。"""
+    suffix = '_ea_forward'
+    if not model_name.endswith(suffix):
+        raise ValueError(f'Invalid EA-forward model name: {model_name}.')
+    base_model = model_name[:-len(suffix)]
+    if base_model not in EA_FORWARD_BASE_MODELS:
+        raise ValueError(f'Unsupported EA-forward model: {model_name}.')
+    return base_model
+
+
 class SubjectEAClassifier(nn.Module):
     """
     在 forward 中执行 subject-wise EA 的通用分类器包装器。
@@ -99,3 +123,23 @@ class SubjectEAConformer(SubjectEAClassifier):
             **kwargs,
         )
         super().__init__(ea_matrices=ea_matrices, backbone=backbone, num_electrodes=num_electrodes)
+
+
+def build_subject_ea_model(model_name, dataset, info, ea_matrices):
+    """构造六种 backbone 的 EA-forward 分类器，并兼容旧 EEGNet/Conformer 权重键。"""
+    from models.model_args import get_model_args
+    from models.registry import MODEL_CLASSES
+
+    base_model = ea_forward_base_model_name(model_name)
+    model_args = get_model_args(base_model, dataset, info)
+    if base_model == 'eegnet':
+        return SubjectEAEEGNet(ea_matrices=ea_matrices, **model_args)
+    if base_model == 'conformer':
+        return SubjectEAConformer(ea_matrices=ea_matrices, **model_args)
+
+    backbone = MODEL_CLASSES[base_model](**model_args)
+    return SubjectEAClassifier(
+        ea_matrices=ea_matrices,
+        backbone=backbone,
+        num_electrodes=info['num_electrodes'],
+    )

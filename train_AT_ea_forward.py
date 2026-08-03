@@ -13,8 +13,10 @@ import torch
 
 from data.load import load_bciciv2a, load_m3cv, load_seediv, load_thubenchmark
 from data.subject_ea import RAW_PROTOCOL_TAG, prepare_subject_ea_forward_fold
-from models.eegnet_ea_forward import SubjectEAConformer, SubjectEAEEGNet
-from models.model_args import get_model_args
+from models.eegnet_ea_forward import (
+    EA_FORWARD_MODEL_CHOICES,
+    build_subject_ea_model,
+)
 from utils.experiment_artifacts import build_checkpoint_path, eeg_subject_classification_collate, safe_token
 
 
@@ -33,7 +35,7 @@ def parse_args():
     parser.add_argument('--dataset', type=str, default='thubenchmark',
                         choices=['seediv', 'm3cv', 'bciciv2a', 'thubenchmark'])
     parser.add_argument('--model', type=str, default='eegnet_ea_forward',
-                        choices=['eegnet_ea_forward', 'conformer_ea_forward'])
+                        choices=EA_FORWARD_MODEL_CHOICES)
     parser.add_argument('--at_strategy', type=str, default='madry', choices=['madry'])
     parser.add_argument('--fold', type=int, default=0)
     parser.add_argument('--epsilon', type=float, default=0.03)
@@ -139,13 +141,7 @@ def evaluate(model, loader, device):
 
 
 def create_model(args, info, ea_matrices, device):
-    model_map = {
-        'eegnet_ea_forward': ('eegnet', SubjectEAEEGNet),
-        'conformer_ea_forward': ('conformer', SubjectEAConformer),
-    }
-    base_model, model_cls = model_map[args.model]
-    model_args = get_model_args(base_model, args.dataset, info)
-    model = model_cls(ea_matrices=ea_matrices, **model_args)
+    model = build_subject_ea_model(args.model, args.dataset, info, ea_matrices)
     return model.to(device)
 
 

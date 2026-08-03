@@ -11,6 +11,12 @@ import torch
 from data.subject_ea import get_protocol_tag, prepare_subject_fold
 from utils.experiment_artifacts import eeg_classification_collate
 
+from rpcf.exp031_artifacts import (
+    atomic_torch_save,
+    compact_exp031_attack_artifact,
+    resolve_exp031_attack_batch,
+)
+
 from rpcf.core import (
     DATASET_LOADERS,
     MODEL_CHOICES,
@@ -77,9 +83,12 @@ def main():
         )
         test_dataset = torch.utils.data.Subset(test_dataset, source_indices)
 
+    attack_batch_size = resolve_exp031_attack_batch(
+        args.output_path, args.dataset, args.model, args.batch_size
+    )
     loader = torch.utils.data.DataLoader(
         test_dataset,
-        batch_size=args.batch_size,
+        batch_size=attack_batch_size,
         shuffle=False,
         num_workers=0,
         collate_fn=eeg_classification_collate,
@@ -111,16 +120,35 @@ def main():
     labels = torch.cat(label_parts, dim=0)
     adversarial_loader = torch.utils.data.DataLoader(
         torch.utils.data.TensorDataset(adversarial, labels),
-        batch_size=args.batch_size,
+        batch_size=attack_batch_size,
         shuffle=False,
     )
     adv_metrics = evaluate_classifier(model, adversarial_loader, device)
     mse = torch.nn.functional.mse_loss(adversarial, clean).item()
+    l2_mean = (adversarial - clean).flatten(1).norm(p=2, dim=1).mean().item()
+    (stored, artifact_audit) = compact_exp031_attack_artifact(
+        clean, adversarial, labels, source_indices, args.output_path, args.seed, args.fold
+    )
+    stored_clean, stored_adversarial, stored_labels, stored_source_indices = stored
+    attack_protocol = {
+        "fgsm": {"norm": "Linf", "eps": args.eps, "steps": 1},
+        "pgd": {
+            "norm": "Linf", "eps": args.eps, "steps": 200,
+            "alpha": 2 / 255, "random_start": False,
+        },
+        "autoattack": {
+            "norm": "Linf", "eps": args.eps, "version": "standard",
+        },
+        "cw": {
+            "norm": "L2", "steps": 200, "lr": 0.1, "c": 10000,
+            "kappa": 1, "eps_is_constraint": False,
+        },
+    }[args.attack]
     payload = {
-        "clean": clean,
-        "adversarial": adversarial,
-        "labels": labels,
-        "source_indices": source_indices,
+        "clean": stored_clean,
+        "adversarial": stored_adversarial,
+        "labels": stored_labels,
+        "source_indices": stored_source_indices,
         "meta": {
             "kind": "rpcf_attack_eval",
             "dataset": args.dataset,
@@ -136,6 +164,8 @@ def main():
             "attack_seed": args.seed,
             "eps": args.eps,
             "sample_num": len(source_indices),
+            "actual_attack_batch_size": attack_batch_size,
+            **artifact_audit,
             "selection_strategy": (
                 "full_test_split"
                 if args.sample_num is None
@@ -150,9 +180,11 @@ def main():
             "adv_accuracy": adv_metrics["accuracy"],
             "adv_loss": adv_metrics["loss"],
             "attack_mse": mse,
+            "attack_l2_mean": l2_mean,
+            "attack_protocol": attack_protocol,
         },
     }
-    torch.save(payload, args.output_path)
+    atomic_torch_save(payload, args.output_path)
     logging.info("Saved attack evaluation: %s", args.output_path)
     print(args.output_path)
 

@@ -526,3 +526,88 @@
 - **相关实验：**
   - `EXP-024`
   - `EXP-025`
+
+### DEC-021：第一版 bond-wise ARD 自动定秩不进入 n512 正式实验
+
+- **日期：** 2026-07-20
+- **背景：**
+  - EXP-027 证明逐样本 rank oracle 相对最佳 fixed rank25 存在约 `3.91–4.10 pp`
+    robust headroom，但 oracle 使用真实标签和分类性能，不能部署。
+  - EXP-030 第一版 `auto_rank_ard_regrow` 只使用 Tensor Ring 内部的 gauge-invariant bond
+    relevance、阶段级剪枝/回生和最终无标签 refit；预注册 n64 gate 要求 Madry AT 与 RPCF_AT
+    均不弱于相同 subset 的 fixed rank25，才进入 n512。
+- **结果：**
+  - Madry AT 的 n64 adversarial accuracy 从 fixed rank25 的 `89.06%` 降至 `84.38%`，
+    paired robust gain `-4.69 pp`，95% CI `[-10.94, 0.00] pp`。
+  - RPCF_AT 从 `90.62%` 降至 `85.94%`，paired robust gain `-4.69 pp`，
+    95% CI `[-12.50, +1.56] pp`。
+  - 两种方法的 adversarial mean rank 均约为 `34.4`；重构 MSE 约为 `0.0264`，说明第一版
+    relevance 对重构保真有效，但没有对齐分类鲁棒性所需的净化强度。
+- **决策：**
+  - 不启动该配置的 n512 formal，不把第一版 bond-wise ARD 作为受支持的新防御结果。
+  - 保留代码、n2 smoke 和 n64 产物，作为“reconstruction-optimal rank 不等于
+    defense-optimal rank”的机制 baseline。
+  - 若继续 IDEA-017，下一版必须先引入仍然无标签、但更贴近扰动去除而非完整输入重构的样本内
+    自验证证据，并重新通过 n64 fixed-vs-auto gate；在此之前不做大规模跨 seed/backbone。
+  - n64 pilot 不是正式论文结果，也不替代对通过筛选的方法执行 adaptive attack。
+- **相关 idea：**
+  - `IDEA-017`
+- **相关实验：**
+  - `EXP-027`
+  - `EXP-030`
+
+### DEC-022：纯 Tensor Ring 重构证据不再作为自动定秩的主推进方向
+
+- **日期：** 2026-07-20
+- **背景：**
+  - EXP-027 给出了约 `3.91–4.10 pp` 的逐样本 oracle headroom，但可部署规则不能读取真实标签。
+  - EXP-030 已依次评估 bond-wise ARD/regrow、masked core truncation 和参数无关 log-MSE knee；
+    三者都不引入额外深度 selector，也不在 rank inference 中读取标签或分类器输出。
+- **结果：**
+  - 第一版 ARD 在 n64 上使 Madry/RPCF_AT robust accuracy 均下降 `4.69 pp`。
+  - masked-CV 从单个 rank40 core 直接截断在 full-iteration n2 上坍缩为 rank15，MSE 约 `0.21`，
+    未进入 n64。
+  - log-MSE knee 复用六个独立 TNP 输出，在 n512 上形成非退化的 rank20/25/30 主分布，但 Madry
+    robust gain 为 `-0.20 pp`（95% CI `[-1.37,+0.98]`），RPCF_AT 为 `-0.39 pp`
+    （95% CI `[-1.76,+1.17]`）。与 oracle rank 完全一致率均约 `12%`。
+- **决策：**
+  - 不继续围绕 component norm、完整输入 reconstruction MSE 或其 curve knee 做测试集超参数调优；
+    这些信号可以描述张量重构复杂度，但当前证据表明它们不足以预测 defense-optimal rank。
+  - 保留 `PTR_3d_rank_cv` 和 log-MSE knee 作为可复现的负结果/消融，不纳入论文主防御方法。
+  - 若继续逼近 oracle，下一候选应是“不训练额外网络”的分类自一致机制，例如跨 rank 预测共识、
+    entropy/stability 或输入扰动下的一致性；这会显式使用已有分类器，因此必须单独预注册，并在收益成立
+    后执行 adaptive attack，不能继续称为 classifier-free rank inference。
+  - EXP-027 的结论仍然有效：个性化 rank 存在理论收益；EXP-030 只说明两类纯重构代理尚不能实现它。
+- **相关 idea：**
+  - `IDEA-017`
+- **相关实验：**
+  - `EXP-027`
+  - `EXP-030`
+
+### DEC-023：independent masked-CV 自动秩不进入 n512
+
+- **日期：** 2026-07-20
+- **背景：**
+  - 为排除单个 over-complete TN 截断造成的 gauge/component mismatch，EXP-030 第四策略让
+    rank `15,20,25,30,35,40` 各自独立执行 512-step masked Tensor Ring 拟合，只依据连续隐藏
+    时间块的 held-out MSE 用 one-SE 规则选秩，再以所选 rank 从头完整拟合 2048 step。
+  - rank inference 不读取标签、分类器、logits、prediction、margin 或 oracle。
+- **结果：**
+  - Madry AT n64 的 fixed/auto robust accuracy 均为 `89.06%`，paired gain `0.00 pp`，
+    95% CI `[-6.25,+6.25] pp`；clean accuracy 下降 `3.12 pp`。
+  - RPCF_AT n64 的 fixed/auto robust accuracy 均为 `90.62%`，paired gain `0.00 pp`，
+    95% CI `[-6.25,+6.25] pp`；clean accuracy 下降 `4.69 pp`。
+  - 六个候选 rank 均被选择，排除了统一边界坍缩；但 clean/adv rank 一致率只有 `20.31%`，
+    表明 held-out reconstruction 规则不能稳定追踪攻击前后的 defense-optimal rank。
+- **决策：**
+  - 不启动 independent masked-CV 的 n512 formal，不围绕 mask fraction、block count 或 one-SE
+    multiplier 在测试集继续调参。
+  - 保留实现和 n64 产物作为负结果：独立候选拟合解决了截断重构失真，但纯 TN 重构代理仍无法
+    收回 EXP-027 oracle headroom。
+  - 后续若仍坚持不引入额外神经网络，需要改变 rank inference 的信息来源，而不是继续优化完整
+    输入 reconstruction；任何使用已有分类器一致性的方案必须单独定义威胁模型并执行 adaptive attack。
+- **相关 idea：**
+  - `IDEA-017`
+- **相关实验：**
+  - `EXP-027`
+  - `EXP-030`

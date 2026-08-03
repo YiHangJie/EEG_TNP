@@ -10,6 +10,8 @@ configure_runtime_env()
 import numpy as np
 import torch
 
+from rpcf.exp031_artifacts import atomic_torch_save
+
 from data.subject_ea import get_protocol_tag, prepare_subject_fold
 from purify import purify
 from utils.experiment_artifacts import eeg_classification_collate
@@ -32,6 +34,7 @@ def parse_args():
         )
     )
     parser.add_argument("--dataset", default="thubenchmark", choices=DATASET_LOADERS)
+    parser.add_argument("--experiment_id", default="EXP-023")
     parser.add_argument(
         "--model", default="eegnet", choices=MODEL_CHOICES
     )
@@ -254,7 +257,7 @@ def main():
         },
         "meta": {
             "kind": "rpcf_bpda_pgd_eval",
-            "experiment_id": "EXP-023",
+            "experiment_id": args.experiment_id,
             "dataset": args.dataset,
             "model": args.model,
             "fold": args.fold,
@@ -278,8 +281,8 @@ def main():
             "selection_seed": selection_seed,
         },
     }
-    torch.save(payload, args.output_path)
-    logging.info("Saved EXP-023 BPDA+PGD evaluation: %s", args.output_path)
+    atomic_torch_save(payload, args.output_path)
+    logging.info("Saved %s BPDA+PGD evaluation: %s", args.experiment_id, args.output_path)
     print(args.output_path)
 
 

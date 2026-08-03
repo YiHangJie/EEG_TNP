@@ -32,7 +32,14 @@ from TN.PTR import PTR
 from TN.PTR_3d import PTR_3d
 from TN.PTR_3d_fs import PTR_3d_fs
 from TN.PTR_tfs import PTR_tfs
-from TN.rank_growth import PTR_3d_rank_growth, PTR_3d_rank_soft_mask
+from TN.rank_growth import (
+    PTR_3d_rank_ard,
+    PTR_3d_rank_cv,
+    PTR_3d_rank_spectral,
+    PTR_3d_rank_sweep_cv,
+    PTR_3d_rank_growth,
+    PTR_3d_rank_soft_mask,
+)
 from TN.opt import *
 from TN.utils import get_TN_args
 from utils.experiment_artifacts import (
@@ -304,7 +311,16 @@ def inv_interpolate(args, pre_data, original_shape, strategy):
     return data
 
 
-def purify(args, index, data, sampling_rate, device, logging, classifier=None):
+def purify(
+    args,
+    index,
+    data,
+    sampling_rate,
+    device,
+    logging,
+    classifier=None,
+    return_diagnostics=False,
+):
     config_path = resolve_config_path(args)
     # resize
     pre_data = interpolate(args, data, sampling_rate)
@@ -323,6 +339,10 @@ def purify(args, index, data, sampling_rate, device, logging, classifier=None):
         'PTR_3d': PTR_3d,
         'PTR_3d_fs': PTR_3d_fs,
         'PTR_tfs': PTR_tfs,
+        'PTR_3d_rank_ard': PTR_3d_rank_ard,
+        'PTR_3d_rank_cv': PTR_3d_rank_cv,
+        'PTR_3d_rank_spectral': PTR_3d_rank_spectral,
+        'PTR_3d_rank_sweep_cv': PTR_3d_rank_sweep_cv,
         'PTR_3d_rank_growth': PTR_3d_rank_growth,
         'PTR_3d_rank_soft_mask': PTR_3d_rank_soft_mask,
     }
@@ -370,6 +390,15 @@ def purify(args, index, data, sampling_rate, device, logging, classifier=None):
         # for i, t in enumerate(tn.targets):
         #     plot_eeg(t.cpu().squeeze().numpy(), title=f'Target {i} of data {index}', save_path=f'visualization/{args.dataset}_target_{i}_{index}.png')
 
+    if return_diagnostics:
+        diagnostics = {}
+        if hasattr(tn, "get_rank_diagnostics"):
+            diagnostics = tn.get_rank_diagnostics()
+        diagnostics.update({
+            "purification_time_sec": float(t),
+            "mse_to_input": float(mse),
+        })
+        return purified_data, mse, diagnostics
     return purified_data, mse
     
 

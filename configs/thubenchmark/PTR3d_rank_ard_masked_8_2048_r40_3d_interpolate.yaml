@@ -1,0 +1,35 @@
+model: PTR_3d_rank_ard
+strategy: 3d_interpolate
+lr: 0.008
+
+num_iterations: 2048
+max_batch_size: 262144
+
+seed: 42
+
+stage: 4
+payload_position: first_core
+iterations_for_upsampling:
+  - 256
+  - 512
+  - 1024
+
+max_rank: 40
+rank_ard_min_rank: 15
+rank_ard_energy: 0.98
+rank_ard_sparsity_weight: 0.00001
+rank_ard_balance_eps: 1.0e-12
+rank_ard_enable_regrow: true
+rank_ard_regrow_step: 2
+rank_ard_regrow_residual_ratio: 0.03
+rank_ard_regrow_scale: 0.05
+rank_ard_mask_fraction: 0.1
+rank_ard_mask_seed: 42
+rank_ard_full_refit_steps: 128
+
+lr_decay_factor: 0.9
+lr_decay_factor_until_next_upsampling: 0.1
+warmup_steps: 50
+
+loss_fn_str: L2
+regularization_weight: 0.0

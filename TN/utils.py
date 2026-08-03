@@ -810,6 +810,86 @@ def get_TN_args(args, target, sampling_rate, noisy_target, device_type):
             "rank_soft_mask_temperature": getattr(args, "rank_soft_mask_temperature", 1.0),
             "rank_soft_mask_weight": getattr(args, "rank_soft_mask_weight", 0.003),
         }
+    elif args.model in (
+        "PTR_3d_rank_ard", "PTR_3d_rank_cv", "PTR_3d_rank_spectral",
+        "PTR_3d_rank_sweep_cv"
+    ):
+        model_args = {
+            "target": target,
+            "stage": args.stage,
+            "max_rank": args.max_rank,
+            "dtype": args.dtype,
+            "loss_fn_str": args.loss_fn_str,
+            "use_TTNF_sampling": args.use_TTNF_sampling,
+            "payload": args.payload,
+            "payload_position": args.payload_position,
+            "regularization_type": args.regularization_type,
+            "dimensions": args.dimensions,
+            "regularization_weight": args.regularization_weight,
+            "noisy_target": noisy_target,
+            "device": device_type,
+            "masked_avg_pooling": args.masked_avg_pooling,
+            "sigma_init": args.sigma_init,
+            "num_iterations": args.num_iterations,
+            "iterations_for_upsampling": args.iterations_for_upsampling,
+            "rank_ard_min_rank": getattr(args, "rank_ard_min_rank", 15),
+            "rank_ard_energy": getattr(args, "rank_ard_energy", 0.98),
+            "rank_ard_sparsity_weight": getattr(args, "rank_ard_sparsity_weight", 0.0),
+            "rank_ard_balance_eps": getattr(args, "rank_ard_balance_eps", 1e-12),
+            "rank_ard_enable_regrow": getattr(args, "rank_ard_enable_regrow", False),
+            "rank_ard_regrow_step": getattr(args, "rank_ard_regrow_step", 2),
+            "rank_ard_regrow_residual_ratio": getattr(args, "rank_ard_regrow_residual_ratio", 0.03),
+            "rank_ard_regrow_scale": getattr(args, "rank_ard_regrow_scale", 0.05),
+            "rank_ard_mask_fraction": getattr(args, "rank_ard_mask_fraction", 0.0),
+            "rank_ard_mask_seed": getattr(args, "rank_ard_mask_seed", 42),
+            "rank_ard_full_refit_steps": getattr(args, "rank_ard_full_refit_steps", 0),
+        }
+        if args.model == "PTR_3d_rank_cv":
+            model_args.update({
+                "rank_cv_candidate_ranks": getattr(
+                    args, "rank_cv_candidate_ranks", [15, 20, 25, 30, 35, 40]
+                ),
+                "rank_cv_one_se_multiplier": getattr(
+                    args, "rank_cv_one_se_multiplier", 1.0
+                ),
+                "rank_cv_holdout_blocks": getattr(
+                    args, "rank_cv_holdout_blocks", 32
+                ),
+            })
+        if args.model == "PTR_3d_rank_spectral":
+            model_args.update({
+                "rank_spectral_min_rank": getattr(
+                    args, "rank_spectral_min_rank", 15
+                ),
+                "rank_spectral_max_rank": getattr(
+                    args, "rank_spectral_max_rank", args.max_rank
+                ),
+                "rank_spectral_sweeps": getattr(
+                    args, "rank_spectral_sweeps", 1
+                ),
+                "rank_spectral_eps": getattr(
+                    args, "rank_spectral_eps", 1e-12
+                ),
+            })
+        if args.model == "PTR_3d_rank_sweep_cv":
+            model_args.update({
+                "rank_sweep_candidates": getattr(
+                    args, "rank_sweep_candidates", [15, 20, 25, 30, 35, 40]
+                ),
+                "rank_sweep_cv_iterations": getattr(
+                    args, "rank_sweep_cv_iterations", 512
+                ),
+                "rank_sweep_mask_fraction": getattr(
+                    args, "rank_sweep_mask_fraction", 0.125
+                ),
+                "rank_sweep_mask_blocks": getattr(
+                    args, "rank_sweep_mask_blocks", 32
+                ),
+                "rank_sweep_one_se_multiplier": getattr(
+                    args, "rank_sweep_one_se_multiplier", 1.0
+                ),
+                "rank_sweep_seed": getattr(args, "rank_sweep_seed", 42),
+            })
     elif args.model == "PTR_tfs":
          model_args = {
             "target": target,
