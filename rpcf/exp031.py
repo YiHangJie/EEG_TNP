@@ -44,6 +44,7 @@ EXPECTED_FULL_COUNTS = {
 }
 CACHE_ATTACK_BATCH_FALLBACK = (32, 16, 8, 4)
 RPCF_BATCH_FALLBACK = (64, 32, 16, 8)
+TASK_SCOPES = ("all", "thu_eegnet_closure")
 
 
 @dataclass(frozen=True)
@@ -348,6 +349,25 @@ def validate_plan(tasks, smoke=False):
             if counts[kind] != expected:
                 raise ValueError(f"{kind}: planned {counts[kind]}, expected {expected}.")
     return Counter(task.kind for task in tasks)
+
+
+def select_tasks(tasks, start_stage=0, stop_stage=7, task_id=None, task_scope="all"):
+    """选择本次 runner 负责的任务；scope 只改变调度，不改变完整实验计划。"""
+    if task_scope not in TASK_SCOPES:
+        raise ValueError(f"Unknown task scope: {task_scope}")
+    selected = [task for task in tasks if start_stage <= task.stage <= stop_stage]
+    if task_scope == "thu_eegnet_closure":
+        selected = [
+            task for task in selected
+            if task.dataset == "thubenchmark"
+            and task.model == "eegnet"
+            and task.kind in {"attack", "tnp", "bpda"}
+        ]
+    if task_id:
+        selected = [task for task in selected if task.task_id == task_id]
+        if not selected:
+            raise ValueError(f"Unknown or filtered task id: {task_id}")
+    return selected
 
 
 def write_plan(tasks, run_dir, smoke=False):
@@ -686,6 +706,32 @@ def finalize_task(record, run_dir):
     return completed, next_batch, next_cache_attack_batch, next_rpcf_batch, tnp_single_process
 
 
+def parse_reserved_gpu_processes(value):
+    """解析 `gpu:pid:start_ticks` 列表，防止 handoff 与旧 worker 抢占同一卡。"""
+    reservations = {}
+    if not value:
+        return reservations
+    for item in value.split(","):
+        gpu, pid, start_ticks = (int(part) for part in item.split(":"))
+        if gpu in reservations:
+            raise ValueError(f"Duplicate reserved GPU: {gpu}")
+        reservations[gpu] = (pid, start_ticks)
+    return reservations
+
+
+def reservation_active(reservation):
+    """PID 与 Linux start time 同时匹配才视为原 worker 仍存活，避免 PID 复用。"""
+    pid, expected_start_ticks = reservation
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+        tail = stat.rsplit(")", 1)[1].split()
+        state = tail[0]
+        start_ticks = int(tail[19])
+        return state != "Z" and start_ticks == expected_start_ticks
+    except (OSError, ValueError, IndexError):
+        return False
+
+
 def gpu_memory_used(gpu):
     """读取物理卡显存；nvidia-smi 不可用时返回 0，不阻塞可复现计划。"""
     try:
@@ -702,13 +748,14 @@ def gpu_memory_used(gpu):
     return 0
 
 
-def run_parallel(tasks, selected, run_dir, gpu_ids):
+def run_parallel(tasks, selected, run_dir, gpu_ids, reserved_gpu_processes=None):
     """按 DAG 调度：训练/攻击一卡一任务，TNP 每卡最多两个隔离进程。"""
     task_map = {task.task_id: task for task in tasks}
     pending = {task.task_id: task for task in selected if not task_complete(run_dir, task)}
     running = {}
     idle_limit = int(os.environ.get("EXP031_MAX_IDLE_MEMORY_MB", "1024"))
     failure = None
+    reserved_gpu_processes = reserved_gpu_processes or {}
     while pending or running:
         for pid, record in list(running.items()):
             if record["process"].poll() is None:
@@ -738,6 +785,9 @@ def run_parallel(tasks, selected, run_dir, gpu_ids):
                     continue
                 chosen_gpu = None
                 for gpu in gpu_ids:
+                    reservation = reserved_gpu_processes.get(gpu)
+                    if reservation and reservation_active(reservation):
+                        continue
                     on_gpu = [record for record in running.values() if record["gpu"] == gpu]
                     capacity_ok = (
                         len(on_gpu) < (1 if (run_dir / "tnp_single_process.flag").exists() else 2)
@@ -763,8 +813,12 @@ def run_parallel(tasks, selected, run_dir, gpu_ids):
                 task_id: [dep for dep in task.dependencies if not task_complete(run_dir, task_map[dep])]
                 for task_id, task in list(pending.items())[:10]
             }
-            if all(gpu_memory_used(gpu) > idle_limit for gpu in gpu_ids):
-                print("WAIT all requested physical GPUs are busy", flush=True)
+            ready_pending = any(
+                all(task_complete(run_dir, task_map[dep]) for dep in task.dependencies)
+                for task in pending.values()
+            )
+            if ready_pending:
+                print("WAIT requested physical GPUs are busy or reserved", flush=True)
             elif unresolved:
                 raise RuntimeError(f"DAG cannot progress; unresolved dependencies: {unresolved}")
         time.sleep(2)
@@ -805,6 +859,14 @@ def parse_cli():
     run.add_argument("--start-stage", type=int, default=0)
     run.add_argument("--stop-stage", type=int, default=7)
     run.add_argument("--task-id", default=None)
+    run.add_argument(
+        "--task-scope", choices=TASK_SCOPES, default="all",
+        help="只限制当前调度器负责的任务；planned_tasks.csv 始终保留完整矩阵。",
+    )
+    run.add_argument(
+        "--reserved-gpu-processes", default="",
+        help="handoff 保留项：逗号分隔的 gpu:pid:proc_start_ticks。",
+    )
     run.add_argument("--smoke", action="store_true")
     run.add_argument("--dry-run", action="store_true")
     prep = sub.add_parser("prepare-data")
@@ -824,16 +886,23 @@ def main():
     print(json.dumps(dict(counts), sort_keys=True))
     if args.action == "plan":
         return
-    selected = [task for task in tasks if args.start_stage <= task.stage <= args.stop_stage]
-    if args.task_id:
-        selected = [task for task in selected if task.task_id == args.task_id]
-        if not selected:
-            raise ValueError(f"Unknown or filtered task id: {args.task_id}")
+    selected = select_tasks(
+        tasks, args.start_stage, args.stop_stage, args.task_id, args.task_scope
+    )
+    selected_counts = Counter(task.kind for task in selected)
+    print(json.dumps({"task_scope": args.task_scope, "selected": dict(selected_counts)},
+                     sort_keys=True))
     gpu_ids = [int(value) for value in args.gpu_ids.split(",")]
     if not gpu_ids or any(gpu < 0 or gpu > 6 for gpu in gpu_ids):
         raise ValueError("EXP-031 physical GPU ids must be a non-empty subset of 0..6.")
+    reserved_gpu_processes = parse_reserved_gpu_processes(args.reserved_gpu_processes)
+    if any(gpu not in gpu_ids for gpu in reserved_gpu_processes):
+        raise ValueError("Reserved GPUs must be included in --gpu-ids.")
+    if reserved_gpu_processes:
+        print(json.dumps({"reserved_gpu_processes": reserved_gpu_processes},
+                         sort_keys=True))
     if not args.dry_run:
-        run_parallel(tasks, selected, run_dir, gpu_ids)
+        run_parallel(tasks, selected, run_dir, gpu_ids, reserved_gpu_processes)
         return
     # dry-run 只打印稳定命令，不检查外部依赖产物，也不启动子进程。
     for index, task in enumerate(selected):

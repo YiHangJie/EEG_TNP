@@ -3850,6 +3850,14 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
   attempt 新增日志中的 OOM，避免历史 OOM 误降档；TNP 已降为单进程后再次 OOM 不再空转重试。
   相关 `py_compile`、`bash -n`、`git diff --check` 和 `test_exp031.py` 13 tests 均通过。当前正式
   controller PID `959662` 继续运行，五个 THU/DeepConvNet RPCF_AT 已稳定进入 epoch 5–6。
+  2026-08-24，为优先形成单数据集系统结论，新增 `--task-scope thu_eegnet_closure`：完整
+  `planned_tasks.csv` 与原 DAG 不变，仅将当前调度范围限制为 THU/EEGNet 五 seed 的
+  100 个 white-box attack、40 个 TNP payload 和 10 个 BPDA 任务。第一次 handoff 健康
+  检查发现，只看瞬时显存会把仍处于 CPU 阶段的旧 worker 所在卡误判为空闲；该 worker
+  已立即停止，未形成 task status 或攻击 artifact。现增加 `gpu:pid:proc_start_ticks` reservation，
+  同时防止 PID 复用误判。旧 scheduler PID `2557650` 已冻结，已启动的 7 个非 THU
+  任务继续自然收尾；安全 handoff PID `2995264` 只会逐张接管 worker 真正退出的 GPU，
+  闭环完成或异常退出时均自动恢复旧 scheduler，未删除或覆盖既有正式产物。
 - **闭环检查：**
   - `IDEAS.md`：不新增方法 idea；本实验整合已有 IDEA-009/011/012 的完整复验。
   - `DECISIONS.md`、`方法进展梳理.md`：结果 Pending，暂不更新研究结论。

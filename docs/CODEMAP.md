@@ -116,7 +116,7 @@
   - `exp031.py`、`run_exp031.sh`、`summarize_exp031.py`：EXP-031 三数据集×六 backbone×五 seed
     的全层静态-rank RPCF_AT + EEG_TNP 完整鲁棒性矩阵。Python runner 生成严格
     `planned_tasks.csv`，按 DAG 使用物理 GPU0–6，支持 TNP 每卡双进程、忙卡等待、阶段续跑、
-    单任务重试、smoke/dry-run、训练 batch `128→64→32→16` 与 RPCF cache AutoAttack
+    单任务重试、smoke/dry-run、`--task-scope thu_eegnet_closure` 五-seed 优先闭环、PID+start-time GPU reservation、训练 batch `128→64→32→16` 与 RPCF cache AutoAttack
     batch `32→16→8→4`、RPCF_AT fine-tuning batch `64→32→16→8` 的独立 OOM manifest；
     同批并发 OOM 只触发一次降档；正式 shell 入口要求通过
     `nohup setsid` 启动。汇总器对五 seed 计数、accuracy 范围、攻击协议、RPCF history、

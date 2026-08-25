@@ -22,7 +22,10 @@ from rpcf.exp031 import (
     build_tasks,
     lower_cache_attack_batch_after_oom,
     lower_rpcf_batch_after_oom,
+    parse_reserved_gpu_processes,
+    reservation_active,
     render_command,
+    select_tasks,
     task_complete,
     validate_plan,
 )
@@ -63,6 +66,31 @@ class Exp031Tests(unittest.TestCase):
         })
         with self.assertRaisesRegex(ValueError, "Unknown dependencies"):
             validate_plan(broken)
+
+    def test_thu_eegnet_closure_scope_exact_counts(self):
+        tasks = build_tasks("unit_scope")
+        selected = select_tasks(tasks, task_scope="thu_eegnet_closure")
+        counts = {
+            kind: sum(task.kind == kind for task in selected)
+            for kind in ("attack", "tnp", "bpda")
+        }
+        self.assertEqual(counts, {"attack": 100, "tnp": 40, "bpda": 10})
+        self.assertEqual(len(selected), 150)
+        self.assertTrue(all(task.dataset == "thubenchmark" for task in selected))
+        self.assertTrue(all(task.model == "eegnet" for task in selected))
+        self.assertTrue(all(task.stage >= 4 for task in selected))
+
+    def test_reserved_gpu_process_parser_and_liveness(self):
+        current_pid = __import__("os").getpid()
+        stat = Path(f"/proc/{current_pid}/stat").read_text(encoding="utf-8")
+        start_ticks = int(stat.rsplit(")", 1)[1].split()[19])
+        reservations = parse_reserved_gpu_processes(
+            f"0:{current_pid}:{start_ticks},5:999999999:1"
+        )
+        self.assertTrue(reservation_active(reservations[0]))
+        self.assertFalse(reservation_active(reservations[5]))
+        with self.assertRaisesRegex(ValueError, "Duplicate reserved GPU"):
+            parse_reserved_gpu_processes("0:1:1,0:2:2")
 
     def test_static_six_rank_weights_are_uniform(self):
         ranks = [15, 20, 25, 30, 35, 40]
