@@ -1,0 +1,36 @@
+{
+  "source_snapshot": "2026-09-11T14:24:12.010918",
+  "source_sha256": "169a6f1fa2b4fce356ad7dc76002d1dc00dfcb9c8f0f913e64d681cb1430e162",
+  "attack_sets": {
+    "PGD": [
+      "pgd"
+    ],
+    "Mean4": [
+      "autoattack",
+      "fgsm",
+      "pgd",
+      "cw"
+    ],
+    "MeanLinf3": [
+      "autoattack",
+      "fgsm",
+      "pgd"
+    ],
+    "Clean": [
+      "autoattack"
+    ]
+  },
+  "seed_requirement": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "std_ddof": 1,
+  "aggregation": "within-seed equal attack mean, then five-seed mean/sample std",
+  "value_unit": "accuracy percent or paired percentage points",
+  "summary_rows": 1044,
+  "detail_rows": 3802,
+  "new_experiments_run": false
+}

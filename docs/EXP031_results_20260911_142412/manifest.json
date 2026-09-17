@@ -1,0 +1,15 @@
+{
+  "run": "logs/exp031/exp031_full_20260729_174215",
+  "snapshot_started_at": "2026-09-11T14:24:12.010918",
+  "snapshot_completed_at": "2026-09-11T14:25:32.442829",
+  "task_counts": {
+    "completed": 2832,
+    "pending": 241
+  },
+  "validated_attack_count": 1800,
+  "accuracy_records": 6474,
+  "errors": 0,
+  "warnings": 65,
+  "tnp_input_check": "all indices/labels and tensor shapes; no input signal content comparison in this refresh",
+  "full_experiment_complete": false
+}

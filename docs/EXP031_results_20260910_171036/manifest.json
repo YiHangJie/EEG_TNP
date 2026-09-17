@@ -1,0 +1,15 @@
+{
+  "run": "logs/exp031/exp031_full_20260729_174215",
+  "snapshot_started_at": "2026-09-10T17:10:36.430231",
+  "snapshot_completed_at": "2026-09-10T17:25:56.951468",
+  "task_counts": {
+    "completed": 2731,
+    "pending": 342
+  },
+  "validated_attack_count": 1800,
+  "accuracy_records": 5868,
+  "errors": 0,
+  "warnings": 65,
+  "tnp_input_check": "all indices/labels and up to 5 deterministic clean/adv signal samples per artifact",
+  "full_experiment_complete": false
+}
