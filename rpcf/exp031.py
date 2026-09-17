@@ -748,15 +748,25 @@ def gpu_memory_used(gpu):
     return 0
 
 
-def run_parallel(tasks, selected, run_dir, gpu_ids, reserved_gpu_processes=None):
+def run_parallel(tasks, selected, run_dir, gpu_ids, reserved_gpu_processes=None,
+                 deferred_tasks=None):
     """按 DAG 调度：训练/攻击一卡一任务，TNP 每卡最多两个隔离进程。"""
     task_map = {task.task_id: task for task in tasks}
     pending = {task.task_id: task for task in selected if not task_complete(run_dir, task)}
     running = {}
     idle_limit = int(os.environ.get("EXP031_MAX_IDLE_MEMORY_MB", "1024"))
-    failure = None
+    failures = {}
+    deferred_tasks = deferred_tasks or {}
     reserved_gpu_processes = reserved_gpu_processes or {}
     while pending or running:
+        active_deferred = {
+            task_id for task_id, value in deferred_tasks.items()
+            if reservation_active(value[:2]) and not task_complete(run_dir, task_map[task_id])
+        }
+        deferred_gpus = {
+            deferred_tasks[task_id][2] for task_id in active_deferred
+            if len(deferred_tasks[task_id]) > 2
+        }
         for pid, record in list(running.items()):
             if record["process"].poll() is None:
                 continue
@@ -764,7 +774,7 @@ def run_parallel(tasks, selected, run_dir, gpu_ids, reserved_gpu_processes=None)
                 finalize_task(record, run_dir)
             )
             del running[pid]
-            if not completed and failure is None:
+            if not completed:
                 if next_batch:
                     suffix = f"; batch locked to {next_batch}, rerun stage"
                 elif next_cache_batch:
@@ -777,14 +787,29 @@ def run_parallel(tasks, selected, run_dir, gpu_ids, reserved_gpu_processes=None)
                     suffix = "; TNP concurrency locked to one process/GPU, rerun task"
                 else:
                     suffix = ""
-                failure = f"Task failed: {record['task'].task_id}{suffix}"
+                task_id = record['task'].task_id
+                if suffix:
+                    # 仅资源参数确实降档时重试，避免无上限 OOM 循环。
+                    pending[task_id] = record['task']
+                    print(f"RETRY task={task_id}{suffix}", flush=True)
+                else:
+                    failures[task_id] = f"Task failed: {task_id}"
+                    print(f"FAILED task={task_id}; continuing independent tasks", flush=True)
 
-        if failure is None:
+        # 旧控制器负责写回已有 worker 状态；接管期间不能重复启动这些任务。
+        if pending:
             for task_id, task in list(pending.items()):
+                if task_id in active_deferred:
+                    continue
+                if task_complete(run_dir, task):
+                    del pending[task_id]
+                    continue
                 if not all(task_complete(run_dir, task_map[dep]) for dep in task.dependencies):
                     continue
                 chosen_gpu = None
                 for gpu in gpu_ids:
+                    if gpu in deferred_gpus:
+                        continue
                     reservation = reserved_gpu_processes.get(gpu)
                     if reservation and reservation_active(reservation):
                         continue
@@ -801,14 +826,15 @@ def run_parallel(tasks, selected, run_dir, gpu_ids, reserved_gpu_processes=None)
                     chosen_gpu = gpu
                     break
                 if chosen_gpu is None:
-                    break
+                    continue
                 record = start_task(task, run_dir, chosen_gpu)
                 running[record["process"].pid] = record
                 del pending[task_id]
 
-        if failure and not running:
-            raise RuntimeError(failure)
-        if pending and not running and failure is None:
+        if not running and active_deferred:
+            time.sleep(2)
+            continue
+        if pending and not running:
             unresolved = {
                 task_id: [dep for dep in task.dependencies if not task_complete(run_dir, task_map[dep])]
                 for task_id, task in list(pending.items())[:10]
@@ -820,8 +846,10 @@ def run_parallel(tasks, selected, run_dir, gpu_ids, reserved_gpu_processes=None)
             if ready_pending:
                 print("WAIT requested physical GPUs are busy or reserved", flush=True)
             elif unresolved:
-                raise RuntimeError(f"DAG cannot progress; unresolved dependencies: {unresolved}")
+                raise RuntimeError(f"DAG cannot progress; failures: {failures}; unresolved dependencies: {unresolved}")
         time.sleep(2)
+    if failures:
+        raise RuntimeError(f"Tasks failed after independent work completed: {failures}")
 
 
 def prepare_data(dataset, output_path):
@@ -859,6 +887,10 @@ def parse_cli():
     run.add_argument("--start-stage", type=int, default=0)
     run.add_argument("--stop-stage", type=int, default=7)
     run.add_argument("--task-id", default=None)
+    run.add_argument(
+        "--deferred-tasks-path", default=None,
+        help="接管 JSON：task_id 到旧控制器 [pid, start_ticks, physical_gpu] 的映射；状态完成后逐卡释放。",
+    )
     run.add_argument(
         "--task-scope", choices=TASK_SCOPES, default="all",
         help="只限制当前调度器负责的任务；planned_tasks.csv 始终保留完整矩阵。",
@@ -902,7 +934,14 @@ def main():
         print(json.dumps({"reserved_gpu_processes": reserved_gpu_processes},
                          sort_keys=True))
     if not args.dry_run:
-        run_parallel(tasks, selected, run_dir, gpu_ids, reserved_gpu_processes)
+        deferred_tasks = (
+            json.loads(Path(args.deferred_tasks_path).read_text(encoding="utf-8"))
+            if args.deferred_tasks_path else {}
+        )
+        unknown = set(deferred_tasks) - {task.task_id for task in tasks}
+        if unknown:
+            raise ValueError(f"Unknown deferred tasks: {sorted(unknown)}")
+        run_parallel(tasks, selected, run_dir, gpu_ids, reserved_gpu_processes, deferred_tasks)
         return
     # dry-run 只打印稳定命令，不检查外部依赖产物，也不启动子进程。
     for index, task in enumerate(selected):

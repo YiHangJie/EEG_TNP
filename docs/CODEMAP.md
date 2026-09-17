@@ -113,14 +113,20 @@
   - `build_exp030_rank_knee_payload.py`、`run_exp030_rank_knee.sh`：EXP-030 第二种无标签自动定秩链路；
     严格合并 EXP-027 六秩 payload，按样本在 log reconstruction-MSE 曲线上取最大 chord-distance knee，
     组合自动秩 payload 后复用 EXP-030 分析器。runner 支持 `DRY_RUN`、阶段续跑与已有产物复用。
-  - `exp031.py`、`run_exp031.sh`、`summarize_exp031.py`：EXP-031 三数据集×六 backbone×五 seed
+  - `exp031.py`、`run_exp031.sh`、`summarize_exp031.py`、`summarize_exp031_focus.py`：EXP-031 三数据集×六 backbone×五 seed
     的全层静态-rank RPCF_AT + EEG_TNP 完整鲁棒性矩阵。Python runner 生成严格
     `planned_tasks.csv`，按 DAG 使用物理 GPU0–6，支持 TNP 每卡双进程、忙卡等待、阶段续跑、
     单任务重试、smoke/dry-run、`--task-scope thu_eegnet_closure` 五-seed 优先闭环、PID+start-time GPU reservation、训练 batch `128→64→32→16` 与 RPCF cache AutoAttack
     batch `32→16→8→4`、RPCF_AT fine-tuning batch `64→32→16→8` 的独立 OOM manifest；
     同批并发 OOM 只触发一次降档；正式 shell 入口要求通过
     `nohup setsid` 启动。汇总器对五 seed 计数、accuracy 范围、攻击协议、RPCF history、
-    Madry/RPCF TNP 配对与 source indices 做严格完整性检查。
+    Madry/RPCF TNP 配对与 source indices 做严格完整性检查。聚焦汇总器只验收
+    `thubenchmark/eegnet/fold0/seeds42-46` 的 100 attack、40 TNP、10 BPDA 闭环，逐文件
+    mmap 校验大体积 tensor，并显式记录 `full_exp031_completed=false`，避免把单数据集结果误标为
+    全矩阵完成。
+  - `summarize_exp031_streaming.py`、`build_exp031_report.py`：完整矩阵最终验收与报告入口。
+    前者逐文件 mmap 校验攻击/TNP/BPDA 产物，释放大型张量后生成严格标量长表、配对差值和
+    `completeness.json`；后者仅从 `completed=true` 的汇总 CSV 生成最终报告，不重复读取模型或 payload。
   - `exp031_artifacts.py`：EXP-031 长跑专用的原子 `torch.save`、攻击安全 batch 解析和
     full-test 攻击 artifact 确定性 n512 留存工具。攻击指标仍在完整 test split 上计算；仅持久化
     EEG_TNP 后续所需的 clean/adv 子集，并记录完整覆盖与 subset seed 审计字段，避免完整矩阵写满磁盘。

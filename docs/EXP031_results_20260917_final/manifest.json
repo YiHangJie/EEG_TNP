@@ -1,0 +1,12 @@
+{
+  "run_id": "exp031_full_20260729_174215",
+  "strict_summary_completed": true,
+  "strict_summary_dir": "logs/exp031/exp031_full_20260729_174215/summary",
+  "conditions_sha256": "04b03105c9453ac5d36044f9d7f2835ef53855a2392f381a9b116421ca0c961b",
+  "completeness_sha256": "49745b23ddc5a17b50543d4bcbce118c54e9cec912eb7a3d4b5e0e92ba16821a",
+  "metric_rows": 7920,
+  "bpda_rows": 10,
+  "ea_clean_inconsistent_conditions": 65,
+  "seed_aggregation": "paired within seed; five-seed mean and sample std (ddof=1)",
+  "new_experiment_run": false
+}

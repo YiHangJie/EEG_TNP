@@ -50,7 +50,7 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
 | `EXP-028` | 已完成 | `IDEA-002` | trial-level HOSVD；clean/adv/perturb；多视角低秩谱 |
 | `EXP-029` | 运行中 | `IDEA-002` | EXP-028 同批样本；六 rank 净化；purified trial-level HOSVD |
 | `EXP-030` | 已完成（四种 TN-only 策略均不支持） | `IDEA-017` | EEG_TNP；TN-only 自动定秩；Oracle headroom recovery |
-| `EXP-031` | Running | `IDEA-009`、`IDEA-011`、`IDEA-012` | 全层静态-rank RPCF_AT；三数据集；六 backbone；五 seed；四攻击 |
+| `EXP-031` | Completed | `IDEA-009`、`IDEA-011`、`IDEA-012` | 全层静态-rank RPCF_AT；三数据集；六 backbone；五 seed；四攻击 |
 
 ## 实验完成闭环 Checklist
 
@@ -3776,7 +3776,7 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
 
 ### EXP-031：全层静态-rank RPCF_AT + EEG_TNP 完整鲁棒性实验
 
-- **状态：** Running（smoke 已通过；正式 run `exp031_full_20260729_174215` 断点续跑中）
+- **状态：** Completed（正式 run `exp031_full_20260729_174215`；全矩阵严格验收于 2026-09-17 通过）
 - **目标：** 从头训练并完整评估在线 RPCF_AT（Madry 初始化、全层微调、六 rank
   静态均匀权重、无 feature loss）与 fixed rank25/30 EEG_TNP 在跨数据集、跨 backbone、
   跨 seed 条件下的标准准确率和鲁棒准确率。
@@ -3833,9 +3833,39 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
 - **汇总与验收：**
   - `rpcf.summarize_exp031` 输出条件长表、五 seed `mean ± sample std`、严格配对
     `RPCF_AT−Madry`、跨 dataset/backbone 表、BPDA 表和 `completeness.json`。
+  - 已完成的单数据集闭环使用
+    `python -u -m rpcf.summarize_exp031_focus --run-id exp031_full_20260729_174215`；输出位于
+    `logs/exp031/exp031_full_20260729_174215/summary_thu_eegnet/`，只将
+    `thubenchmark/eegnet/fold0/seeds42-46` 标记为 `scope_completed=true`，不会误标全矩阵完成。
   - accuracy 必须在 `[0,1]`；每个聚合计数必须为 5；Madry/RPCF TNP 的 labels/source
     indices 必须严格对齐；攻击、RPCF history 或产物协议任一不一致都会阻止 `completed=true`。
-- **Results：** Pending。
+- **Results（THUbenchmark/EEGNet/fold0 五 seed 聚焦闭环，2026-08-26）：**
+  - 严格验收通过：100/100 white-box attack、40/40 TNP、10/10 BPDA 均为 completed，5 份
+    RPCF_AT history 均满足全层、六 rank 静态 `1/6`、无 feature loss、在线 PGD-10；共形成
+    440 条条件长表记录和 88 个五-seed聚合组，accuracy 范围与 Madry/RPCF 配对检查均无错误。
+  - full-test raw（mean ± sample std）：Madry clean/AA/FGSM/PGD 为
+    `92.94±0.82 / 77.81±0.63 / 79.49±0.96 / 78.65±0.91%`；RPCF_AT 为
+    `93.01±0.91 / 77.96±0.60 / 79.64±0.64 / 78.58±0.94%`。严格配对差仅
+    `+0.07/+0.15/+0.15/-0.07 pp`，说明该配置基本完整保留而不是进一步提高 Madry raw 性能。
+  - 其他 raw baseline：TRADES AA/PGD 为 `66.72±0.49/67.03±0.57%`，FBF 为
+    `56.35±2.05/56.42±2.07%`，EA-forward 虽有最高 clean `96.31±0.72%`，但 AA/PGD 仅
+    `28.34±0.69/30.87±1.37%`。该结论只对应本实验固定超参数，不外推为算法普遍排序。
+  - TNP n512 purified robust：Madry rank25/30 在 AA 为
+    `81.88±2.22/80.78±1.64%`，RPCF_AT 为 `82.77±1.44/82.30±1.67%`；RPCF−Madry
+    配对增益为 `+0.90±1.40/+1.52±1.25 pp`。FGSM 增益为
+    `+2.19±1.10/+1.88±1.84 pp`，PGD 为 `+2.81±1.26/+1.91±1.82 pp`；其中 rank25
+    的 FGSM/PGD 五个 seed 全为正。RPCF_AT 的 purified clean 为
+    `90.31±1.05/91.17±1.05%`，与 Madry 的 `90.27±0.88/90.94±1.06%` 基本一致。
+  - TNP 相对同 n512 子集 raw robust：Madry AA rank25/30 提升
+    `+4.96±2.32/+3.87±1.61 pp`，RPCF_AT 提升 `+5.47±0.95/+5.00±1.02 pp`；RPCF_AT
+    在 FGSM/PGD rank25 上分别提升 `+2.85±0.84/+4.06±1.40 pp`。
+  - 自适应 BPDA+PGD-10 下，RPCF_AT+TNP rank25/30 purified robust 为
+    `82.11±1.09/81.37±0.94%`，purified clean 为 `90.20±0.96/91.02±0.97%`；预注册
+    attack 下未见灾难性坍塌，但由于没有 Madry BPDA 对照、BPDA 使用 identity surrogate 且仅10步，
+    不能表述为认证鲁棒或自适应攻击问题已经解决。
+  - CW 是无 `eps=0.03` 约束的 L2 CW-200：所有 raw 方法均为 `0%`，TNP 后 Madry/RPCF_AT
+    rank25 为 `25.86±1.85/26.76±1.78%`、rank30 为 `18.71±1.58/18.95±1.73%`。
+    它应作为强 L2 审计单列，不能与前三个 Linf 攻击求平均或解释成同一 threat model。
 - **运行记录：** 2026-07-31 正式 run 在首个 THU/EEGNet/seed46 RPCF cache 的
   AutoAttack batch32 上 OOM；未生成失败 cache。新增独立 cache attack batch manifest 与
   `32→16→8→4` 自动降档后，沿用同一 run id 续跑，已完成任务不会被覆盖。
@@ -3858,7 +3888,69 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
   同时防止 PID 复用误判。旧 scheduler PID `2557650` 已冻结，已启动的 7 个非 THU
   任务继续自然收尾；安全 handoff PID `2995264` 只会逐张接管 worker 真正退出的 GPU，
   闭环完成或异常退出时均自动恢复旧 scheduler，未删除或覆盖既有正式产物。
+  2026-08-26 07:37 聚焦闭环全部完成并恢复原完整 scheduler；09:38 严格汇总完成，
+  `completeness.json` 为 `scope_completed=true`、`errors=[]`。当时完整 run 为
+  `497/3073` completed、无 failed，原 scheduler PID `2557650` 存活，7 张卡均有训练 worker；
+  因而聚焦汇总没有中止全矩阵进度。
 - **闭环检查：**
   - `IDEAS.md`：不新增方法 idea；本实验整合已有 IDEA-009/011/012 的完整复验。
-  - `DECISIONS.md`、`方法进展梳理.md`：结果 Pending，暂不更新研究结论。
+  - `DECISIONS.md`：已新增 `DEC-024`，将该配置定位为净化分布适配而非 raw 鲁棒增强，并保留
+    跨 backbone/dataset 的条件化结论边界。
+  - `方法进展梳理.md`：已加入本次五-seed闭环证据、BPDA 边界与论文表述建议。
   - `CODEMAP.md`：已登记新 runner、汇总器、共享 clean cache 与六模型 EA-forward 入口。
+
+### EXP-031 调度修复与接管（2026-09-07）
+
+- **原因：** 19:09，`tnp_thubenchmark_conformer_seed43_madry_pgd` 在物理 GPU5
+  OOM，触发单卡单 TNP 进程降档；原调度器停止派发并等待全部 worker 结束，导致
+  GPU1/2/6 陆续空闲。
+- **修改：** `rpcf/exp031.py` 在实际资源降档后直接将失败任务重新入队；不可恢复失败
+  保留 failed 状态，继续执行独立任务，最后报告失败及被阻塞依赖。某任务无可用 GPU 时
+  继续检查其他任务。新增 `--deferred-tasks-path`，按旧控制器 PID/start_ticks 和
+  task completion 保留任务所有权及物理 GPU，旧任务完成后逐卡释放。
+- **接管：** 停止旧重试父进程 `959662`，旧控制器 `1069572` 及 6 个 worker 保留，
+  由旧控制器写回状态。新 conda launcher PID `3325536`、Python controller PID `3325589`，
+  首次未存活的 launcher `3325026` 未派发任务；使用 nohup/setsid 重新启动后已确认存活。
+  接管清单为 `logs/exp031/exp031_full_20260729_174215/handoff_20260907_deferred.json`。
+  新调度器已在 GPU1 重试上述失败任务，在 GPU2/6 启动 seed43 RPCF_AT FGSM/PGD 净化。
+- **启动命令（已运行，不要并行重复启动）：**
+  ```bash
+  nohup setsid env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+    conda run -n torch --no-capture-output python -u -m rpcf.exp031 run \
+    --run-id exp031_full_20260729_174215 --gpu-ids 0,1,2,3,4,5,6 \
+    --start-stage 0 --stop-stage 7 --task-scope all \
+    --deferred-tasks-path logs/exp031/exp031_full_20260729_174215/handoff_20260907_deferred.json \
+    >> logs/exp031/exp031_full_20260729_174215/controller_handoff_20260907.log 2>&1 < /dev/null &
+  ```
+- **验证：** torch 环境原 EXP-031 的 15 个测试通过；新增调度测试 4 个通过，覆盖
+  OOM 重入队、失败后继续独立任务、接管避免重复执行及旧 GPU 保留/空闲 GPU 派发。
+  系统默认 Python 无 torch，首次测试导入失败后改用项目 torch 环境。`git diff --check` 通过。
+- **边界：** 方法、随机种子和训练/评估命令保持原协议；正式完整矩阵结果仍为 Pending。
+  GPU7 不在本次资源范围内；外部显存占用、数据准备和依赖不足仍可能造成合理等待。
+
+### EXP-031 恢复双净化并发（2026-09-09）
+
+- **依据：** 用户要求检查并提高净化并发。单任务限制来自 2026-09-07 OOM 后的全局
+  `tnp_single_process.flag`，不会自动恢复。11:21 检查时 GPU0–5 各占约 0.6 GB，
+  GPU6 含外部进程共占约 4.5 GB；当前可调度任务主要为 SEED-IV/EEGNet 净化。
+- **操作（已执行，不要重复）：** 将运行目录中的 `tnp_single_process.flag` 重命名为
+  `tnp_single_process.flag.before_dual_20260909` 保存历史。调度器每轮检查标记，
+  因而在线恢复每卡最多两个 TNP 任务，无需重启 controller 或现有 worker。
+- **启动确认：** 原 7 个任务保留；新任务 launcher PID `54126`–`54132` 分别派发到
+  GPU0–6，共 14 个净化任务。正式指标仍为 Pending，不据瞬时利用率推断加速比。
+- **跟踪：** 日志仍为 `controller_handoff_20260907.log`。新启动任务若 OOM，
+  现有逻辑会重新生成单进程标记并重入队；恢复前已启动的任务发生 OOM 时，
+  因其启动状态记录为单进程，可能直接记 failed，需要检查后续状态。
+  当前显存快照不代表完整任务峰值；吞吐改善和长期稳定性待验证。
+
+
+
+
+### EXP-031 完整矩阵严格验收（2026-09-17）
+
+- **状态：** Completed。正式 run `exp031_full_20260729_174215` 的 3073/3073 个计划任务均完成；严格流式验收 `completed=true`、`errors=[]`。包括 1800 个完整 test white-box attack、720 个双-rank TNP payload、10 个有限 BPDA 审计。
+- **汇总产物：** 7920 条准确率长表、1584 个完整五-seed组、2880 条 RPCF_AT−Madry 配对差、2880 条 TNP−同子集 raw 配对差、10 条 BPDA；训练 history、协议、source indices/labels、clean tensor 和准确率范围均通过检查。详见 [完整报告](EXP031_results_20260917_final/report.md) 与 [完整性清单](../logs/exp031/exp031_full_20260729_174215/summary/completeness.json)。
+- **主要观察：** PGD-200 下 RPCF_AT 相对 Madry 的 full-test raw 鲁棒准确率在18个数据集–backbone条件中仅3组更高、15组更低；原 THU/EEGNet 的 raw 近似持平不能外推。净化后在同一 n512 子集上，rank25 为11正/7负，rank30 为11正/6负/1平。rank25 分数据集分别为 THU 4正/2负、SEED-IV 5正/1负、BCICIV2A 2正/4负。THU/EEGNet 为 `+2.81±1.26 pp`，SEED-IV/Conformer 为 `+6.41±2.19 pp`，BCICIV2A/Conformer 为 `-9.14±3.00 pp`；因此只能主张条件化净化分布适配，不能声称普遍优于 Madry。
+- **净化本身：** 同模型、同攻击、同 n512 子集下，AutoAttack 的 TNP−raw 鲁棒准确率在 Madry/RPCF_AT、rank25/30 的18组条件全部为正；PGD 多数为正但存在负迁移。CW 为无 Linf epsilon 约束的 L2 审计，不能与前三项同范数求平均。
+- **边界与警告：** BPDA 只覆盖 THU/EEGNet/RPCF_AT 五 seed，rank25/30 鲁棒准确率为 `82.11±1.09/81.37±0.94%`，无 Madry BPDA 对照。EA-forward 的90组中有65组四攻击 raw clean 记录不一致，最大跨度3.11 pp；原因尚未证实，EA clean 与跨攻击解释须复核。RPCF_AT 额外训练100 epochs，现有矩阵不能把收益单独归因于 logit 对齐或全层/静态 rank。
+- **复现汇总：** `conda run -n torch --no-capture-output python -u -m rpcf.summarize_exp031_streaming --run-id exp031_full_20260729_174215`；报告由 `python3 rpcf/build_exp031_report.py --summary-dir logs/exp031/exp031_full_20260729_174215/summary --output-dir docs/EXP031_results_20260917_final` 从已核验标量 CSV 派生，不重复读取大型 tensor。

@@ -611,3 +611,47 @@
 - **相关实验：**
   - `EXP-027`
   - `EXP-030`
+
+
+### DEC-024：全层静态-rank RPCF_AT 定位为净化分布适配，而非 raw 鲁棒增强
+
+- **日期：** 2026-08-26
+- **背景：**
+  - EXP-031 已完成 `thubenchmark/EEGNet/fold0/seeds42-46` 的五-seed聚焦闭环，包括五种
+    raw 方法、四种 white-box attack、Madry/RPCF_AT 的 rank25/30 EEG_TNP，以及 RPCF_AT
+    的预注册 BPDA+PGD-10。
+  - 本轮 RPCF_AT 固定为 Madry 初始化、完整训练集在线 PGD-10、全层微调、六 rank 静态均匀
+    权重、无 feature loss，因而直接检验“简单扩大适配容量是否足以稳定获益”。
+- **结果：**
+  - RPCF_AT 与 Madry 的 full-test raw clean/AA/FGSM/PGD 配对差仅
+    `+0.07/+0.15/+0.15/-0.07 pp`，没有实质 raw 增强或退化。
+  - EEG_TNP 后 RPCF_AT 相对 Madry 的 AA rank25/30 配对增益为
+    `+0.90±1.40/+1.52±1.25 pp`，FGSM 为 `+2.19±1.10/+1.88±1.84 pp`，PGD 为
+    `+2.81±1.26/+1.91±1.82 pp`；rank25 的 FGSM/PGD 五 seed 均为正，purified clean 基本持平。
+  - RPCF_AT+TNP 在 BPDA+PGD-10 下 rank25/30 robust 为
+    `82.11±1.09/81.37±0.94%`，未见预注册 adaptive attack 下的灾难性崩溃；但没有 Madry
+    BPDA 对照，且 BPDA identity/10-step 仍是有限近似。
+- **决策：**
+  - 该配置的核心价值表述为“保持 Madry 级 raw decision boundary，同时提高模型对 EEG_TNP
+    净化分布的适应”，不表述为新的 raw adversarial-training 算法。
+  - THU/EEGNet 上优先以 rank25 报告 FGSM/PGD 的稳定适配增益；AutoAttack 增益较小且 seed
+    方差覆盖零附近，必须同时报告五-seed配对差，不能只报单 seed 或最好 rank。
+  - 保持 DEC-020 的结论边界：单一 dataset/backbone 的正结果不能外推为跨 backbone 通用支配；
+    继续让 EXP-031 全矩阵运行，用其他 backbone/dataset 决定论文最终主张强度。
+  - BPDA 结果只支持“在当前预注册近似攻击下未坍塌”，不支持认证鲁棒性；若论文主张强化 adaptive
+    robustness，需另设更强 step/restart/EOT 与 Madry+TNP 对照。
+- **相关 idea：**
+  - `IDEA-009`
+  - `IDEA-011`
+  - `IDEA-012`
+- **相关实验：**
+  - `EXP-031`
+
+
+### DEC-025：EXP-031 全矩阵仅支持条件化净化分布适配
+
+- **日期：** 2026-09-17
+- **证据：** EXP-031 全部 3073 个任务和严格汇总通过。18 个数据集–backbone 条件中，RPCF_AT−Madry 的 full-test raw PGD-200 五种子均值仅 3 组为正、15 组为负；同 n512 子集的 rank25 TNP PGD 配对差为 11 正、7 负，rank30 为 11 正、6 负、1 平。rank25 在 THU 为 4 正/2 负、SEED-IV 为 5 正/1 负、BCICIV2A 为 2 正/4 负。典型正例 THU/EEGNet `+2.81±1.26 pp`、SEED-IV/Conformer `+6.41±2.19 pp`；反例 BCICIV2A/Conformer `-9.14±3.00 pp`。
+- **决策：** DEC-024 的“raw 基本保持”只适用于先前的 THU/EEGNet 聚焦条件，不再作为跨数据集结论。当前全层静态-rank 配置可作为 purification-aware adaptation 的条件性方案，不能声称普遍优于 Madry 或普遍维持 raw 鲁棒性。TNP 在同模型同 n512 子集的 AA 结果 18/18 条件均提高，但这不等于 RPCF_AT 相对 Madry 的优势；需分别报告净化效应与适配方法效应。
+- **后续边界：** RPCF_AT 额外训练 100 epochs，现有矩阵无法独立归因于 logit 对齐、全层微调或静态 rank。优先分析负迁移和统一预算对照，再判断 feature loss 是否必要。CW-L2 单列；BPDA 仅 THU/EEGNet/RPCF_AT、identity surrogate/10步且无 Madry 对照。EA-forward 的 raw clean 在 65/90 条件跨攻击不一致，原因未明，相关结论需复核。
+- **证据链接：** [EXP-031 最终报告](EXP031_results_20260917_final/report.md)、[严格完整性清单](../logs/exp031/exp031_full_20260729_174215/summary/completeness.json)。
