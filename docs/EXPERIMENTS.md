@@ -51,6 +51,7 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
 | `EXP-029` | 运行中 | `IDEA-002` | EXP-028 同批样本；六 rank 净化；purified trial-level HOSVD |
 | `EXP-030` | 已完成（四种 TN-only 策略均不支持） | `IDEA-017` | EEG_TNP；TN-only 自动定秩；Oracle headroom recovery |
 | `EXP-031` | Completed | `IDEA-009`、`IDEA-011`、`IDEA-012` | 全层静态-rank RPCF_AT；三数据集；六 backbone；五 seed；四攻击 |
+| `EXP-033` | Implemented / 正式 Pending | `IDEA-002`、`IDEA-009`、`IDEA-011`、`IDEA-012` | THU × EEGNet ×五seed；结构、敏感性、TRP+clean、可视化 |
 
 ## 实验完成闭环 Checklist
 
@@ -3954,3 +3955,177 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
 - **净化本身：** 同模型、同攻击、同 n512 子集下，AutoAttack 的 TNP−raw 鲁棒准确率在 Madry/RPCF_AT、rank25/30 的18组条件全部为正；PGD 多数为正但存在负迁移。CW 为无 Linf epsilon 约束的 L2 审计，不能与前三项同范数求平均。
 - **边界与警告：** BPDA 只覆盖 THU/EEGNet/RPCF_AT 五 seed，rank25/30 鲁棒准确率为 `82.11±1.09/81.37±0.94%`，无 Madry BPDA 对照。EA-forward 的90组中有65组四攻击 raw clean 记录不一致，最大跨度3.11 pp；原因尚未证实，EA clean 与跨攻击解释须复核。RPCF_AT 额外训练100 epochs，现有矩阵不能把收益单独归因于 logit 对齐或全层/静态 rank。
 - **复现汇总：** `conda run -n torch --no-capture-output python -u -m rpcf.summarize_exp031_streaming --run-id exp031_full_20260729_174215`；报告由 `python3 rpcf/build_exp031_report.py --summary-dir logs/exp031/exp031_full_20260729_174215/summary --output-dir docs/EXP031_results_20260917_final` 从已核验标量 CSV 派生，不重复读取大型 tensor。
+
+
+### EXP-032：低秩 motivation、统一 n512 主实验与跨范数补充
+
+- **日期：** 2026-09-17。
+- **状态：** 实现完成，smoke 全链路通过，正式后台运行中；正式结果 **Pending**。
+- **相关 idea：** IDEA-002/009/011/012/018；补充 EXP-031 `exp031_full_20260729_174215`。
+- **完整规划：** [EXP032_PLAN.md](EXP032_PLAN.md)；[外部方法复现依据和假设](EXP032_BASELINES.md)。用户新增 DCAE，随后撤回 GAN 训练方法；外部净化保留 MagNet-Reformer 和 DCAE。
+- **范围：** 三数据集×六 backbone×五 seed（42–46）、fold0、固定 n512；所有方法 clean/robust 双指标同子集、同 seed；TNP 固定 rank25/30，测试不重新调参。
+- **攻击：** 独立 FGSM/PGD-200/AA Linf0.03、旧无约束 CW-L2、有预算 PGD-L2-200（绝对半径1.0、alpha0.1、5重启）。旧攻击只读复用，新攻击/模型/净化隔离到 exp032。
+- **原完整计划校验（2026-09-17后续暂缓450个clean-only+TNP任务，当前范围见末尾记录）：** 2,685 任务 = 90审计 + 90clean训练 + 30外部净化训练 + 900攻击 + 630TNP + 900外部评估 + 45低秩诊断；正式应得到7,200个方法/攻击/评估条件行，分攻击汇总，不混合范数。
+- **早期验证：** Python 编译和任务数量/依赖静态校验通过；DCAE/MagNet shape、KL finite 检查通过。首次两样本审计在EA-forward输入对比处停止：普通路径二次标准化、EA路径直接读缓存，THU两样本差值max=4.768e-7；已改为各自原始输入流程核验同一索引/标签，不改旧输入或产物。此检查不是性能结论。
+- **smoke：** `exp032_smoke_20260917_v2`，THU/EEGNet/seed42、n2；外部净化训练1 epoch/2样本，L2 2steps/1restart。通过 nohup 后台，日志 `logs/exp032_smoke_20260917_v2.controller.log`。所有 smoke 结果不能用于正式表格。
+- **运行：** `RUN_ID=exp032_full_20260917 bash rpcf/run_exp032.sh plan`；正式后台命令见脚本开头。
+- **汇总：** `conda run -n torch --no-capture-output python -u -m rpcf.summarize_exp032 --run-id <run_id>`。
+- **结果与研究判断：** Pending；不根据 smoke 更新结论。
+
+- **smoke v2 更新：** 12任务完成、clean训练任务返回0但计划checkpoint缺失。已定位为既有 `train_AT.py` 将clean策略epsilon设0，实际checkpoint为 `clean_eps0`；补充runner原预期为 `clean_eps0.03`，已按既有命名修正。v2原产物保留，新run-id重验。
+- **确定性验证：** 主代理在模型/输入构造后，两次攻击前分别 `torch.manual_seed(7)`，PGD-L2输出逐元素一致（maxdiff0）；eps0.7合成检查最大范数0.7000000477；DCAE KL在eta=rho处为0。
+
+- **smoke 最终验收：** `exp032_smoke_20260917_v3` 完成34/34任务，80/80方法-攻击-评估指标行，索引/标签/预测重算及覆盖无错误；`summary/completeness.json` 中 `smoke_passed=true`、`completed=false`，不会误标正式完成。
+- **补充验证：** DCAE activation checkpoint的CPU输出与直接路径maxdiff0，反向梯度finite；RTX3080上THU形状batch128单次前后向通过、峰值约8581MiB。HOSVD rank1合成张量三个mode有效秩均约1、full-rank重构误差0。最后Python编译、shell语法与git diff --check通过。
+- **正式run-id：** `exp032_full_20260917_2011`。启动命令：
+  ```bash
+  RUN_ID=exp032_full_20260917_2011 GPU_IDS=0,1,2,3,4,5 nohup setsid bash rpcf/run_exp032.sh run > logs/exp032_full_20260917_2011.controller.log 2>&1 < /dev/null &
+  ```
+  控制日志：`logs/exp032_full_20260917_2011.controller.log`；任务计划、冻结代码hash与状态：`logs/exp032/exp032_full_20260917_2011/`。GPU6/7不纳入本轮调度。任务结束自动执行严格汇总，运行中可手动执行同一summarize命令生成Pending进度表。
+- **剩余边界：** 正式n512五seed结果尚未完成；DCAE的padding、clip/范围桥接、KL平均轴等未公开细节采用预先记录的复现假设；EA-forward旧clean漂移原因尚未证实，THU smoke未发现推理state_dict变化。不能将净化非自适应结果解释为完整防御最坏情况鲁棒性。
+
+- **磁盘审计与调度调整：** `/data2` 剩余394GB，原方案预计新增约1TB。`exp032_full_20260917_2011` 尚在audit阶段即于本轮主动停止（仅终止核对run-id后的自身进程组2799813），保留其产物。已将新attack改为adv+旧clean引用，TNP改为预测/MSE/SHA256/两个预览+RNG断点，预计攻击张量112.5GiB、整体预算160GiB。`exp032_smoke_20260917_v4` 验证精简格式，最终正式run以之后追加记录为准。
+
+- **精简格式最终验证：** `exp032_smoke_20260917_v4` 完成34/34任务、80/80指标行、errors为空、smoke_passed=true。v3/v4同一Madry PGD-L2的clean与adv maxdiff=0；TNP rank25/30两样本预览maxdiff=0、SHA256一致，配套metrics rows完全一致。
+- **当前有效正式run：** `exp032_full_20260917_2020`，后台运行中，结果Pending。已于2026-09-17 20:20左右通过下列命令启动，替代上面已停止的2011队列：
+  ```bash
+  RUN_ID=exp032_full_20260917_2020 GPU_IDS=0,1,2,3,4,5 nohup setsid bash rpcf/run_exp032.sh run > logs/exp032_full_20260917_2020.controller.log 2>&1 < /dev/null &
+  ```
+  日志：`logs/exp032_full_20260917_2020.controller.log`；清单/冻结协议/状态：`logs/exp032/exp032_full_20260917_2020/`；汇总命令：
+  ```bash
+  conda run -n torch --no-capture-output python -u -m rpcf.summarize_exp032 --run-id exp032_full_20260917_2020
+  ```
+- **训练设置核查补充：** 已对照TRADES作者实现确认仓库使用beta0.1、detached clean KL target、inner攻击保留train模式；作为repo variant保留，区别及来源见 `EXP032_BASELINES.md`。该差异与低鲁棒结果的因果关系仍Pending，不据测试结果调参或重写旧结论。
+
+- **2026-09-17 用户调整：暂缓 clean-only+TNP。** 原run `exp032_full_20260917_2020`沿用，450任务独立标为Deferred，当前2,235任务=90审计+90clean训练+30外部净化训练+900攻击+180TNP+900外部评估+45低秩诊断；正式验收每条件70行、合计6,300行。Madry/RPCF_AT已有四攻击TNP仍通过audit复用，仅新增各90个PGD-L2+TNP任务。clean-only、MagNet/DCAE及其自适应攻击、低秩诊断继续执行。
+- **接续方式：** 20:41:15（Asia/Shanghai）核对PID/start_ticks后仅停止旧run进程组2804633。保留7个已完成审计，未完成审计按原参数重试；停止前尚无clean-only+TNP启动，无孤立已写出audit产物。过程记录见`logs/exp032/exp032_full_20260917_2020/scope_amendments/20260917T124115Z_stop_original_controller.json`。原计划、manifest、科学实现hash、日志和产物均保留；新增`rpcf/resume_exp032.py`读取独立scope，启动脚本自动路由。
+- **范围验证：** 原计划任务序列化逐项一致；2,235 active / 450 Deferred / 180 TNP，所有active依赖均闭合。独立验证目录`exp032_scope_validation_20260917`复用v4保存的smoke预测，验证新汇总口径（不运行新的训练或攻击）；此验证不是正式实验结果。
+- **新汇总路径：** `logs/exp032/exp032_full_20260917_2020/summary_without_clean_tnp/`；`expected_tasks=2235`、`deferred_tasks=450`、`expected_metric_rows=6300`。即使当前范围全部完成，仍保持`full_plan_completed=false`，避免误报原完整计划完成。
+
+- **范围调整验证结果：** `exp032_scope_validation_20260917`在复用v4预测的独立目录通过29/29当前任务、5个Deferred、70/70指标行校验，`smoke_passed=true`、`errors=[]`，保留Madry/RPCF_AT全部五攻击覆盖。Python编译、shell语法及`git diff --check`通过。
+- **调整后已恢复后台：** launcher PID2823769，入口`rpcf.resume_exp032`，GPU0–5均已派发未完成审计任务；7个已完成audit被跳过。启动命令（向旧日志追加）：
+  ```bash
+  RUN_ID=exp032_full_20260917_2020 DEFER_CLEAN_TNP=1 GPU_IDS=0,1,2,3,4,5 nohup setsid bash rpcf/run_exp032.sh run >> logs/exp032_full_20260917_2020.controller.log 2>&1 < /dev/null &
+  ```
+- **调整后首份进度验收：** `summary_without_clean_tnp/completeness.json`为Pending，`completed_tasks=7/2235`、`deferred_tasks=450`、`metric_rows=252/6300`、`errors=[]`。这是运行中进度，不是正式性能结论。未完成任务继续执行，450个暂缓任务不自动恢复。
+
+- **2026-09-18 并行度调整（用户要求）：** 新增`rpcf/parallel_exp032.py`和`rpcf/run_exp032_parallel.sh`，将toy移至独立CPU队列（最多4个、每任务2线程）；GPU0–5每卡最多2个TNP，训练/攻击/外部净化仍独占。第二个TNP要求至少4096MiB空闲显存，主机至少16GiB可用内存才新增任务。TNP并发OOM会写独立`parallel_tnp_single_process.flag`并降为单任务重试；原flag、科学实现、rank、seed、样本与450个Deferred范围保持原样。
+- **无损接管设计：** 仅暂停核实PID/start_ticks的旧controller，worker继续计算。记录`parallel_handoff.json`，通过暂停parent保留的`/proc/<pid>/stat`真实exit code接管状态；待所有旧worker完成后，仅终止旧controller并接续原锁。新策略及代码hash写`parallel_policy_v2.json`，运行情况写`parallel_runtime_state.json`。
+- **并行验证：** `conda run -n torch --no-capture-output python -u -m unittest discover -s tests -p test_exp032_parallel.py -v`通过5项：CPU toy释放GPU、双TNP及内存门槛、训练/攻击独占、暂停parent下真实退出码与PID复用检查、CUDA可见/隐藏时CPU插值与HOSVD统计hash完全一致。Python编译、shell语法、`git diff --check`通过。本次不改变科研结果口径，正式结果仍Pending。
+- **接管兼容性修正：** 首次capture因conda实际命令包含Python shebang包装而安全中止，旧controller自动SIGCONT恢复，worker未终止。已核对实际argv并仅归一化该包装，仍严格逐项检查任务参数。首次`parallel_policy.json`保留，新生效策略另存`parallel_policy_v2.json`，不覆盖首次记录。
+
+- **并行调度已上线：** 2026-09-18，launcher PID3427819、controller PID3427877、PGID3427819；控制日志`logs/exp032_full_20260917_2020.parallel.controller.log`。成功接管6个在途worker，旧controller2823828经主代理核对为`Tl`（暂停）；保留worker继续，待全部完成后自动回收旧controller。新增GPU1/2/3上的DeepConvNet PGD-L2攻击及一个独立CPU toy，总并发由6提升至10（4 CPU toy + 6 GPU任务）。
+- **正式运行验收：** `parallel_runtime_state.json`记录10个运行任务、pending1978、failures为空，`handoff_complete=false`表示旧worker仍在自然完成。主代理核对CPU并发<=4、TNP单卡<=2、GPU重任务独占、450个clean-TNP仍Deferred；采样GPU1/2/3利用率96%/95%/94%。这是资源利用率观察，不是任务加速倍率或科研性能结论。
+- **最终测试：** 新增conda shebang包装严格匹配测试后，共6项单元测试通过（15.1秒）；CPU诊断CUDA可见/隐藏的数值hash一致。首次策略v1保留，当前生效策略为`parallel_policy_v2.json`；科学代码和原scope快照校验通过。
+
+- **2026-09-20 运行巡检发现并恢复调度故障：** 原并行controller在2026-09-18约14:48的旧controller锁交接处，因非阻塞`flock`返回`BlockingIOError`而退出；未处理锁仍被占用的情况，后续约45小时没有派发新任务。在途worker继续完成产物，但有12项状态未回写。此故障属于调度实现，不是模型训练失败，不能依据旧runtime中`failures={}`判断队列健康。原故障日志保留为`logs/exp032_full_20260917_2020.parallel.controller.log`。
+- **修复：** `rpcf/parallel_exp032.py`新增最长30秒的锁等待和可重入的`retire_controller`，支持旧controller已退出但接管完成标志未落盘的恢复。独立登记`parallel_policy_v3.json`，v1/v2策略及科学代码、任务表、scope均保留。新增`rpcf/recover_exp032.py`严格校验遗留产物后补写缺失状态；exit code已无法追溯，明确记录`returncode=null`、`exit_code_observed=false`、completion_basis及证据sha256，elapsed仅作估算并标记。
+- **遗留产物验收：** 5个TNP的rank25/30、512个预测和诊断、源索引标签、预览有限值、metrics重算均通过；4个toy的512样本、7变体、CSV行数与最终图文件通过；2个外部评估的非自适应/自适应预测重算通过；1个clean训练有epoch93早停、最终测试和可加载有限权重/形状匹配证据。先dry-run全通过，再仅创建12个缺失status，旧产物未重跑或覆盖。恢复证据：`logs/exp032/exp032_full_20260917_2020/scope_amendments/lock_recovery_1789875210/`。
+- **验证：** 并行测试共9项通过，新增锁延迟释放、等待超时及旧controller已退出后的重入接管测试；正式恢复后`parallel_handoff_completed.json`已生成，原锁由新controller独占。
+- **恢复后有效运行：** 2026-09-20约11:35，launcher3670107/controller3670146/PGID3670107。已恢复329/2235 completed：audit90、purifier_train30、train_standard9、attack81、tnp16、external_eval80、toy23；450 clean-only+TNP仍Deferred。实际派发7任务（GPU0/4/5共3个 + CPU toy4个）。GPU1/2/3被其它已暂停的figureshare实验进程占用显存，本轮不动这些进程，释放后调度器可自动使用这些卡。
+- **当前控制日志与命令：**
+  ```bash
+  RUN_ID=exp032_full_20260917_2020 GPU_IDS=0,1,2,3,4,5 CPU_WORKERS=4 TNP_PER_GPU=2 nohup setsid bash rpcf/run_exp032_parallel.sh run > logs/exp032_full_20260917_2020.parallel_v3.controller.log 2>&1 < /dev/null &
+  ```
+  运行中查看`tail -f logs/exp032_full_20260917_2020.parallel_v3.controller.log`，不要重复启动controller。原9月22–25日估计已受停调与可用GPU减少影响，不能继续视为当前可靠ETA；正式实验结果仍Pending。
+- **恢复后严格汇总：** `completed_tasks=329/2235`、`metric_rows=3513/6300`、`errors=[]`、status=Pending。资源条件估计：若持续仅GPU0/4/5三卡可用，按当前任务耗时及模型差异预留，暂估仍需7–12天；若恢复六卡并行，可重新估计。此为粗略排期，不是实测完工承诺。
+
+
+### 2026-09-20：按用户授权启用 GPU6/7（parallel v4）
+
+- GPU 池扩展为 `0,1,2,3,4,5,6,7`；启动时 GPU1–3 被其他实验占用，继续避让，实际可用卡为 0/4/5/6/7。CPU toy 保持 4 workers，TNP 最多同卡 2 workers，GPU 重任务独占。
+- 使用独立 `parallel_handoff_v4.json`、`parallel_handoff_completed_v4.json`、`parallel_controller_v4.lock`、`parallel_policy_v4.json`；仅暂停旧 controller `3670146`，保留捕获时的全部 7 个在途 worker。新 controller `3674865` 接管，旧 controller 等所有被接管任务结束后再退出；此期间 `handoff_complete=false` 属正常状态。
+- 新日志：`logs/exp032_full_20260917_2020.parallel_v4.controller.log`。首轮向 GPU6 派发 clean AutoAttack、GPU7 派发 clean FGSM；已观察到 GPU6 有实际计算负载，GPU7 完成 FGSM 后继续处理 MagNet 自适应评估并推进至 512/512。扩容后初始 9 个任务并行，心跳 failures 为空。
+- 修改 `rpcf/parallel_exp032.py`、`rpcf/run_exp032_parallel.sh`、`tests/test_exp032_parallel.py`；支持接管 parallel controller 和 CPU toy 的 gpu=-1，版本证据独立保存。`python -m unittest tests.test_exp032_parallel` 在 torch 环境通过 10 项；shell 语法、git diff --check 通过。科学代码、随机种子、预算、rank、2235 active/450 deferred 范围保持原样，clean-only+TNP 仍暂停。
+- 已通过 nohup/setsid 启动，无需再次启动。对应命令：`RUN_ID=exp032_full_20260917_2020 GPU_IDS=0,1,2,3,4,5,6,7 CPU_WORKERS=4 TNP_PER_GPU=2 nohup setsid bash rpcf/run_exp032_parallel.sh run > logs/exp032_full_20260917_2020.parallel_v4.controller.log 2>&1 < /dev/null &`（仅作启动记录，运行中不要重复执行）。
+- 上一节仅 3 张可用 GPU 条件下的 7–12 天估计已不适用；扩容后的完成时间需按稳定吞吐重新估计。GPU 负载随任务阶段变化，瞬时利用率不等于整体吞吐。正式实验结果仍为 Pending。
+
+
+### 2026-09-20 11:57：v4 运行健康检查与条件 ETA
+
+- 心跳新鲜度约 1 秒，controller 3674865 存活，10 running / 1880 pending / failures={}；active 已完成345/2235，无failed，450 clean-only+TNP继续deferred。日志显示完成后继续派发后续任务。旧controller3670146保持暂停，等待在途worker完成后释放原锁。
+- 再次运行 torch 环境 `python -m unittest tests.test_exp032_parallel`：10 项通过（16.663s），覆盖锁延迟释放及超时边界、真实进程退出码、并行资源约束。此前接管锁竞争已有修复，但当前无 EXP-032 专用自动重启守护；nohup/setsid 只保证脱离终端，不能保证异常退出后自动恢复。此次为只读巡检和回归测试，未修改运行代码或重启任务。
+- ETA使用正常记录的 elapsed 中位数，排除恢复登记的 estimated elapsed，避免计入约45小时停机。剩余：train81×2404.7s，attack810×231.0s，external813×160.7s，TNP164×9477.0s，CPU toy22×6250.5s。GPU类合计约574 task-hours；TNP可同卡双任务但加速非严格线性。
+- 在GPU0/4/5/6/7持续可用、无新错误且现有耗时样本有代表性的条件下，暂估剩余4–7天，即9月24–27日完成。任务图依赖、不同dataset/backbone和共享卡竞争可能改变耗时；此为范围估计而非保证。正式结果Pending。
+- 样本覆盖限制：11个正常TNP耗时样本均来自THU（EEGNet10、DeepConvNet1，9312.7–9740.0s），尚无其余数据集及多数backbone的可靠耗时样本，因此4–7天仅为低置信度粗估。当前磁盘余量377G；以已完成attack平均187.5MiB粗估剩余attack约148GiB，暂未见立即耗尽迹象，其他进程的磁盘增长仍未知。
+
+
+### 2026-09-20：GPU1–3 暂停进程共卡调度（parallel v5）
+
+- 用户要求调查 GPU1–3 长期 0% 的原因，并授权在仅占显存且不计算时共享这些卡。15:49:29/15:49:40 两次采样确认各卡仅有一个暂停态 `Tl` 的外部 figureshare 进程，利用率均 0%，约各占 1.7GiB；没有对外部进程发送信号。
+- 授权身份：GPU1 PID3640736/start_ticks451734835；GPU2 PID3643011/start_ticks451991114；GPU3 PID3643222/start_ticks451998320。原规则因显存占用超过768MiB而一直避让，现以显式共享白名单补充。
+- v5 每张共享卡最多1个本实验任务，仅允许 TNP/attack/external_eval；训练仍在普通卡执行。派发前剩余显存至少6144MiB、GPU利用率不超过5%，且compute PID集合必须与已核实暂停进程一致，PID/start_ticks和暂停状态均匹配。外部进程若退出且无GPU context，也可继续使用。未知context、PID复用、外部恢复或查询失败均停止向该共享卡新派发；已经启动的任务自然完成，因此恢复瞬间仍可能有短期资源竞争。
+- 普通卡继续执行原有双TNP与GPU重任务独占规则。原6个在途worker全部通过独立v5 handoff保留，旧controller3674865仅暂停调度；新controller3801846在后台执行。v5的handoff/completed/lock/policy均使用独立版本文件，旧记录保留。接管已有双TNP时同步保留OOM降档容量信息。
+- 新控制日志：`logs/exp032_full_20260917_2020.parallel_v5.controller.log`；运行初期9个任务并行，pending1800、failures={}。GPU1新增DCAE PGD-L2 adaptive评估，日志已到8/512；GPU2新增TRADES PGD-L2，GPU3新增FBF PGD-L2。实测GPU1/2/3利用率96%/99%/99%，共享卡剩余显存约6/4/4GiB。利用率为瞬时采样，不等同持续吞吐。
+- 修改：`rpcf/parallel_exp032.py`、`rpcf/run_exp032_parallel.sh`、`tests/test_exp032_parallel.py`。torch环境14项测试通过（15.757s），覆盖共享卡门槛、恢复/PID复用/未知context拒绝、共享卡单任务限制、保留在途双TNP OOM处理、旧锁交接等；真实只读检测返回eligible_shared_gpus=[1,2,3]，bash语法和git diff --check通过。
+- 科学代码、模型、rank、攻击预算、随机种子和scope不变：2235 active / 450 clean-only+TNP Deferred。此次属于运行调度调整，正式结果Pending。共享卡峰值显存仍有任务差异，沿用现有OOM批量降档机制；本次没有新增自动重启守护。
+- 已运行的启动命令（仅供审计，运行中不要重复启动）：
+  ```bash
+  PAUSED_GPU_PEERS=1:3640736:451734835,2:3643011:451991114,3:3643222:451998320 RUN_ID=exp032_full_20260917_2020 GPU_IDS=0,1,2,3,4,5,6,7 CPU_WORKERS=4 TNP_PER_GPU=2 nohup setsid bash rpcf/run_exp032_parallel.sh run > logs/exp032_full_20260917_2020.parallel_v5.controller.log 2>&1 < /dev/null &
+  ```
+
+### 2026-09-22：按用户要求纠正外部净化 adaptive 为历史 PGD-10
+
+- **原因与处理：** 原外部净化 evaluator 把主实验五种攻击的设置用于攻击完整净化防御，包含 PGD-200 与 PGD-L2-200×5 restarts；该增强未获用户要求。11:06暂停已核实旧 controller3801846，按PID/start_ticks/命令终止8个在途外部adaptive evaluator；保留全部旧日志与产物，停止证据位于 `logs/exp032/exp032_full_20260917_2020/scope_amendments/adaptive_pgd10_20260922_110620/before_stop.json`。
+- **修订协议：** 仅外部adaptive改为PGD-10、L∞ eps=.03、alpha=.006、attack batch1、n512、clean起点、无随机起点/额外重启/EOT、仅epsilon投影、末步输出。优化设置与EXP-031历史BPDA PGD10一致；可微MagNet/DCAE采用真实梯度，TNP仍按历史BPDA解释。普通五攻击及非自适应净化保持原样，不启动EXP-033–036。
+- **实现：** 新增`rpcf/exp032_external_pgd10.py`、`rpcf/revise_exp032_adaptive.py`、`rpcf/summarize_exp032_pgd10.py`、`rpcf/run_exp032_pgd10.sh`及测试。`parallel_exp032.py`只增加执行目录心跳镜像和可指定汇总模块，资源策略仍为8卡、共享卡1–3单任务、普通卡TNP最多2进程、CPU toy4 workers。
+- **隔离与迁移：** 新目录`logs/exp032/exp032_full_20260917_2020/execution_revisions/adaptive_pgd10_v1/`。冻结原科学文件及原计划不变；新的代码SHA、计划、scope与资源策略独立保存。773个不受影响的完成任务复用，368个旧外部任务仅提取经样本/预测/accuracy校验的nonadaptive行；90个已完成的旧PGD外部任务不接受为新协议完成，需重跑PGD10。新协议起点1141/2235，450 clean-only+TNP仍Deferred。旧PGD200及其他adaptive结果保留归档，不进入当前对比表。
+- **验收口径：** 90条件×62行=5580（每条件30 raw+20 TNP+10外部nonadaptive+2外部adaptive PGD10），180个外部adaptive条件；仍为2235个逻辑任务。原6300行汇总目标已被此修订替代。运行进度按根目录`current_execution.json`指向的状态目录统计。
+- **验证：** torch环境`python -m unittest tests.test_exp032_pgd10 tests.test_exp032_parallel`通过18项（16.909s），含与历史函数逐元素相同、无额外RNG消耗、真实净化梯度、旧结果隔离与调度交接。语法和shell检查通过。SEED-IV/ATCNet/MagNet的n2真实GPU验证完成，非自适应行正确保留PGD200元数据，adaptive单独为PGD10；smoke与正式结果隔离，不能视作正式结论。
+- **当前结果：** Pending；恢复运行和DCAE smoke/严格汇总的后续观测记于下条。已有旧协议ETA因计算范围改变而失效。
+- **启动前验收完成：** DCAE也完成SEED-IV/ATCNet的n2 GPU PGD10验证，L∞预算违规为0。新严格汇总为1141/2235 completed、4268/5580 metric rows、`errors=[]`、status=Pending；非正式smoke不计入完成数。
+- **后台恢复：** 已通过`nohup setsid bash rpcf/run_exp032_pgd10.sh`启动（launcher354779，controller354823/start_ticks473647115）。新controller已取得原排他锁并记录HANDOFF_COMPLETE，旧controller3801846已退出，GPU0–7各派发一个PGD10外部评估。正式日志`logs/exp032_full_20260917_2020.pgd10_v1.controller.log`；无需重复启动。继续只读检查使用根目录`current_execution.json`和新revision心跳，初始8 running/1086 pending/failures={}。
+- **正式计算已确认：** 恢复后首批8个THU/EEGNet外部PGD10正式任务已输出n512结果，逐项核对`attack=pgd10`、`steps=10`；控制器记录returncode0并继续派发后续任务。末次快照8 running/1078 pending/failures={}，心跳约1.5秒。原8个冻结科学文件和新5个冻结执行文件的SHA均一致。
+
+### EXP-033：张量结构、参数敏感性、TRP+clean 消融与配对可视化
+
+- **日期：** 2026-09-23。
+- **状态：** Implemented / Smoke verified；正式长实验 **Pending**，未启动。
+- **相关 idea：** IDEA-002/009/011/012；最终计划见 [EXP033_PLAN.md](EXP033_PLAN.md)。
+- **范围：** THU Benchmark × EEGNet × seeds42–46 × fold0 ×规范n512；PGD-200 L∞0.03、α=2/255、无随机起点。
+- **结构：** 当前 PTR/QTR 对比普通TR、普通TT、时间TT、Tucker、矩阵SVD，两档表示参数预算；新增50个结构准确率条件，复用10个当前方法条件，60个独占GPU计时条件。普通TR低预算13432参数/−8.8%为已确认例外，其余±5%；仅使用validation32例选择rank。
+- **敏感性：** CAF测试rank15/20/25/30/35/40，新增20个rank–seed条件；五项实际CE/KL权重单变量扫描，16个唯一配置，复用默认五seed，新增75次100轮微调，每模型重新攻击并测试raw、TRP25/30。
+- **消融与可视化：** 仅补TRP+clean五个双rank任务；其他五组正式结果复用。同clean-only分类器、同输入比较TRP25/30、MagNet、DCAE，输出全512统计及确定性成功/失败/clean损伤/方法分歧案例。
+- **调度：** 共395任务，compute335、timing60。模块固定structure/rank/loss/ablation/visualize；独立入口默认只建档，结果隔离`logs/exp033/<run_id>`。
+- **实现：** 新增`rpcf/exp033.py`、`exp033_common.py`、`exp033_structures.py`、`exp033_worker.py`、`exp033_report.py`、`run_exp033.sh`及对应tests；未改旧实验训练/攻击/净化科学实现。
+- **来源：** EXP031 `exp031_full_20260729_174215`；EXP032 `exp032_full_20260917_2020`。五seed各15个来源路径均存在；正式执行仍须通过内容和身份审计。
+- **初步验证：** torch环境41项单元测试通过，包括全部结构、参数预算/普通TR非均匀排列、配置选择、任务图与队列、逐样本预测复算、来源/攻击预算拒绝、随机状态及TNP中断回放一致性。测试不构成正式效果结论。
+- **真实smoke：** `exp033_smoke_20260923_v1`，CPU、seed42、规范子集前2样本，validation2样本、PTR4迭代、1个非默认权重/1轮训练，PGD仍200步，34个任务。日志`logs/exp033_smoke_20260923_v1.controller.log`。执行结果待补。
+- **恢复限制：** 评估任务保存随机流与逐例断点；原微调器无中间epoch checkpoint，未完成训练attempt按原seed和初始化重跑并保留旧尝试，不承诺epoch级恢复。正式独占GPU计时尚未验收。
+- **正式结果：** 六方法结构效果/效率表、六点rank曲线、五项权重曲线、六组消融表与五seed可视化均Pending。
+
+#### EXP-033 实施检查修正（2026-09-23）
+
+- v1 CPU smoke 已通过23个任务；`timing_seed42_ptr_25` 因短配置 `warmup_steps=0` 触发原PTR学习率预热除零而停止，未将失败标成完成。失败日志和v1产物保留。
+- 只将独立smoke配置的预热设为1；正式PTR2048步和原50步预热不变。
+- 计时实现将YAML配置读取/库导入移到计时区外，公共插值与逆变换逐式沿用既有3d_interpolate分支；六种方法共用这一实现。
+- 汇总补齐消融逐seed配对差值，并逐任务核对预期方法/rank/预算/变体签名，空结果或漏rank不能通过严格验收。
+- 当前有效清单：正式`exp033_full_20260923_v2`（395任务，仅dry-run）；smoke`exp033_smoke_20260923_v2`（34任务，真实CPU完整重跑中）。v1清单保留作为实施记录，后续使用v2。
+
+- **最终最小回归：** torch环境48项EXP-033单元测试全部通过（10.458s）；`bash -n rpcf/run_exp033.sh`、`git diff --check`通过。日志保存在`logs/exp033/exp033_smoke_20260923_v2/verification/unit_tests.log`。新增计时检查验证THU插值/逆变换逐位一致、YAML读取在计时区外、原配置文件哈希不变。完整真实smoke结果另行记录。
+
+#### EXP-033 真实PTR短配置验收（2026-09-23）
+
+- v2同样完成23个任务后在PTR预热停止。进一步定位到`PTR_3d.train`实际使用`int(每阶段迭代数×0.1)`，而非配置的`warmup_steps`字段；只改该字段不足以修复短运行。
+- 最终smoke改为总40步、阶段边界10/20/30，每阶段动态预热至少1步；正式2048步配置和核心PTR实现均未改变。
+- 在真实THU样本上单独运行rank25/30的40步优化，与原`purify`入口逐位`torch.equal`，参数量分别14731、19891，输出形状[1,64,1500]。真实预检通过后才启动新完整smoke。
+- 最终有效清单为`exp033_full_20260923_v3`（正式Pending，只建档）和`exp033_smoke_20260923_v3`（CPU完整验收）；v1/v2失败记录保留，后续使用v3。smoke调度优先检查训练—攻击—净化链路，正式任务调度范围不变。
+
+#### EXP-033 微调链路和轻量验收入口（2026-09-23）
+
+- v3 CPU训练因完整validation成本较高而主动停止自己的训练子进程，保留attempt；未干预EXP-032。
+- 新增仅smoke启用的`exp033_smoke_finetune.py`，将validation从799例限制为前2例，记录实际索引与split。
+- v4已完成真实CAF微调（1轮）、新checkpoint的PGD-200攻击、后续rank/损失/消融净化；微调耗时190s。由真实记录发现`max_cache_batches`在原非balanced sampler中不截断缓存循环，因此包装器增加`islice(loader,1)`来显式限制smoke的真实首批，正式训练不变。
+- v4后续可视化任务因代码冻结校验检测到上述包装器修正而拒绝继续，属于版本隔离保护，既有结果保留；不把未执行的可视化记作完成。
+- 包装器拒绝正式清单、错误规模与重复参数绕过；结束或异常恢复原模块函数。最后有效配置将以`exp033_full_20260923_v5`（正式Pending）和`exp033_smoke_20260923_v5`冻结。
+
+- **v5最终回归：** 55项单元测试全部通过（10.709s），含7项smoke包装器边界/恢复检查。真实smoke已经完成源审计、受限CAF微调及其PGD-200攻击；验证审计确认原799例→前2例，`cache_batch_limit_enforced=true`，正在继续净化、可视化及结构/计时。测试日志归档于`logs/exp033/exp033_smoke_20260923_v5/verification/`。
+
+#### EXP-033 最终验收完成（2026-09-23）
+
+- **真实smoke：** `exp033_smoke_20260923_v5`的34个worker任务全部completed，失败0。训练、自身PGD-200、rank/损失/消融净化、五种新结构、当前PTR计时和可视化全部经过真实CPU链路。
+- **严格汇总：** 已修复reporter把旧`checkpoints/...`误拼到run目录的问题；原checkpoint存在。修正后`summary/report.json`为`Complete`、`complete=true`、`smoke=true`、`errors=[]`，48条指标、30条配对差值。计算结果及原冻结manifest未改写，单独记录最终reporter指纹。
+- **图像核查：** 已检查真实case波形/PSD/STFT及统一坐标色标；两例smoke产生failure和clean_damage，success/disagreement正确记录为空，正式从512例选取。
+- **最终测试：** 56项单元测试全部通过（10.645s）；日志、真实PTR输出等价性和验收JSON在`logs/exp033/exp033_smoke_20260923_v5/verification/`。
+- **正式清单：** `exp033_full_20260923_v6`，395任务（compute335、timing60），仅完成建档与Pending汇总，status任务数0，未启动正式长实验。之后启动使用该run-id；旧实施记录不覆盖、不删除。
+- **剩余边界：** GPU独占计时和五seed正式表/曲线仍Pending；smoke为工程验收。训练中断按原seed/初始化重启未完成attempt，评估可逐例恢复RNG。

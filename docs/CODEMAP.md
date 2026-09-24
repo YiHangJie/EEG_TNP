@@ -492,3 +492,38 @@
   - `utils/visualize.py`
 - TODO：进一步检查 `TN/` 各模型文件的具体张量 shape、训练接口和保存逻辑。
 - TODO：如果要把 CODEMAP 作为长期维护文档，应在每次新增入口脚本、输出目录或实验 pipeline 后同步更新。
+
+
+## EXP-032 补充实验入口
+
+- `rpcf/exp032.py`、`rpcf/run_exp032.sh`：独立补充DAG，原计划2,685任务；固定n512、三数据集×六backbone×五seed。当前run通过`rpcf/resume_exp032.py`的独立执行范围暂缓450个clean-only+TNP任务，续跑2,235任务，不改原计划、科学实现快照或已完成产物。
+- `rpcf/exp032_common.py`、`rpcf/exp032_evaluate.py`：校验固定索引/标签/输入，重算已有 baseline 和 TNP 双指标、推理状态审计，生成新 clean-only 和 L2 攻击。
+- `rpcf/exp032_attacks.py`：无图像裁剪的 PGD-L2，按全轨迹成功优先/CE 次序保留候选。
+- `rpcf/exp032_tnp.py`：固定 rank25/30，校验后复用 canonical clean 重构，新 adversarial 净化按预测批次续跑并保存 RNG；落盘为逐样本预测/MSE/SHA256和两个预览，完整重构可复算。
+- `rpcf/exp032_purifiers.py`、`rpcf/exp032_external.py`：MagNet-Reformer 与 Ding et al. DCAE 的 EEG 实现；训练、范围适配和复现假设见 `docs/EXP032_BASELINES.md`。
+- `rpcf/exp032_toy.py`：在 `purify.interpolate` 的真实空间-时间张量中做逐 trial 低秩和等范数随机对照，输出 CSV、PNG/PDF。
+- `rpcf/summarize_exp032.py`：严格检查逐样本预测、同子集身份及五seed覆盖；原完整范围每条件80组合，暂缓clean-only+TNP后每条件70组合。Deferred单列，当前范围汇总写`summary_without_clean_tnp/`；缺失保持Pending，不将暂缓项算作原完整计划完成。
+- `rpcf/parallel_exp032.py`、`rpcf/run_exp032_parallel.sh`：2026-09-18并行版调度，toy走独立CPU池，TNP最多2进程/GPU，其余GPU任务独占；保持原始科学实现和execution_scope。支持暂停旧controller、保留worker并读取真实退出码的接管；独立policy/runtime/lock记录。
+- `tests/test_exp032_parallel.py`：调度隔离、并发上限、接管退出码与CPU诊断数值一致性检查。
+- `rpcf/recover_exp032.py`：控制器中断后的遗留产物校验/状态恢复；默认dry-run，`--apply`仅补写缺失状态并保留证据，遗失的退出码写null。并行调度v3支持锁释放等待和旧controller已退出后的恢复，当前日志为`parallel_v3.controller.log`。
+
+- 2026-09-20 EXP-032 parallel v5：`parallel_exp032.py`通过`--paused-gpu-peers GPU:PID:start_ticks`显式授权暂停进程所在卡共用，逐次核查GPU context和身份，每共享卡一个非训练任务；策略/锁/接管证据独立版本化。当前运行记录和命令见`docs/EXPERIMENTS.md`。
+
+### EXP-032 自适应协议修订入口（2026-09-22）
+
+- `rpcf/exp032_external_pgd10.py`：保留五种非自适应净化，仅在 PGD 槽位新增历史 PGD-10 设置的真实梯度 adaptive 行。
+- `rpcf/revise_exp032_adaptive.py`、`rpcf/run_exp032_pgd10.sh`：冻结独立执行修订，校验复用旧非自适应行，保留旧产物；持有原 run 排他锁，再使用修订目录的独立状态调度。`current_execution.json` 为当前进度入口。
+- `rpcf/summarize_exp032_pgd10.py`：验收新目录的512样本身份、预测与PGD-10协议，每条件62行；禁止旧五攻击adaptive混入。
+- `tests/test_exp032_pgd10.py`：检查与历史PGD更新一致、真实净化梯度、2235任务映射及旧adaptive隔离。
+
+## EXP-033 独立扩展（2026-09-23）
+
+- `rpcf/exp033.py` / `rpcf/run_exp033.sh`：冻结 manifest、DAG、模块筛选、compute/timing 队列、独立后台启动与恢复；默认只建档。
+- `rpcf/exp033_common.py`：固定协议、源产物定位、损失单变量配置、同一 n512 身份与攻击校验。
+- `rpcf/exp033_structures.py`：普通 TR、两类 TT、Tucker、SVD 分解与预算候选；不改旧 PTR。
+- `rpcf/exp033_worker.py`：审计、validation 校准、复用、结构准确率/计时、微调—攻击—净化、案例生成。
+- `rpcf/exp033_report.py`：预测重算、五 seed 完整性、样本标准差/配对差值、曲线与波形/频谱/时频图。
+- `tests/test_exp033_*.py`：结构约束、清单/队列、随机状态恢复、来源和产物完整性回归。
+- `docs/EXP033_PLAN.md`：最终范围、复用来源、395个正式调度任务与操作命令；新产物隔离在 `logs/exp033/<run_id>/`。
+
+- `rpcf/exp033_smoke_finetune.py`：仅smoke使用的验证前缀/缓存首批包装器，记录实际子集并拒绝正式清单；核心`finetune.py`保持原样。

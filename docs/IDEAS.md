@@ -478,3 +478,20 @@
   - `EXP-030`：已完成；四种 TN-only 策略均不支持
 - **备注：**
   - 方法依据来自 automatic Tensor Ring rank determination、相邻 core coupled shrinkage、TT/TR rounding 与 rank-adaptive approximation；创新点不应表述为“首次自动确定 TR rank”，而应聚焦其在 EEG 对抗净化中的逐样本、bond级和阶段级结合。
+
+
+### IDEA-018：真实 EEG 低秩动机与统一净化对照补充
+
+- **状态：** 实现中，正式结论 Pending。
+- **动机：** EXP-031 的完整 test/raw 与 n512/TNP 口径不同，且缺少 clean-only 配对、外部净化和有预算 L2 攻击。
+- **核心假设：** 真实 EEG 张量的低秩可压缩性与扰动/等范数随机噪声存在可重复差别；净化收益能在固定模型、rank 和攻击预算下复验。所有假设允许被否定。
+- **方法：** 逐 trial TNP 实际插值表示的 HOSVD/有效秩；统一三数据集×六模型×五 seed n512 双指标；补 clean-only、MagNet-Reformer、论文 DCAE 与固定半径 PGD-L2，保留外部净化自适应攻击的独立结果。
+- **实现与复现说明：** `docs/EXP032_PLAN.md`、`docs/EXP032_BASELINES.md`、`rpcf/exp032*.py`。不修改 baseline 默认行为。
+- **评估指标：** clean/robust accuracy、逐 seed 配对差值、五 seed 均值/标准差、范数违规计数、逐样本谱和重构误差分布。
+- **风险：** 低秩不等价于语义保持；外部方法的范围映射和缺省参数存在论文未说明的复现假设；非自适应净化不能替代完整防御攻击。
+- **相关实验：** `EXP-032`：Pending。用户撤回第一篇GAN训练方法，不包含该项。2026-09-17进一步要求先不跑clean-only+TNP，其450个任务标为Deferred；保留clean-only、外部净化和Madry/RPCF_AT的L2+TNP，当前执行2,235任务。
+- **执行优化（2026-09-18）：** EXP-032按用户要求将toy分离至CPU池并提高TNP并发；仅调整调度和资源分配，科研假设、seed与既定范围保持一致。
+
+### EXP-033 补充验证关联（2026-09-23）
+
+不新增训练方法 idea；扩展 IDEA-002/009/011/012 的结构对照、六点测试 rank、五项已启用 CE/KL 权重、TRP+clean 消融及配对可视化。统一 THU × EEGNet ×五 seed；详见 [EXP033_PLAN.md](EXP033_PLAN.md)。正式结果 Pending，禁止用 smoke 或训练净化缓存代替正式测试结论。
