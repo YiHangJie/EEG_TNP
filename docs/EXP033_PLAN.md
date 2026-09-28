@@ -1,7 +1,7 @@
 # EXP-033：结构对照、参数敏感性、TRP+clean 消融与可视化
 
 - 建档日期：2026-09-23。
-- 状态：实现与 smoke 验收已完成；正式实验 **Pending**。
+- 状态：实现与 smoke 验收已完成；正式实验于 2026-09-24 11:58（Asia/Shanghai）启动，**Running**，正式结果仍为 **Pending**。
 - 范围：THU Benchmark × EEGNet × seed 42–46 × fold0。CAF = RPCF_AT，TRP = TNP。
 - 独立入口：`rpcf/exp033.py`；产物统一写入 `logs/exp033/<run_id>/`，包括新 checkpoint、攻击、断点、预测、案例、图表及 manifest。
 - 源实验：`exp031_full_20260729_174215`；clean-only / MagNet / DCAE 与审计来自 `exp032_full_20260917_2020`。源实验只读。
@@ -94,7 +94,7 @@ RUN_ID=exp033_full_20260923_v6 bash rpcf/run_exp033.sh dry-run
 # 1轮训练、首个缓存批次、validation前2例、PTR40步；测试PGD仍为200步；34个调度任务
 RUN_ID=exp033_smoke_recheck_v6 nohup setsid bash rpcf/run_exp033.sh smoke --cpu > logs/exp033_smoke_recheck_v6.controller.log 2>&1 < /dev/null &
 
-# 正式普通计算，需手动启动
+# 可选的分队列运行方式；当前 all 队列运行中，不要执行
 RUN_ID=exp033_full_20260923_v6 nohup setsid bash rpcf/run_exp033.sh run --queue compute > logs/exp033_full_20260923_v6.compute.log 2>&1 < /dev/null &
 
 # compute完成后，独立计时
@@ -133,3 +133,32 @@ conda run -n torch --no-capture-output python -m unittest discover -s tests -p '
 - 审计报告：`logs/exp033/exp033_smoke_20260923_v5/summary/report.json`；验收与最终报告器指纹：同run的`verification/acceptance.json`。只有reporter的旧artifact相对路径解析在计算结束后修正，计算代码和原始结果均未改写；随后重新通过严格汇总。
 - 最终正式清单：`logs/exp033/exp033_full_20260923_v6/manifest.json`，395任务、状态Pending、尚未启动。早期v1–v5正式清单保留为实施记录，正式运行使用v6。上面的smoke命令使用新的`exp033_smoke_recheck_v6`，供需要时复验，不会覆盖已验收产物。
 - GPU独占计时和五seed正式结果尚未运行；CPU smoke时间及两例准确率不能作为论文结果。
+
+
+## 正式启动（2026-09-24）
+
+- 启动前再次通过56项回归测试、正式manifest/任务图/代码指纹检查及五seed共75个来源路径检查；真实THU输入的六种结构、两个预算档共12个CUDA检查通过。CUDA预检使用smoke短迭代配置，不计入正式结果。
+- 正式运行 `exp033_full_20260923_v6` 已于11:58:56启动；`--queue all` 包含全部395任务（compute335、timing60），GPU0–7，每卡最多一个worker。计时仍执行GPU独占校验。
+- 控制器PID1463813，启动器PID1463782；初始五个 `sources_seed42`–`sources_seed46` 已派发。来源审计通过后自动展开后续计算，全部任务完成后严格汇总。
+- 实时日志：`logs/exp033_full_20260923_v6.controller.log`；心跳及任务状态：`logs/exp033/exp033_full_20260923_v6/runtime.json`、`status/`。本次启动与验证证据保存于同run的 `launch_review/`。
+- 已执行的启动命令（仅作记录，运行中不要重复执行）：
+  ```bash
+  RUN_ID=exp033_full_20260923_v6 nohup setsid bash rpcf/run_exp033.sh run --queue all --gpu-ids 0,1,2,3,4,5,6,7 > logs/exp033_full_20260923_v6.controller.log 2>&1 < /dev/null &
+  ```
+- 仅更新运行登记与验收记录，没有修改冻结科学代码或实验设置。训练中断仍按原seed/初始化重跑未完成attempt；异常任务保留失败状态，需诊断后显式恢复。正式结果等待实际计算及最终验收。
+
+
+## 当前并行执行策略（2026-09-24，parallel_v1）
+
+用户授权提高并行度后，当前正式run由独立 `rpcf/parallel_exp033.py` 接管，保持原科学清单不变。GPU0–7开放；普通评估/净化每卡最多3任务，后续训练限定GPU0/1/2并保持独占，全局最多24任务。保留24GiB主存和至少1GiB显存余量，对加载中的进程提前预留；未知GPU进程阻止派发。典型混合负载为3个训练＋15个普通任务；没有训练待运行时普通任务可用全部8卡。计时任务留到普通计算全部结束后运行，仍要求GPU独占。
+
+接管保留原8个在途worker（含4个已开始的训练），初期已达16并发、0失败；旧controller只暂停派发，等待这些worker收尾后自动交接原锁。原 `run_exp033.sh` 的启动记录保留，但当前运行中不要重新启动原入口。
+
+```bash
+# 当前后台入口（已经运行，勿重复启动）
+RUN_ID=exp033_full_20260923_v6 nohup setsid bash rpcf/run_exp033_parallel.sh run > logs/exp033_full_20260923_v6.parallel_v1.controller.log 2>&1 < /dev/null &
+# 只读核对调度策略
+RUN_ID=exp033_full_20260923_v6 bash rpcf/run_exp033_parallel.sh plan
+```
+
+运行证据在run的 `parallel_v1/`，心跳继续写根目录 `runtime.json`。调度器记录真实worker退出码，原状态更新前另存历史；旧日志、产物和断点不删除。共享任务显存不足时只以独占资源重试一次，不调整科学参数。已通过74项回归和真实CPU包装入口检查；实际加速比需在稳定任务组成下测量。

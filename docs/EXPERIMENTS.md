@@ -4080,7 +4080,7 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
 ### EXP-033：张量结构、参数敏感性、TRP+clean 消融与配对可视化
 
 - **日期：** 2026-09-23。
-- **状态：** Implemented / Smoke verified；正式长实验 **Pending**，未启动。
+- **状态：** Implemented / Smoke verified；2026-09-24正式长实验已启动，**Running**，正式结果 **Pending**。
 - **相关 idea：** IDEA-002/009/011/012；最终计划见 [EXP033_PLAN.md](EXP033_PLAN.md)。
 - **范围：** THU Benchmark × EEGNet × seeds42–46 × fold0 ×规范n512；PGD-200 L∞0.03、α=2/255、无随机起点。
 - **结构：** 当前 PTR/QTR 对比普通TR、普通TT、时间TT、Tucker、矩阵SVD，两档表示参数预算；新增50个结构准确率条件，复用10个当前方法条件，60个独占GPU计时条件。普通TR低预算13432参数/−8.8%为已确认例外，其余±5%；仅使用validation32例选择rank。
@@ -4129,3 +4129,28 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
 - **最终测试：** 56项单元测试全部通过（10.645s）；日志、真实PTR输出等价性和验收JSON在`logs/exp033/exp033_smoke_20260923_v5/verification/`。
 - **正式清单：** `exp033_full_20260923_v6`，395任务（compute335、timing60），仅完成建档与Pending汇总，status任务数0，未启动正式长实验。之后启动使用该run-id；旧实施记录不覆盖、不删除。
 - **剩余边界：** GPU独占计时和五seed正式表/曲线仍Pending；smoke为工程验收。训练中断按原seed/初始化重启未完成attempt，评估可逐例恢复RNG。
+
+
+#### EXP-033 正式启动（2026-09-24 11:58，Asia/Shanghai）
+
+- **授权与范围：** 用户要求核查实现完整性后启动，允许GPU0–7。核对structure、rank、loss、ablation、visualize五模块与最终计划一致；正式仍为THU × EEGNet × seeds42–46、fold0、n512、PGD-200 L∞0.03、alpha=2/255、无随机起点，75次新CAF微调均100轮。
+- **启动前验证：** 正式v6清单/代码哈希/任务图校验通过，五seed共75个来源路径齐全；56项回归测试再次通过（10.371s）。真实THU输入的六方法×两预算共12项CUDA检查通过，形状、有限值、实际参数量正确。CUDA预检用smoke短迭代，不产生正式指标。证据位于 `logs/exp033/exp033_full_20260923_v6/launch_review/`。
+- **资源：** 启动前GPU0–7均无compute进程、利用率0%，各约9.6GiB可用显存；磁盘可用263GiB。每卡最多一个worker，计时任务保留逐例独占检查。
+- **已实际启动：** run-id `exp033_full_20260923_v6`；11:58:56后台启动，launcher PID1463782、controller PID1463813。`--queue all`覆盖395任务（compute335、timing60），完成后自动严格汇总；初始5个来源审计已派发，无需再次启动。
+- **日志与状态：** 实时控制日志 `logs/exp033_full_20260923_v6.controller.log`；心跳 `logs/exp033/exp033_full_20260923_v6/runtime.json`；逐任务状态和日志在同run的 `status/`、`worker_logs/`。
+- **启动命令（仅审计记录，运行中不要重复执行）：** `RUN_ID=exp033_full_20260923_v6 nohup setsid bash rpcf/run_exp033.sh run --queue all --gpu-ids 0,1,2,3,4,5,6,7 > logs/exp033_full_20260923_v6.controller.log 2>&1 < /dev/null &`。
+- **变更与边界：** 本次只补验证/启动记录并更新文档，未修改科学代码、依赖或冻结设置。评估可按样本和RNG断点恢复；未完成训练attempt从原seed/初始化重跑。正式表、曲线及五seed统计仍Pending，不能用smoke指标代替。
+
+
+#### EXP-033 并行扩容 v1（2026-09-24）
+
+- **原因与授权：** 用户在确认CPU插值瓶颈后要求提高并行度。扩容前约13秒采样，结构GPU均值0–1.1%、TNP约7.5–10%，八worker各约一个CPU核心；40逻辑核、约100GiB可用内存。真实一例前向插值约1.845s，其中1500次SciPy griddata累计1.828s，逆变换约1ms。此次只调整调度，不优化插值或改变数值路径。
+- **实现：** 新增 `rpcf/parallel_exp033.py`、`rpcf/run_exp033_parallel.sh`、`tests/test_exp033_parallel.py`。独立 `parallel_v1/policy.json` 冻结调度代码和资源策略；原科学代码、395任务清单、seed、512样本、PGD-200和100轮训练设置均保持不变，原 `verify_plan` 通过。
+- **策略：** GPU0–7；普通评估/净化每卡最多3任务，全局最多24任务；GPU0/1/2用于后续训练且独占，最多3个新训练并发。保留24GiB可用主存与至少1GiB显存余量，并对正在加载的进程预留资源。新任务分批派发；未知GPU进程会阻止共卡。普通计算结束后执行剩余GPU独占计时；在途计时同样禁止共卡。共享任务若显存OOM，只允许保留原参数、换独占资源重试一次；其他失败如实记录。
+- **安全接管：** 旧controller PID1463813/start_ticks491145907仅暂停派发，8个在途worker全部保留。新controller PID1492951（launcher1492905）已在后台执行；旧controller保持暂停，待其worker全部结束并读取真实退出码后自动退出并交接原排他锁。`handoff_complete=false`在此期间属正常状态。所有旧日志、结果、checkpoint保留。
+- **初始运行证据：** 31 completed / 16 running / 348 pending / failures={}；GPU4–7各3个任务。接管时有4个旧训练任务，全部保留，后续收敛至GPU0/1/2三卡训练策略；不能将旧在途任务数量理解为新策略允许四卡训练。
+- **验证：** torch环境74项EXP033测试通过（含18项新并行测试，11.491s）；覆盖资源预留、训练/计时双向独占、真实子进程退出码、接管身份和失败回滚、任务依赖及compute全部结束后才启动timing。已完成一个真实CPU包装入口预检，核验既有reference产物并记录returncode0；不新增正式指标。shell语法及diff检查通过。
+- **运行与恢复：** 当前入口 `RUN_ID=exp033_full_20260923_v6 nohup setsid bash rpcf/run_exp033_parallel.sh run > logs/exp033_full_20260923_v6.parallel_v1.controller.log 2>&1 < /dev/null &`（已启动，勿重复执行）。实时心跳仍为run根目录 `runtime.json`，并镜像至 `parallel_v1/runtime.json`。独立策略、接管、退出码receipt和测试证据均在 `parallel_v1/`；逐任务日志仍在 `worker_logs/`。恢复时拒绝重复启动仍存活的worker；真实失败诊断后显式 `--retry-failed`。
+- **边界：** 并发数增加不等于相同比例加速，实际受CPU/GPU和任务组成影响；新增训练仍独占且批量不变。训练中断从原初始化重跑未完成attempt，评估继续使用原逐样本RNG断点。正式结论仍Pending。
+
+- **扩容后复核：** 13:19快照48 completed /16 running /331 pending / failures={}，新派发17任务已完成；在途旧TNP和新TNP日志均推进。GPU0–7瞬时采样92–100%，此时包含4个GPU密集的validation校准任务，不能据此宣称持续满载或固定加速比；可用主存约69GiB。训练卡GPU0–3约9.5GiB显存占用、剩余约131MiB，沿用原训练参数并继续独占，禁止在其上叠加任务。策略中的1GiB是派发时按资源预估保留的余量，不是对训练运行峰值的保证。运行证据保存于 `parallel_v1/verification/after_launch.json`。

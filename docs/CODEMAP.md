@@ -527,3 +527,9 @@
 - `docs/EXP033_PLAN.md`：最终范围、复用来源、395个正式调度任务与操作命令；新产物隔离在 `logs/exp033/<run_id>/`。
 
 - `rpcf/exp033_smoke_finetune.py`：仅smoke使用的验证前缀/缓存首批包装器，记录实际子集并拒绝正式清单；核心`finetune.py`保持原样。
+
+
+### EXP-033 并行调度（2026-09-24）
+
+- `rpcf/parallel_exp033.py` / `rpcf/run_exp033_parallel.sh`：独立资源调度，不属于原 `exp033*.py` 科学指纹集合；`parallel_v1/policy.json` 单独冻结调度指纹。普通任务每卡最多3进程，训练/计时独占，主存/显存预留、安全接管旧worker和真实退出码receipt。
+- `tests/test_exp033_parallel.py`：资源上限、未知进程拒绝、PID身份、接管失败恢复、真实子进程及依赖/计时队列验证；不改变原实验计算路径。
