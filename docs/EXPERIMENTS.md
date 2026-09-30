@@ -52,6 +52,7 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
 | `EXP-030` | 已完成（四种 TN-only 策略均不支持） | `IDEA-017` | EEG_TNP；TN-only 自动定秩；Oracle headroom recovery |
 | `EXP-031` | Completed | `IDEA-009`、`IDEA-011`、`IDEA-012` | 全层静态-rank RPCF_AT；三数据集；六 backbone；五 seed；四攻击 |
 | `EXP-033` | Implemented / 正式 Pending | `IDEA-002`、`IDEA-009`、`IDEA-011`、`IDEA-012` | THU × EEGNet ×五seed；结构、敏感性、TRP+clean、可视化 |
+| `EXP-035` | Complete | `IDEA-009` | 参数敏感性；原42–46保留；新增47–51；十seed；原协议并行扩展 |
 
 ## 实验完成闭环 Checklist
 
@@ -4154,3 +4155,73 @@ AI 处理本文件时，默认不要全文阅读。除非用户明确要求完�
 - **边界：** 并发数增加不等于相同比例加速，实际受CPU/GPU和任务组成影响；新增训练仍独占且批量不变。训练中断从原初始化重跑未完成attempt，评估继续使用原逐样本RNG断点。正式结论仍Pending。
 
 - **扩容后复核：** 13:19快照48 completed /16 running /331 pending / failures={}，新派发17任务已完成；在途旧TNP和新TNP日志均推进。GPU0–7瞬时采样92–100%，此时包含4个GPU密集的validation校准任务，不能据此宣称持续满载或固定加速比；可用主存约69GiB。训练卡GPU0–3约9.5GiB显存占用、剩余约131MiB，沿用原训练参数并继续独占，禁止在其上叠加任务。策略中的1GiB是派发时按资源预估保留的余量，不是对训练运行峰值的保证。运行证据保存于 `parallel_v1/verification/after_launch.json`。
+
+
+## EXP-034：Madry配对净化、PGD-10 baseline与时间张量化TR（2026-09-28）
+
+- **来源与授权：** 用户本次明确新建EXP-034，补两种AP+Madry的主/跨攻击/adaptive、五个原始baseline的PGD-10及时间TR；覆盖此前EXP-032记录中当时暂不启动EXP-033–036的历史范围约束。
+- **状态：** 已实现，8项最小测试通过；真实权重/data smoke后台运行。正式结果 **Pending**。
+- **协议：** [EXP034_PLAN.md](EXP034_PLAN.md)。既有三数据集（SEED使用SEED-IV）、六模型、seed42–46/fold0/S512；主实验PGD200 L∞ .03全矩阵，跨攻击/PGD10/时间TR仅THUBenchmark+EEGNet。
+- **产物隔离：** 新增`rpcf/exp034.py`、`exp034_worker.py`、`exp034_structures.py`、`run_exp034.sh`及测试；EXP-031/032/033代码、权重、结果、已交付Excel均不修改。
+- **正式清单：** 90 external任务（两净化器固定权重+Madry）、25 raw PGD10、5校准、10结构效果、10计时，合计140任务/275条不重复指标行。计时普通任务完成后独占GPU、全局串行。
+- **来源：** `exp031_full_20260729_174215`、`exp032_full_20260917_2020`、`exp033_full_20260923_v6`。PGD-10沿用α=.006/ε=.03/10步/batch1/无随机起点/无重启与EOT/返回最后一步；AP使用组合真实梯度，raw使用分类器真实梯度，不冒称BPDA。
+- **验证：** `python -m unittest tests.test_exp034 tests.test_exp032_pgd10`，torch环境8 tests passed；`bash -n rpcf/run_exp034.sh`通过。覆盖任务矩阵、时间TR闭环及实际参数、PGD更新、EA subject绑定和断点来源/RNG恢复。
+- **smoke：** `exp034_smoke_20260928_v1`，正式S512及validation32的前2个样本，11任务/21指标行，GPU0/1。启动：
+  ```bash
+  RUN_ID=exp034_smoke_20260928_v1 SMOKE=1 bash rpcf/run_exp034.sh plan
+  RUN_ID=exp034_smoke_20260928_v1 GPU_IDS=0,1 nohup setsid bash rpcf/run_exp034.sh run > logs/exp034_smoke_20260928_v1.controller.log 2>&1 < /dev/null &
+  ```
+  实时日志`logs/exp034_smoke_20260928_v1.controller.log`，状态`logs/exp034/exp034_smoke_20260928_v1/runtime.json`。
+- **资源巡检：** GPU0–7空闲RTX3080，每卡约9861MiB可用，内存约122GiB可用，数据盘约233GiB剩余。不保存重复的全量adversarial/净化张量。
+- **后续报告要求：** 下次用户手动要求整理实验结果时才补rank和五项CE/KL权重的SA/RA曲线、五seed均值±样本标准差/逐seed点；本轮不重写现有Excel、不提前生成这些图表。
+
+### EXP-034 正式启动（2026-09-28）
+
+- `exp034_smoke_20260928_v1` 已通过完整真实输入链路：**11/11任务、21/21指标、errors=[]**；验收文件 `logs/exp034/exp034_smoke_20260928_v1/summary/report.json`。包括2种AP的五攻击与PGD10、全部5个raw baseline、时间TR两个预算的选秩/效果/独占计时。
+- 正式 run-id：`exp034_full_20260928_v1`，**后台运行中，正式结果 Pending**。140任务/275指标行；GPU0–7每卡一worker，仅空闲卡派发；计时在计算完成后全局串行。
+- 启动命令：
+  ```bash
+  RUN_ID=exp034_full_20260928_v1 bash rpcf/run_exp034.sh plan
+  RUN_ID=exp034_full_20260928_v1 GPU_IDS=0,1,2,3,4,5,6,7 nohup setsid bash rpcf/run_exp034.sh run > logs/exp034_full_20260928_v1.controller.log 2>&1 < /dev/null &
+  ```
+- 控制器日志：`logs/exp034_full_20260928_v1.controller.log`；心跳：`logs/exp034/exp034_full_20260928_v1/runtime.json`；任务日志：该目录 `workers/*.log`；完成自动生成 `summary/metrics_long.csv`、`metrics_grouped.csv`、`report.json`。
+- 来源路径机械检查660项引用，655项静态来源存在，5项为本轮calibrate产生的预期前置文件。EXP-032/033源码未改变；新实验保留源文件hash、checkpoint历史审计和样本身份。
+- 时间TR复用EXP-033相同预处理和inverse流程，OMP/MKL/PyTorch线程均为2；记录本轮独占RTX3080计时，不把smoke时长当正式效率结果。
+
+
+### EXP-034 正式完成验收（2026-09-28 14:09）
+
+- **状态：Complete。** 正式run `exp034_full_20260928_v1` 于北京时间2026-09-28 14:09:53完成，140/140任务、275/275指标行，`smoke=false`、`complete=true`、`errors=[]`、`pending_tasks=[]`。心跳最终为140 completed / 0 running / 0 pending，failures为空；控制器正常退出。
+- **验收来源：** `logs/exp034/exp034_full_20260928_v1/summary/report.json`；逐seed长表`metrics_long.csv`，五seed聚合`metrics_grouped.csv`，任务记录`task_states.csv`均已生成。
+- **覆盖：** 本轮计划内AP+Madry主/跨攻击/adaptive、五个raw baseline PGD-10、时间张量化TR两预算的选秩/效果/独占计时全部完成；不代表其他历史缺口已运行。
+- **解释边界：** 本次确认任务和指标验收完整性，尚未逐项分析新增方法的研究结论；不重新训练、攻击或改写历史结果。
+- **报告后续：** 按用户要求，参数敏感性图表及Excel更新仍等下次用户手动要求整理结果时再执行。
+
+
+### EXP-035 参数敏感性扩展至十seed（2026-09-28）
+
+- **授权与范围：** 用户要求在原seeds42–46基础上新增47–51，只补THUBenchmark/EEGNet的rank与CE/KL权重敏感性；保持科学设置，提高并行度。详细协议见 [EXP035_PLAN.md](EXP035_PLAN.md)。
+- **当前状态：** 正式 **Complete**，2026-09-30 10:06通过验收。独立正式run为`exp035_full_20260928_v1`，345任务，目标新增275条指标；与EXP-033只读保留的275条合为55条件×10seed。
+- **新seed依赖：** 新建对应Madry初始化、六rank训练cache、默认CAF及15权重配置、PGD200和TNP；不以旧seed权重代替新seed。训练、攻击batch、样本数、净化迭代、精度、初始化和模型选择规则保持原协议。
+- **并行：** GPU0–7动态调度，重任务独占且可用全部空闲卡，轻任务每卡最多3个，总上限24；有轻任务时最多6个重任务，预留显存/主存/磁盘并避免未知GPU任务。训练cache按六rank拆分，使用捕获的原随机流起点与partial RNG恢复。
+- **已验证：** 四项协议/DAG/资源/统计回归测试通过；真实RTX3080上2样本六rank串行/拆分缓存逐位一致，partial续跑一致、规划重启幂等，六rank的正式2048步完整随机状态一致。证据`logs/exp035_preflight_20260928_v1/verification.json`。小规模v1发现CUDA首次初始化顺序问题，修复后在独立v2重跑，保留v1失败记录。
+- **产物与启动：** 新入口`rpcf/exp035.py`、`run_exp035.sh`；控制日志`logs/exp035_full_20260928_v1.controller.log`，心跳`logs/exp035/exp035_full_20260928_v1/runtime.json`，逐任务实时日志`worker_logs/`。建档/启动/严格汇总命令见计划文档。
+- **验收与边界：** 真实退出码、来源hash、逐样本预测和55条件精确seed集合通过后才标Complete，mean±sample SD(ddof=1)；自动生成独立CSV与六张SA/RA图。既有结果表不自动覆盖。本次无新的研究结果，不改变研究决策。
+
+
+#### EXP-035 正式启动与验收证据（2026-09-28）
+
+- `exp035_smoke_20260928_v2`完整通过：24/24任务、10/10指标，errors=[]；正式与该smoke冻结科学源码相同。另有真实CUDA缓存逐位/partial RNG/2048步检查、40份历史命令一致性、32份原科学文件hash不变和四项回归通过。
+- 正式`exp035_full_20260928_v1`已后台启动，controller PID2537707；参数seeds47–51、345任务、GPU0–7、最多24worker/每卡最多3轻任务。正式结果仍Pending；见该run的`launch_review.json`、`runtime.json`和`summary/report.json`。
+- 实际命令：`RUN_ID=exp035_full_20260928_v1 nohup setsid bash rpcf/run_exp035.sh run > logs/exp035_full_20260928_v1.controller.log 2>&1 < /dev/null &`。控制器持锁防止重复派发，运行中不要再次启动；结束自动严格合并55条件×10seed及生成图。
+- 观察边界：新增seed必须先训练自己的Madry和生成cache；当前没有可报告的新科学结论。图表渲染的临时测试数据已经删除，不混入任何正式CSV。
+
+
+#### EXP-035 正式完成验收（2026-09-30 10:06，Asia/Shanghai）
+
+- **状态：Complete。** `exp035_full_20260928_v1`的345/345任务全部完成，0运行、0待处理、0失败。最后计算任务于10:06:09完成，严格验收报告10:06:16写入，图表及源数据10:06:24生成完毕，控制器已退出。
+- **覆盖与统计：** 新seeds47–51产生275条指标，与原EXP-033只读保留的seeds42–46的275条合并为550条；55个条件各有且仅有10个seed，全部组n=10、complete=true。正式report的smoke=false、complete=true、errors=[]、pending_tasks=[]。
+- **复核：** 冻结科学源码和原来源校验通过；复查长表550条/新增表275条/聚合55组、每seed55条以及精确seed集合；6张PNG、6张PDF与chart_data.csv均存在且非空。自动严格验收已重算逐样本预测、核对来源身份与产物hash。
+- **结果路径：** `logs/exp035/exp035_full_20260928_v1/summary/`中的`metrics_new_seeds.csv`、`metrics_long.csv`、`metrics_grouped.csv`、配对差值及`report.json`；六组rank/CE/KL敏感性图与绘图数据在同run的`figures/`。
+- **解释边界：** 本次确认实验和产物完整性；十seed敏感性研究结论待专门分析。既有Excel未由此自动改写。
+- **闭环：** IDEAS与EXP035_PLAN同步完成事实；CODEMAP现有入口及输出描述仍准确，无需修改。DECISIONS、方法进展梳理和PROMPTS不需要更新：本次没有新增研究取舍、论文结论或操作流程。

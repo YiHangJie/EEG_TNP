@@ -1,0 +1,524 @@
+{
+  "reviewed_at": "2026-09-28T15:57:03",
+  "workbook": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/experiment_results/20260928/EEG_完整实验结果_20260928.xlsx",
+  "workbook_bytes": 24302245,
+  "workbook_sha256": "55849bb1548e5a49764c81eea830d6e6b594e8b828ea11d2ffe474d08b00cb34",
+  "backup_directory": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/experiment_results/20260928/backups/before_exp034_20260928_154208",
+  "backup_workbook_sha256": "b9b9c55b5fea8995cac43219832a843d58161c259b173358aa646b1d794e18ea",
+  "original_workbook_matches_previous_review": true,
+  "result": "PASS",
+  "issues": [],
+  "independent_checks": {
+    "charts": {
+      "source_csv": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/summary/metrics_long.csv",
+      "chart_csv": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/experiment_results/20260928/sensitivity_figures/sensitivity_chart_data.csv",
+      "chart_data_rows": 134,
+      "points_independently_checked": 134,
+      "seed_values_checked": 670,
+      "metric_mean_sample_sd_recomputed": 134,
+      "source_scope_checked": "all rows THU EEGNet PGD S=512; raw classifier_whitebox and purifier nonadaptive_purification",
+      "seed_set": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "ddof": 1,
+      "default_rows_reused_across_five_parameter_panels_per_metric": true,
+      "errors": [],
+      "result": "PASS",
+      "rank_vs_weight_default": {
+        "comparison_count": 15,
+        "all_per_seed_SA_RA_equal": true,
+        "task_ids_are_distinct_formal_reference_tasks": true,
+        "interpretation": "rank reference and loss default are separate formally declared EXP033 reference tasks/summary rows, with identical per-seed SA/RA; rank panel uses rank group and each weight 1x uses loss default. No accidental scan row substitution.",
+        "checks": [
+          {
+            "series": "CAF raw",
+            "seed": 42,
+            "rank_row_task_id": "reference_seed42_rank",
+            "default_row_task_id": "reference_seed42_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 26,
+            "default_source_row": 33
+          },
+          {
+            "series": "CAF raw",
+            "seed": 43,
+            "rank_row_task_id": "reference_seed43_rank",
+            "default_row_task_id": "reference_seed43_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 119,
+            "default_source_row": 126
+          },
+          {
+            "series": "CAF raw",
+            "seed": 44,
+            "rank_row_task_id": "reference_seed44_rank",
+            "default_row_task_id": "reference_seed44_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 212,
+            "default_source_row": 219
+          },
+          {
+            "series": "CAF raw",
+            "seed": 45,
+            "rank_row_task_id": "reference_seed45_rank",
+            "default_row_task_id": "reference_seed45_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 305,
+            "default_source_row": 312
+          },
+          {
+            "series": "CAF raw",
+            "seed": 46,
+            "rank_row_task_id": "reference_seed46_rank",
+            "default_row_task_id": "reference_seed46_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 398,
+            "default_source_row": 405
+          },
+          {
+            "series": "TRP+CAF r25",
+            "seed": 42,
+            "rank_row_task_id": "reference_seed42_rank",
+            "default_row_task_id": "reference_seed42_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 27,
+            "default_source_row": 34
+          },
+          {
+            "series": "TRP+CAF r25",
+            "seed": 43,
+            "rank_row_task_id": "reference_seed43_rank",
+            "default_row_task_id": "reference_seed43_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 120,
+            "default_source_row": 127
+          },
+          {
+            "series": "TRP+CAF r25",
+            "seed": 44,
+            "rank_row_task_id": "reference_seed44_rank",
+            "default_row_task_id": "reference_seed44_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 213,
+            "default_source_row": 220
+          },
+          {
+            "series": "TRP+CAF r25",
+            "seed": 45,
+            "rank_row_task_id": "reference_seed45_rank",
+            "default_row_task_id": "reference_seed45_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 306,
+            "default_source_row": 313
+          },
+          {
+            "series": "TRP+CAF r25",
+            "seed": 46,
+            "rank_row_task_id": "reference_seed46_rank",
+            "default_row_task_id": "reference_seed46_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 399,
+            "default_source_row": 406
+          },
+          {
+            "series": "TRP+CAF r30",
+            "seed": 42,
+            "rank_row_task_id": "reference_seed42_rank",
+            "default_row_task_id": "reference_seed42_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 28,
+            "default_source_row": 35
+          },
+          {
+            "series": "TRP+CAF r30",
+            "seed": 43,
+            "rank_row_task_id": "reference_seed43_rank",
+            "default_row_task_id": "reference_seed43_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 121,
+            "default_source_row": 128
+          },
+          {
+            "series": "TRP+CAF r30",
+            "seed": 44,
+            "rank_row_task_id": "reference_seed44_rank",
+            "default_row_task_id": "reference_seed44_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 214,
+            "default_source_row": 221
+          },
+          {
+            "series": "TRP+CAF r30",
+            "seed": 45,
+            "rank_row_task_id": "reference_seed45_rank",
+            "default_row_task_id": "reference_seed45_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 307,
+            "default_source_row": 314
+          },
+          {
+            "series": "TRP+CAF r30",
+            "seed": 46,
+            "rank_row_task_id": "reference_seed46_rank",
+            "default_row_task_id": "reference_seed46_loss",
+            "distinct_task_ids": true,
+            "SA_RA_equal": true,
+            "rank_source_row": 400,
+            "default_source_row": 407
+          }
+        ]
+      },
+      "duplicate_reference_semantics": "Each plotted point uses five distinct source CSV lines for seeds 42-46. Rank source lines appear once for each of SA/RA; each loss default source line is intentionally reused once in each of five parameter panels for each metric (10 chart references per underlying default seed row), not counted as a sixth seed or pooled across panels.",
+      "default_unique_source_rows": 15,
+      "default_chart_points": 30,
+      "default_seed_references": 150,
+      "default_reuse_note": "The same 15 default source rows (3 method/rank variants × 5 seeds) are referenced once per each of 5 parameters × 2 metrics = 30 chart points, totaling 150 seed-row references; reuse across panels is intentional and never adds observations within a point."
+    },
+    "added_rows": {
+      "xlsx": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/experiment_results/20260928/EEG_完整实验结果_20260928.xlsx",
+      "official_groups": 55,
+      "detail_exp034_metric_values": 670,
+      "unique_exp034_source_csv_rows": 275,
+      "expected_cross_section_duplicate_source_rows": 10,
+      "duplicate_method_attack_counts": {
+        "madry_magnet|PGD-200 L∞ ε=0.03": 5,
+        "madry_dcae|PGD-200 L∞ ε=0.03": 5
+      },
+      "display_rounding_validated": {
+        "fields": 4,
+        "matches": 4,
+        "items": [
+          {
+            "budget": "25",
+            "field": "SA 均值±SD (%)",
+            "display": "86.91 ± 0.62",
+            "expected_from_official": "86.91 ± 0.62",
+            "match": true
+          },
+          {
+            "budget": "25",
+            "field": "RA 均值±SD (%)",
+            "display": "77.89 ± 1.61",
+            "expected_from_official": "77.89 ± 1.61",
+            "match": true
+          },
+          {
+            "budget": "30",
+            "field": "SA 均值±SD (%)",
+            "display": "89.02 ± 0.67",
+            "expected_from_official": "89.02 ± 0.67",
+            "match": true
+          },
+          {
+            "budget": "30",
+            "field": "RA 均值±SD (%)",
+            "display": "79.06 ± 1.31",
+            "expected_from_official": "79.06 ± 1.31",
+            "match": true
+          }
+        ]
+      },
+      "structural_coverage": {
+        "time_TR_rows": 2,
+        "EEGNet_rows_all_methods": 14,
+        "other_model_pending_legacy_rows": 60,
+        "time_TR_missing_out_of_scope": 0
+      },
+      "mismatch_count": 0,
+      "mismatches": [],
+      "official_aggregation_comparison": {
+        "main_AP_Madry": {
+          "groups": 36,
+          "numeric_SA_RA_mean_sampleSD_cells": 144,
+          "all_match": true
+        },
+        "cross_attack_AP_Madry": {
+          "groups": 10,
+          "numeric_SA_RA_mean_sampleSD_cells": 40,
+          "all_match": true
+        },
+        "adaptive_new_raw_and_AP_Madry": {
+          "groups": 7,
+          "numeric_SA_RA_mean_sampleSD_cells": 28,
+          "all_match": true
+        },
+        "time_TR_structure": {
+          "budget_rows": 2,
+          "timing_and_effect_scalar_fields": 28,
+          "all_scalar_fields_match": true,
+          "SA_RA_display_text_fields": 4,
+          "display_rounding_validated": true
+        },
+        "total_comparison_mismatches": 0
+      }
+    },
+    "preservation": {
+      "workbooks": {
+        "new": "docs/experiment_results/20260928/EEG_完整实验结果_20260928.xlsx",
+        "old_backup": "docs/experiment_results/20260928/backups/before_exp034_20260928_154208/EEG_完整实验结果_20260928.xlsx"
+      },
+      "checks": {
+        "sheet_names": {
+          "count": 14,
+          "names": [
+            "说明与覆盖",
+            "1_主实验",
+            "2_跨攻击跨范数",
+            "3_Adaptive_attack",
+            "4_张量网络效果效率",
+            "5_参数敏感性",
+            "6_消融实验",
+            "7_可视化",
+            "参数图表数据",
+            "逐seed明细",
+            "附录_全测试集主实验",
+            "缺失与边界",
+            "协议与指标",
+            "来源索引"
+          ],
+          "pass": true
+        },
+        "image_counts": {
+          "total": 26,
+          "by_sheet": {
+            "5_参数敏感性": 6,
+            "7_可视化": 20
+          },
+          "expected": {
+            "5_参数敏感性": 6,
+            "7_可视化": 20
+          },
+          "pass": true
+        },
+        "original_20_image_hashes": {
+          "old_image_count": 20,
+          "new_image_count": 26,
+          "old_images_preserved": true,
+          "old_hashes_unique": 20,
+          "missing_or_count_delta": {}
+        },
+        "image_anchor_overlap": {
+          "image_count": 26,
+          "overlap_count": 0,
+          "overlaps": [],
+          "method": "one-cell anchor origin plus EMU ext converted to pixel grid from row/column dimensions",
+          "pass": true
+        },
+        "data_row_counts": {
+          "1_主实验": {
+            "header_row": 6,
+            "data_records": 252,
+            "worksheet_max_row": 258,
+            "image_count": 0
+          },
+          "2_跨攻击跨范数": {
+            "header_row": 6,
+            "data_records": 70,
+            "worksheet_max_row": 76,
+            "image_count": 0
+          },
+          "3_Adaptive_attack": {
+            "header_row": 6,
+            "data_records": 14,
+            "worksheet_max_row": 20,
+            "image_count": 0
+          },
+          "4_张量网络效果效率": {
+            "header_row": 6,
+            "data_records": 74,
+            "worksheet_max_row": 80,
+            "image_count": 0
+          },
+          "5_参数敏感性": {
+            "header_row": 6,
+            "data_records": 55,
+            "worksheet_max_row": 221,
+            "image_count": 6
+          },
+          "6_消融实验": {
+            "header_row": 6,
+            "data_records": 9,
+            "worksheet_max_row": 15,
+            "image_count": 0
+          },
+          "7_可视化": {
+            "header_row": 6,
+            "data_records": 5,
+            "worksheet_max_row": 2432,
+            "image_count": 20
+          },
+          "附录_全测试集主实验": {
+            "header_row": 6,
+            "data_records": 180,
+            "worksheet_max_row": 186,
+            "image_count": 0
+          }
+        },
+        "status_counts": {
+          "1_主实验": {
+            "Complete · 5/5": 252
+          },
+          "2_跨攻击跨范数": {
+            "Complete · 5/5": 70
+          },
+          "3_Adaptive_attack": {
+            "Complete · 5/5": 11,
+            "Pending / 缺少结果": 3
+          },
+          "4_张量网络效果效率": {
+            "Complete · 5/5": 14,
+            "Pending / 缺少结果": 60
+          },
+          "5_参数敏感性": {
+            "Complete · 5/5": 55
+          },
+          "6_消融实验": {
+            "Complete · 5/5": 9
+          },
+          "7_可视化": {
+            "Complete · 5/5": 5
+          }
+        },
+        "pending_metric_cells": {
+          "nonblank_count": 0,
+          "examples": [],
+          "pass": true
+        },
+        "old_complete_numeric_preservation": {
+          "matched_old_complete_rows": 541,
+          "numeric_cells_compared": 3673,
+          "mismatch_count": 0,
+          "unmatched_or_ambiguous_old_rows": [],
+          "mismatch_examples": [],
+          "pass": true
+        },
+        "expected_scope_counts": {
+          "expected": {
+            "1_主实验": 252,
+            "2_跨攻击跨范数": 70,
+            "3_Adaptive_attack": 14,
+            "4_张量网络效果效率": 74,
+            "5_参数敏感性": 55,
+            "6_消融实验": 9,
+            "7_可视化": 5,
+            "附录_全测试集主实验": 180
+          },
+          "actual": {
+            "1_主实验": 252,
+            "2_跨攻击跨范数": 70,
+            "3_Adaptive_attack": 14,
+            "4_张量网络效果效率": 74,
+            "5_参数敏感性": 55,
+            "6_消融实验": 9,
+            "7_可视化": 5,
+            "附录_全测试集主实验": 180
+          },
+          "pass": true
+        },
+        "table_ranges": {
+          "refs": {
+            "1_主实验": [
+              {
+                "name": "Results1",
+                "ref": "A6:R258"
+              }
+            ],
+            "2_跨攻击跨范数": [
+              {
+                "name": "Results2",
+                "ref": "A6:R76"
+              }
+            ],
+            "3_Adaptive_attack": [
+              {
+                "name": "Results3",
+                "ref": "A6:R20"
+              }
+            ],
+            "4_张量网络效果效率": [
+              {
+                "name": "Results4",
+                "ref": "A6:Y80"
+              }
+            ],
+            "5_参数敏感性": [
+              {
+                "name": "Results5",
+                "ref": "A6:W61"
+              }
+            ],
+            "6_消融实验": [
+              {
+                "name": "Results7",
+                "ref": "A6:R15"
+              }
+            ],
+            "7_可视化": [
+              {
+                "name": "Results8",
+                "ref": "A6:R11"
+              }
+            ],
+            "附录_全测试集主实验": [
+              {
+                "name": "Results10",
+                "ref": "A6:N186"
+              }
+            ]
+          },
+          "row_range_mismatches": [],
+          "pass": true
+        }
+      },
+      "issues": [],
+      "validation_aux": {
+        "record_count": 2150,
+        "metric_detail_count": 5220,
+        "group_counts": {
+          "2_跨攻击跨范数": 70,
+          "1_主实验": 252,
+          "3_Adaptive_attack": 11,
+          "4_张量网络效果效率": 28,
+          "5_参数敏感性": 55,
+          "6_消融实验": 9,
+          "7_可视化": 5
+        },
+        "missing_rows": 64,
+        "embedded_figures": 26,
+        "validations": [
+          "430 个有结果条件均有且仅有 seed 42–46；未跨 scope 或样本数聚合。",
+          "EXP-032 所有采用条件的均值和 ddof=1 标准差均与正式五种子表一致。",
+          "EXP-034共275条独立seed结果；纳入各页57个条件，134项指标均值/样本SD与正式聚合一致。",
+          "Excel可重新打开；14个sheet、26张内嵌PNG（20案例+6敏感性）；主实验252组、跨攻击70组、参数55组、消融9组。",
+          "所有缺失条件保留Pending和空数值；原实验文件未写入。"
+        ]
+      },
+      "pass": true
+    }
+  },
+  "main_review": [
+    "新增结果采用正式EXP-034；140任务、275独立seed指标全部Complete；未运行新实验。",
+    "抽查真实PGD10攻击协议、clean/adv批次、EA输入坐标；AP配clean-only与Madry分开，BPDA与真实梯度分开。",
+    "rank与loss默认SA/RA逐seed一致但来源任务分别引用；图中1×不增加独立重复数。",
+    "目视检查rank及KL权重图，双面板、图例、误差条和逐seed散点无裁切；没有本机Excel/LibreOffice渲染器，工作簿用openpyxl重新打开及XML/图片锚点校验。",
+    "保留3个adaptive缺失条件及其他5模型原六结构的60组Pending；时间TR仅THU/EEGNet，范围外未追加缺口。"
+  ]
+}

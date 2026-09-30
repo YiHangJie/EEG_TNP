@@ -533,3 +533,22 @@
 
 - `rpcf/parallel_exp033.py` / `rpcf/run_exp033_parallel.sh`：独立资源调度，不属于原 `exp033*.py` 科学指纹集合；`parallel_v1/policy.json` 单独冻结调度指纹。普通任务每卡最多3进程，训练/计时独占，主存/显存预留、安全接管旧worker和真实退出码receipt。
 - `tests/test_exp033_parallel.py`：资源上限、未知进程拒绝、PID身份、接管失败恢复、真实子进程及依赖/计时队列验证；不改变原实验计算路径。
+
+
+## EXP-034 补充评估入口（2026-09-28）
+
+- `rpcf/exp034.py`、`rpcf/run_exp034.sh`：独立140任务清单、科学代码冻结、每卡单worker调度、全局串行独占计时、严格五seed汇总。正式结果275条（主/跨PGD重叠只保存一次）。
+- `rpcf/exp034_worker.py`：只读复用EXP-031/032权重和攻击，评估MagNet/DCAE+Madry与五baseline PGD-10；EA使用原subject-aware输入，partial保留RNG和模型state；TR校准验证集与EXP-033逐项对齐。
+- `rpcf/exp034_structures.py`：时间轴二进制张量化的标准闭环TR-SVD；固定候选家族、预算±5%、实际rank与参数严格核对，保持EXP-033旧模块原样。
+- `tests/test_exp034.py`：覆盖任务范围、预算与闭环、实际TR分解、EA逐样本PGD和断点身份校验；`docs/EXP034_PLAN.md`记录科学协议及下次结果报告图表需求。
+
+
+## EXP-035 十seed敏感性扩展（2026-09-28）
+
+- `rpcf/exp035.py`、`rpcf/run_exp035.sh`：冻结新增seed47–51的345任务依赖图，正式与smoke隔离，复用原EXP-031/033科学实现。
+- `rpcf/exp035_cache.py`：沿原模板初始化调用推进随机流，保存六rank起点；包装原cache分阶段接口，partial保存完整RNG。
+- `rpcf/exp035_worker.py`：同seed Madry/cache/CAF/攻击/净化准备、有效batch16与S512原留存行为适配、来源审计；仅新目录产物。
+- `rpcf/exp035_scheduler.py`：全部空闲GPU动态重任务独占/每卡三轻任务、资源预留、真实退出码receipt、PID身份恢复。
+- `rpcf/exp035_report.py`：旧275条预测复算、新275条验收、55条件×10seed统计及PNG/PDF图；不覆盖既有Excel。
+- `rpcf/exp035_verify.py`、`tests/test_exp035.py`：CUDA串行/拆分缓存逐位等价、partial续跑、正式2048步RNG检查与最小协议回归。
+- 计划见`docs/EXP035_PLAN.md`；新结果位于`logs/exp035/<run_id>/`，原EXP-031/033产物只读。

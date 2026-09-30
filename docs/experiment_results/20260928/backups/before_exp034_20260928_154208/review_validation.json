@@ -1,0 +1,87 @@
+{
+  "workbook": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/experiment_results/20260928/EEG_完整实验结果_20260928.xlsx",
+  "workbook_sha256": "b9b9c55b5fea8995cac43219832a843d58161c259b173358aa646b1d794e18ea",
+  "metrics_review": {
+    "workbook": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/experiment_results/20260928/EEG_完整实验结果_20260928.xlsx",
+    "opened_with_openpyxl": true,
+    "sheet_count": 13,
+    "core_sheet_data_rows": {
+      "1_主实验": 216,
+      "2_跨攻击跨范数": 60,
+      "3_Adaptive_attack": 12,
+      "4_张量网络效果效率": 72,
+      "5_参数敏感性": 55,
+      "6_消融实验": 9,
+      "7_可视化": 5
+    },
+    "exp033_metrics_long_rows": {
+      "structure": 120,
+      "rank": 35,
+      "loss": 240,
+      "ablation": 45,
+      "visualize": 25
+    },
+    "exp033_grouped_condition_counts": {
+      "structure": 24,
+      "rank": 7,
+      "loss": 48,
+      "sensitivity_rank_plus_loss": 55,
+      "ablation": 9,
+      "visualize": 5
+    },
+    "excel_sensitivity_groups": {
+      "rank": 7,
+      "loss": 48,
+      "total": 55
+    },
+    "summary_comparison": {
+      "rank_loss_ablation_groups": 64,
+      "fields_checked": 256,
+      "mismatches": 0,
+      "tolerance": 1e-10
+    },
+    "embedded_png_count": 20,
+    "pending_numeric_cells": {
+      "adaptive_groups": 8,
+      "non_eegnet_structure_groups": 60,
+      "non_eegnet_structure_outcome_cells_filled": 0
+    },
+    "non_eegnet_structure_rows_all_pending": true,
+    "seed_range_from_validation_json": [
+      42,
+      43,
+      44,
+      45,
+      46
+    ],
+    "validation_json": {
+      "record_count": 1865,
+      "metric_detail_count": 4550,
+      "group_counts": {
+        "2_跨攻击跨范数": 60,
+        "1_主实验": 216,
+        "3_Adaptive_attack": 4,
+        "4_张量网络效果效率": 24,
+        "5_参数敏感性": 55,
+        "6_消融实验": 9,
+        "7_可视化": 5
+      },
+      "missing_rows": 69
+    },
+    "issues": []
+  },
+  "adaptive_visual_review": {
+    "workbook": "docs/experiment_results/20260928/EEG_完整实验结果_20260928.xlsx",
+    "sheet_3_Adaptive_attack": {
+      "ap_gradient_distinction": "PASS: clean_magnet/clean_dcae rows identify exact end-to-end purifier gradients; TRP+CAF rows identify true purifier forward with identity BPDA backward; text also separates them.",
+      "ea_forward_abat_style": "PASS: row 11 contains EA-forward (ABAT-style), raw label ea_forward, status Pending/missing for PGD-10; no metric is fabricated.",
+      "bpda_source": "logs/exp031/exp031_full_20260729_174215/summary_thu_eegnet/bpda.csv (10 seed×rank rows) and bpda_summary.csv; workbook rows 17-18/source SRC005 match five-seed means/sample SDs: rank25 clean 90.1953125±0.9608105%, robust 82.109375±1.0927032%; rank30 clean 91.015625±0.9667476%, robust 81.3671875±0.9427749%.",
+      "protocol_scope": "PGD-10 Linf eps .03 alpha .006; n512, fold0, seeds42-46. TNP BPDA identity backward; AP MagNet/DCAE exact gradients. No PGD-200 mixed into this sheet."
+    },
+    "sheet_7_visualization": {
+      "first_five_groups": "PASS: first five metric rows (DCAE, MagNet, raw, TRP+clean r25, TRP+clean r30) compared to EXP-033 summary/metrics_long.csv by per-seed source rows; means and sample SDs match exactly to floating precision, all n=5.",
+      "embedded_images": "PASS: 20/20 images embedded; 20/20 referenced PNG paths resolve; embedded bytes SHA-256 match original PNGs; anchor display aspect ratio equals source image ratio (no stretch)."
+    },
+    "mismatch": []
+  }
+}

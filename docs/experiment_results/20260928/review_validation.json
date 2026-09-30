@@ -1,0 +1,42 @@
+{
+  "reviewed_at": "2026-09-30T10:49:11.188449",
+  "workbook": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/experiment_results/20260928/EEG_完整实验结果_20260928.xlsx",
+  "workbook_bytes": 24458848,
+  "workbook_sha256": "c6acd811bca456724be25f3fe1b6d0cbb0ca662961858312afbec0a2e5ea8c58",
+  "backup_directory": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/experiment_results/20260928/backups/before_exp035_20260930_103348",
+  "backup_workbook_sha256": "55849bb1548e5a49764c81eea830d6e6b594e8b828ea11d2ffe474d08b00cb34",
+  "original_workbook_matches_previous_review": true,
+  "result": "PASS",
+  "issues": [],
+  "independent_checks": {
+    "official_source": "logs/exp035/exp035_full_20260928_v1/summary/metrics_long.csv",
+    "sensitivity_conditions": 55,
+    "seed_set": [
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51
+    ],
+    "sensitivity_metric_rows_checked_against_csv": 1100,
+    "chart_points_checked_against_csv": 134,
+    "chart_seed_values_checked_against_csv": 1340,
+    "max_chart_seed_value_error": 0,
+    "sheets": 14,
+    "embedded_images": 26,
+    "all_registered_source_hashes_rechecked": 633,
+    "unrelated_sheets_preserved": 8
+  },
+  "main_review": [
+    "敏感性55条件各10seed，110对SA/RA均值和样本SD与正式聚合一致。",
+    "逐seed明细与图表源数据独立对照正式CSV，无重复合入旧42–46。",
+    "生成前核对原Excel与上次review指纹一致；完整备份旧文件、图表、脚本和验证。",
+    "8个不受影响sheet的数值、数字格式、链接、合并区与20张案例图均与备份一致。",
+    "已目视检查rank与KL图：10seed散点、均值±样本SD和图注清晰；工作簿重新打开并校验图片数量。未使用Excel/LibreOffice实际渲染器。"
+  ]
+}

@@ -1,0 +1,942 @@
+{
+  "created_at": "2026-09-28T11:55:43",
+  "file": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/experiment_results/20260928/EEG_完整实验结果_20260928.xlsx",
+  "seed_range": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "datasets": {
+    "thubenchmark": "THUBenchmark",
+    "seediv": "SEED-IV",
+    "bciciv2a": "bciciv2a"
+  },
+  "record_count": 1865,
+  "metric_detail_count": 4550,
+  "group_counts": {
+    "2_跨攻击跨范数": 60,
+    "1_主实验": 216,
+    "3_Adaptive_attack": 4,
+    "4_张量网络效果效率": 24,
+    "5_参数敏感性": 55,
+    "6_消融实验": 9,
+    "7_可视化": 5
+  },
+  "embedded_figures": 20,
+  "missing_rows": 69,
+  "validations": [
+    "373 个有结果条件均有且仅有 seed 42–46；未跨 scope 或样本数聚合。",
+    "EXP-032 所有采用条件的均值和 ddof=1 标准差均与正式五种子表一致。",
+    "Excel可重新打开；13个sheet、20张内嵌PNG；主实验216组、跨攻击60组、参数55组、消融9组。",
+    "所有缺失条件保留Pending和空数值；原实验文件未写入。"
+  ],
+  "source_count": 113,
+  "sources": [
+    {
+      "id": "SRC001",
+      "relative_path": "logs/exp032/exp032_full_20260917_2020/execution_revisions/adaptive_pgd10_v1/summary/completeness.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp032/exp032_full_20260917_2020/execution_revisions/adaptive_pgd10_v1/summary/completeness.json",
+      "bytes": 528,
+      "mtime": "2026-09-24T00:42:49",
+      "sha256": "6517de92744064a6f5c8bf9ebe89a3b2dceb2661a804cb4d2d762a20caf2579e"
+    },
+    {
+      "id": "SRC002",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/summary/report.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/summary/report.json",
+      "bytes": 11009042,
+      "mtime": "2026-09-26T09:14:38",
+      "sha256": "345a9480703c1a94f8cb5c53516ab40e09254e6cbabad74d8f81c6113d7f11af"
+    },
+    {
+      "id": "SRC003",
+      "relative_path": "logs/exp032/exp032_full_20260917_2020/execution_revisions/adaptive_pgd10_v1/summary/conditions_long.csv",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp032/exp032_full_20260917_2020/execution_revisions/adaptive_pgd10_v1/summary/conditions_long.csv",
+      "bytes": 506229,
+      "mtime": "2026-09-24T00:42:48",
+      "sha256": "6b4e44247b3b733123e082f6597ff5af7e7d62dc81546a0cbb4bc8098adb3ab3"
+    },
+    {
+      "id": "SRC004",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/summary/metrics_long.csv",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/summary/metrics_long.csv",
+      "bytes": 5483484,
+      "mtime": "2026-09-26T09:14:32",
+      "sha256": "bd4a1c66a099af9b70577b4827b13f0925bf383bd63018aff8dad4b3ca12ac14"
+    },
+    {
+      "id": "SRC005",
+      "relative_path": "logs/exp031/exp031_full_20260729_174215/summary_thu_eegnet/bpda.csv",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp031/exp031_full_20260729_174215/summary_thu_eegnet/bpda.csv",
+      "bytes": 1438,
+      "mtime": "2026-08-26T09:38:00",
+      "sha256": "77c7191162d803e1bdbe3143118378923418673d2a77ba45fe3c2a3d65e6fb69"
+    },
+    {
+      "id": "SRC006",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tr_dense_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tr_dense_25.json",
+      "bytes": 271464,
+      "mtime": "2026-09-24T12:31:42",
+      "sha256": "889b716317dbde4240465bb50e3ec678f5e9102cf0e84a000e935cfaad6d97f3"
+    },
+    {
+      "id": "SRC007",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tr_dense_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tr_dense_30.json",
+      "bytes": 271735,
+      "mtime": "2026-09-24T12:31:50",
+      "sha256": "342d7561ec61ed72ebe7e526a4f9b3db7147e2034c69b01d37034adb5f53e6e6"
+    },
+    {
+      "id": "SRC008",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tt_dense_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tt_dense_25.json",
+      "bytes": 294109,
+      "mtime": "2026-09-24T12:32:04",
+      "sha256": "8247e093a0f70d2dca1c4a208c3b9ed8a28410ef52d39a7fa9b36893067c3c93"
+    },
+    {
+      "id": "SRC009",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tt_dense_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tt_dense_30.json",
+      "bytes": 294259,
+      "mtime": "2026-09-24T12:32:14",
+      "sha256": "0d88532ffa9921965d96aa41b4c08ef0e1f939bcac94f05a91c678103a05a48c"
+    },
+    {
+      "id": "SRC010",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tt_time_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tt_time_25.json",
+      "bytes": 332577,
+      "mtime": "2026-09-24T12:33:09",
+      "sha256": "ad13e1815a1612b785a97e06a498b603219b05cd44e2e787d50d043a4496774c"
+    },
+    {
+      "id": "SRC011",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tt_time_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tt_time_30.json",
+      "bytes": 332984,
+      "mtime": "2026-09-24T13:02:04",
+      "sha256": "418c0bb7029895c4cff0e8f4881ea885d1b3c4d4d43f5a0a5326a43a848e7470"
+    },
+    {
+      "id": "SRC012",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tucker_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tucker_25.json",
+      "bytes": 294110,
+      "mtime": "2026-09-24T13:02:15",
+      "sha256": "710533b045479f27a4d74caacc09e5d60be5f27e4e308ee19e92c385e5668a0f"
+    },
+    {
+      "id": "SRC013",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tucker_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_tucker_30.json",
+      "bytes": 294255,
+      "mtime": "2026-09-24T13:02:23",
+      "sha256": "6345b0275341597a196112a6303ed9e62a5b64075740ddb536889e7835460a19"
+    },
+    {
+      "id": "SRC014",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_svd_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_svd_25.json",
+      "bytes": 244833,
+      "mtime": "2026-09-24T13:02:01",
+      "sha256": "b8ac99fb301d2d7c4c52a3f9aca5073eb1b093b112d9ee4c26d396314684240e"
+    },
+    {
+      "id": "SRC015",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_svd_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed42_svd_30.json",
+      "bytes": 244990,
+      "mtime": "2026-09-24T13:02:39",
+      "sha256": "a2af7a2036933a5e55a3d9b21cc61a41407b11a64ce39ee81734713bfadb96bd"
+    },
+    {
+      "id": "SRC016",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tr_dense_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tr_dense_25.json",
+      "bytes": 271521,
+      "mtime": "2026-09-24T13:50:57",
+      "sha256": "9f401b6f8a7c893754f935bb38d03ae2a04fd0f290c6a646b5abf4b87a42f30d"
+    },
+    {
+      "id": "SRC017",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tr_dense_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tr_dense_30.json",
+      "bytes": 271750,
+      "mtime": "2026-09-24T13:50:49",
+      "sha256": "8741774aa8c2afcb50a913367a01a0bd79f4fd20692d1b31aa84825e62695eb2"
+    },
+    {
+      "id": "SRC018",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tt_dense_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tt_dense_25.json",
+      "bytes": 294121,
+      "mtime": "2026-09-24T14:21:21",
+      "sha256": "03e88bdc9d44c86233810814a425b0cab8a7166a98e56197ed21c4d4e1cebf73"
+    },
+    {
+      "id": "SRC019",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tt_dense_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tt_dense_30.json",
+      "bytes": 294276,
+      "mtime": "2026-09-24T14:21:31",
+      "sha256": "ccc42e9afa0664e7f1d9b16d5eaeda2616a12cf3407dc9acde0541ae22f552d7"
+    },
+    {
+      "id": "SRC020",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tt_time_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tt_time_25.json",
+      "bytes": 332565,
+      "mtime": "2026-09-24T14:22:04",
+      "sha256": "079dc54276e8a831bbca291eac7a3e85a3072cf9525d85a75db96d9eed386a85"
+    },
+    {
+      "id": "SRC021",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tt_time_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tt_time_30.json",
+      "bytes": 332953,
+      "mtime": "2026-09-24T14:22:17",
+      "sha256": "f12c51f5e2ed213d8cae71682b6af459498c27c0a9b01f02a81fbdea59efbe36"
+    },
+    {
+      "id": "SRC022",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tucker_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tucker_25.json",
+      "bytes": 294092,
+      "mtime": "2026-09-24T14:53:26",
+      "sha256": "c78fe181881dd7b102db3d5194ff530d145a7d7289f265002dda7efbc1aec9da"
+    },
+    {
+      "id": "SRC023",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tucker_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_tucker_30.json",
+      "bytes": 294227,
+      "mtime": "2026-09-24T14:53:36",
+      "sha256": "9a37561eac65d6efeec1ec022e080294ea188bf97f14b1c8addf62d37dc11bbe"
+    },
+    {
+      "id": "SRC024",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_svd_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_svd_25.json",
+      "bytes": 244861,
+      "mtime": "2026-09-24T13:50:41",
+      "sha256": "b7bb13c91d269d7a5ad5aec3cc2740b53398cc51a2cd567a57bd91dcc403b42e"
+    },
+    {
+      "id": "SRC025",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_svd_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed43_svd_30.json",
+      "bytes": 245036,
+      "mtime": "2026-09-24T13:50:28",
+      "sha256": "6841b7cabb6f21d50ddf0d6fcb5bb3d424b8e74dbb145e9ec5ec86f98682a08c"
+    },
+    {
+      "id": "SRC026",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tr_dense_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tr_dense_25.json",
+      "bytes": 271499,
+      "mtime": "2026-09-24T15:13:00",
+      "sha256": "7152f3e7a41e8eb0a62c997fe31a784df787d0039c02def1175a66c40ff8d19d"
+    },
+    {
+      "id": "SRC027",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tr_dense_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tr_dense_30.json",
+      "bytes": 271753,
+      "mtime": "2026-09-24T15:13:13",
+      "sha256": "7617f21246e57cdd8d79b36509b2e47aa8775932671db3368323b87bfcf392c5"
+    },
+    {
+      "id": "SRC028",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tt_dense_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tt_dense_25.json",
+      "bytes": 294135,
+      "mtime": "2026-09-24T15:23:23",
+      "sha256": "d74e3ed2d6fb1cee71ae037fa872cc13f8fc4386ae48629bd22a0b160184b58b"
+    },
+    {
+      "id": "SRC029",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tt_dense_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tt_dense_30.json",
+      "bytes": 294284,
+      "mtime": "2026-09-24T15:24:29",
+      "sha256": "b165fb3cf2f6a8dabbd06dfe0c52c68fbacca46eb99e1914d090b8b8f246678a"
+    },
+    {
+      "id": "SRC030",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tt_time_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tt_time_25.json",
+      "bytes": 332621,
+      "mtime": "2026-09-24T15:25:12",
+      "sha256": "1f94ccbb0596642c70a29d7c9ff7d293fa34e99e65c19cb61f29b4e17c31d380"
+    },
+    {
+      "id": "SRC031",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tt_time_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tt_time_30.json",
+      "bytes": 333024,
+      "mtime": "2026-09-24T15:25:42",
+      "sha256": "e94ca588e699d228e9b38dcd6752ef9d3bb18ea5e298c07ebce51bdf1e13bea8"
+    },
+    {
+      "id": "SRC032",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tucker_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tucker_25.json",
+      "bytes": 294111,
+      "mtime": "2026-09-24T15:26:44",
+      "sha256": "f8b334284e4b6e5dc65ef0ce8915189a3b799de27b62120115980937f2bcf691"
+    },
+    {
+      "id": "SRC033",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tucker_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_tucker_30.json",
+      "bytes": 294265,
+      "mtime": "2026-09-24T15:30:52",
+      "sha256": "7171251d389abb076ab1d168781726daff4feae1aa4f8dea57dbf8782d97ea9f"
+    },
+    {
+      "id": "SRC034",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_svd_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_svd_25.json",
+      "bytes": 244874,
+      "mtime": "2026-09-24T14:53:08",
+      "sha256": "ae48462cd5b7432e1ed24b9b18037393ba4f92278ae35c66455e7a94d58a07d3"
+    },
+    {
+      "id": "SRC035",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_svd_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed44_svd_30.json",
+      "bytes": 245035,
+      "mtime": "2026-09-24T14:54:59",
+      "sha256": "ced38469ebb98d054bd1f458605e594d007fda0beb64af390cc741c404f3468c"
+    },
+    {
+      "id": "SRC036",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tr_dense_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tr_dense_25.json",
+      "bytes": 271542,
+      "mtime": "2026-09-24T15:44:00",
+      "sha256": "0c1ccd452a3e3e79409c85331e19936c72abbbf49024f9b9d12d97ec7ed7a3db"
+    },
+    {
+      "id": "SRC037",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tr_dense_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tr_dense_30.json",
+      "bytes": 271766,
+      "mtime": "2026-09-24T15:44:28",
+      "sha256": "6a9083889d0af07a059f1021df9fb8a2c5d0ddffdd2b32b577217ab70ffe7bc2"
+    },
+    {
+      "id": "SRC038",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tt_dense_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tt_dense_25.json",
+      "bytes": 294106,
+      "mtime": "2026-09-24T15:54:35",
+      "sha256": "70e7315339581078109dc2e0453791ff6dfb4180dd75f6f2f76c11930dc7f9be"
+    },
+    {
+      "id": "SRC039",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tt_dense_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tt_dense_30.json",
+      "bytes": 294262,
+      "mtime": "2026-09-24T15:55:23",
+      "sha256": "f93b9ccde2e65e69090dc5b19e7a1cdd8a03c610a049399e7414b673548d6988"
+    },
+    {
+      "id": "SRC040",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tt_time_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tt_time_25.json",
+      "bytes": 332624,
+      "mtime": "2026-09-24T15:56:44",
+      "sha256": "e6fbdf937e85eaa16c577f7d4006caa1b091490a4841be06f0146102dedf799f"
+    },
+    {
+      "id": "SRC041",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tt_time_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tt_time_30.json",
+      "bytes": 332954,
+      "mtime": "2026-09-24T15:57:32",
+      "sha256": "452644476183be6ada765388311800efdf8b11c3cc52ac7bfc6ca1323e32b789"
+    },
+    {
+      "id": "SRC042",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tucker_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tucker_25.json",
+      "bytes": 294106,
+      "mtime": "2026-09-24T15:58:04",
+      "sha256": "a4a0759536a74d34e23e58d6ad00a576329a1fad2de4efe65c3e19a9adda333d"
+    },
+    {
+      "id": "SRC043",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tucker_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_tucker_30.json",
+      "bytes": 294231,
+      "mtime": "2026-09-24T16:02:41",
+      "sha256": "d2bfe8b3e9096dd891819c443f28c8d6c638ad4a059f66f001af94bbe9489a24"
+    },
+    {
+      "id": "SRC044",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_svd_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_svd_25.json",
+      "bytes": 244878,
+      "mtime": "2026-09-24T15:31:12",
+      "sha256": "41f0a5f641b4f3dd99fb66a1fe04eb45e60d74f3b54ffc8347e16ea46479fa9b"
+    },
+    {
+      "id": "SRC045",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_svd_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed45_svd_30.json",
+      "bytes": 245028,
+      "mtime": "2026-09-24T15:32:19",
+      "sha256": "130707fc047bda6065f53efa3306d1286e7068e61e2540a572f217a5bc06a9f4"
+    },
+    {
+      "id": "SRC046",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tr_dense_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tr_dense_25.json",
+      "bytes": 271520,
+      "mtime": "2026-09-24T16:14:53",
+      "sha256": "6aad4a642d359aa9ec0113001e6d36cc604640c49fa62b9baa1dd799e6c47768"
+    },
+    {
+      "id": "SRC047",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tr_dense_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tr_dense_30.json",
+      "bytes": 271759,
+      "mtime": "2026-09-24T16:15:31",
+      "sha256": "9528c04941d6af529c195db5b097bbe9b23072b254677e3663d23903c4ba082b"
+    },
+    {
+      "id": "SRC048",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tt_dense_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tt_dense_25.json",
+      "bytes": 294101,
+      "mtime": "2026-09-24T16:25:42",
+      "sha256": "5c2eaec1ce97fda000d5a5edf015574952735b7f6715a739894a5d5360fbfd1a"
+    },
+    {
+      "id": "SRC049",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tt_dense_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tt_dense_30.json",
+      "bytes": 294284,
+      "mtime": "2026-09-24T16:26:22",
+      "sha256": "86cc42e9fb78c5b8b10d56a6eeab8092dbc8bf6f1a4c8728a32af5d418bb508c"
+    },
+    {
+      "id": "SRC050",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tt_time_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tt_time_25.json",
+      "bytes": 332637,
+      "mtime": "2026-09-24T16:28:36",
+      "sha256": "fd17ebbed3159dd38e197e43d7bcef0318d21758dea2dcca08f666bb2ff0a09b"
+    },
+    {
+      "id": "SRC051",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tt_time_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tt_time_30.json",
+      "bytes": 333017,
+      "mtime": "2026-09-24T16:29:54",
+      "sha256": "c2e192523f81b5610032eb6e36e9715b401252703d66b6e48236552e976ccab0"
+    },
+    {
+      "id": "SRC052",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tucker_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tucker_25.json",
+      "bytes": 294096,
+      "mtime": "2026-09-24T16:29:57",
+      "sha256": "e5bba985d6d33200653b8206965432a8abceded735565d745b2500826da48912"
+    },
+    {
+      "id": "SRC053",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tucker_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_tucker_30.json",
+      "bytes": 294274,
+      "mtime": "2026-09-24T16:33:54",
+      "sha256": "87b00a878d4677ef074dc9eca033ab6d6e595f39b37cc845da0cd7b52e8dd223"
+    },
+    {
+      "id": "SRC054",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_svd_25.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_svd_25.json",
+      "bytes": 244863,
+      "mtime": "2026-09-24T16:02:17",
+      "sha256": "7fa60f88f12cb7cbd6cf270c7f9054b62550c9a90c4a80e7501031c6d45600b1"
+    },
+    {
+      "id": "SRC055",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_svd_30.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/metrics/structure_seed46_svd_30.json",
+      "bytes": 245049,
+      "mtime": "2026-09-24T16:03:27",
+      "sha256": "18cb101fc6c2261ac0d3df75e1a7c33a9a4a583c5ac98ae123ca72a541dbabce"
+    },
+    {
+      "id": "SRC056",
+      "relative_path": "logs/exp032/exp032_full_20260917_2020/execution_revisions/adaptive_pgd10_v1/summary/five_seed_mean_std.csv",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp032/exp032_full_20260917_2020/execution_revisions/adaptive_pgd10_v1/summary/five_seed_mean_std.csv",
+      "bytes": 129708,
+      "mtime": "2026-09-24T00:42:49",
+      "sha256": "dcfcd550fae273e9a5c80cded27765fe9b2c2b0b4dd0113d1e10e5f6921d7007"
+    },
+    {
+      "id": "SRC057",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_cases.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_cases.json",
+      "bytes": 588160,
+      "mtime": "2026-09-24T22:35:51",
+      "sha256": "56e21cdc96fc491391a1065a3675ae9003417ce312055a73061f9dd8701d8b9c"
+    },
+    {
+      "id": "SRC058",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_success_2.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_success_2.png",
+      "bytes": 1204719,
+      "mtime": "2026-09-24T22:34:54",
+      "sha256": "c2e262d880ae5870bc580b5fd880b65e7d7c03149a026f80b2416157cac8529d"
+    },
+    {
+      "id": "SRC059",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_success_2.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_success_2.pdf",
+      "bytes": 1144746,
+      "mtime": "2026-09-24T22:35:04",
+      "sha256": "3a16ad0382bccd127e3d80537919b1d024c812db64fda89a99f7758899c65817"
+    },
+    {
+      "id": "SRC060",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_failure_0.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_failure_0.png",
+      "bytes": 1261039,
+      "mtime": "2026-09-24T22:35:10",
+      "sha256": "585e615cd9ad927c6a9796c5a354dcdd536b51fdd173736b0e068e6f0dd92355"
+    },
+    {
+      "id": "SRC061",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_failure_0.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_failure_0.pdf",
+      "bytes": 1143211,
+      "mtime": "2026-09-24T22:35:19",
+      "sha256": "141dc03de5447cb97eeb437b2f7e36f855e674d0e85eadfbabdd1dad0c6b93c3"
+    },
+    {
+      "id": "SRC062",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_clean_damage_10.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_clean_damage_10.png",
+      "bytes": 1300122,
+      "mtime": "2026-09-24T22:35:26",
+      "sha256": "b914b9514d6ee9a17867dca0835eda9fdc225027593d7e13e356fbdbf40ce040"
+    },
+    {
+      "id": "SRC063",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_clean_damage_10.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_clean_damage_10.pdf",
+      "bytes": 1151422,
+      "mtime": "2026-09-24T22:35:35",
+      "sha256": "20cf127273e37704c490a8368cbfcc8cebb89e2fb70f90ae4eef3cf829b96964"
+    },
+    {
+      "id": "SRC064",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_disagreement_3.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_disagreement_3.png",
+      "bytes": 1313063,
+      "mtime": "2026-09-24T22:35:41",
+      "sha256": "82b7ebe366942d38987505ea6273b8f5b0cd8e93f9e7ba66dba99d5b6ca346e9"
+    },
+    {
+      "id": "SRC065",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_disagreement_3.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed42/seed42_disagreement_3.pdf",
+      "bytes": 1149835,
+      "mtime": "2026-09-24T22:35:50",
+      "sha256": "9580a0984673649a92be8da8b97e1e5f51cc3e0f3cc3d6fb6e0d7c9bd7476127"
+    },
+    {
+      "id": "SRC066",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_cases.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_cases.json",
+      "bytes": 587857,
+      "mtime": "2026-09-24T22:35:59",
+      "sha256": "2688409e78304b2403573be10b53ddd476f91897bbd566c011134a7f25bbba61"
+    },
+    {
+      "id": "SRC067",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_success_2.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_success_2.png",
+      "bytes": 1225244,
+      "mtime": "2026-09-24T22:35:01",
+      "sha256": "4d249812d647be2d4296c8d6bd1dbc7976455f1492678add64cd45ba3e3f14bd"
+    },
+    {
+      "id": "SRC068",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_success_2.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_success_2.pdf",
+      "bytes": 1169894,
+      "mtime": "2026-09-24T22:35:11",
+      "sha256": "dd474eda372774c5983d0c464f64dfea332ea3d61400aa1c8683224dd9baf539"
+    },
+    {
+      "id": "SRC069",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_failure_3.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_failure_3.png",
+      "bytes": 1134461,
+      "mtime": "2026-09-24T22:35:17",
+      "sha256": "5219abbfd8034052515d5499bb9477f93c301e2324bca8af088b40269ec8b1c0"
+    },
+    {
+      "id": "SRC070",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_failure_3.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_failure_3.pdf",
+      "bytes": 1146834,
+      "mtime": "2026-09-24T22:35:27",
+      "sha256": "ef8233020ae320e7ac374a9a5eaa45f749a9f26513d0bb68c1a30a3d405c51ee"
+    },
+    {
+      "id": "SRC071",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_clean_damage_9.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_clean_damage_9.png",
+      "bytes": 1432116,
+      "mtime": "2026-09-24T22:35:33",
+      "sha256": "b9ae93aeef0a7bc65f96cce2cba2c46e13ca21ef8b861702c1dd77fea7935768"
+    },
+    {
+      "id": "SRC072",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_clean_damage_9.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_clean_damage_9.pdf",
+      "bytes": 1152539,
+      "mtime": "2026-09-24T22:35:43",
+      "sha256": "312b532e8155793483164e16dbe333a85a78680a5421d0f8d0a1e86e0c21efe0"
+    },
+    {
+      "id": "SRC073",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_disagreement_0.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_disagreement_0.png",
+      "bytes": 1046317,
+      "mtime": "2026-09-24T22:35:49",
+      "sha256": "27ca9524526add97861b8e80dae0097af0ebe60ea6ca82f4d59c07037e3b9cb6"
+    },
+    {
+      "id": "SRC074",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_disagreement_0.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed43/seed43_disagreement_0.pdf",
+      "bytes": 1144005,
+      "mtime": "2026-09-24T22:35:59",
+      "sha256": "5ec2f15db68bd73628c1d39e9eb48e0cdb0405a002fc131392e21b2eb52dbd81"
+    },
+    {
+      "id": "SRC075",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_cases.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_cases.json",
+      "bytes": 588131,
+      "mtime": "2026-09-24T22:37:38",
+      "sha256": "23d6deff7b4b71bc219cd32a0d55a2f9947f6f66ad49192749f4ce22034722fe"
+    },
+    {
+      "id": "SRC076",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_success_24.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_success_24.png",
+      "bytes": 1138546,
+      "mtime": "2026-09-24T22:36:43",
+      "sha256": "7d0ec1c9284e91b9770b9e2e9959374e53a940087f8fd410ed20dc1dea7f6130"
+    },
+    {
+      "id": "SRC077",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_success_24.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_success_24.pdf",
+      "bytes": 1158410,
+      "mtime": "2026-09-24T22:36:52",
+      "sha256": "4594d4a6bc842804b32dd0187a958cefcd7457e34e902d8e7107c5deac7f0459"
+    },
+    {
+      "id": "SRC078",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_failure_0.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_failure_0.png",
+      "bytes": 1268902,
+      "mtime": "2026-09-24T22:36:58",
+      "sha256": "4cc3dc401a2c20bdcf27da7fb8be4450c55240be4feb957f52250fc4097f9fdd"
+    },
+    {
+      "id": "SRC079",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_failure_0.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_failure_0.pdf",
+      "bytes": 1150470,
+      "mtime": "2026-09-24T22:37:07",
+      "sha256": "4fcdfed561b190b7293011edc2e677d8b257e0e5198709b2d827b3d0faaeeb03"
+    },
+    {
+      "id": "SRC080",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_clean_damage_3.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_clean_damage_3.png",
+      "bytes": 1199280,
+      "mtime": "2026-09-24T22:37:13",
+      "sha256": "cdce955556ef52b77a9a6a14ae29156304692dac48e63440cd4e417716a75e3e"
+    },
+    {
+      "id": "SRC081",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_clean_damage_3.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_clean_damage_3.pdf",
+      "bytes": 1151022,
+      "mtime": "2026-09-24T22:37:22",
+      "sha256": "e935cd56d03e6b827b959eb361dbd1dafe3968adcc38f9003a46a6047dc61828"
+    },
+    {
+      "id": "SRC082",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_disagreement_1.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_disagreement_1.png",
+      "bytes": 1040362,
+      "mtime": "2026-09-24T22:37:28",
+      "sha256": "f0e361e1f60afaf037a917102cb4402db5b0a0c03c896ce2a322c83517741027"
+    },
+    {
+      "id": "SRC083",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_disagreement_1.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed44/seed44_disagreement_1.pdf",
+      "bytes": 1146586,
+      "mtime": "2026-09-24T22:37:38",
+      "sha256": "8d9b76428fff195670c2bb7b1fa8d3ca83dbd95140b8ea3b321030d8528e953d"
+    },
+    {
+      "id": "SRC084",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_cases.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_cases.json",
+      "bytes": 588062,
+      "mtime": "2026-09-24T22:37:37",
+      "sha256": "d0c1478d375ad75a1539ff459712d9be65503bc4a7c4cf0cb20f52d1ba2034a4"
+    },
+    {
+      "id": "SRC085",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_success_25.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_success_25.png",
+      "bytes": 1135893,
+      "mtime": "2026-09-24T22:36:40",
+      "sha256": "fbc9f658bf074835d14e2df8685e93186156ee6884aa218056de97f894d9dfd8"
+    },
+    {
+      "id": "SRC086",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_success_25.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_success_25.pdf",
+      "bytes": 1147965,
+      "mtime": "2026-09-24T22:36:49",
+      "sha256": "9fe8d9a609c6a51d8f2e2b68e3ceddcea72d2c8e8a57ffa479d5f86ce1ce43ce"
+    },
+    {
+      "id": "SRC087",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_failure_0.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_failure_0.png",
+      "bytes": 1203775,
+      "mtime": "2026-09-24T22:36:56",
+      "sha256": "2ee781f981064752400fd6d2e109b040adfd7cd956b976e97b7255d1958c691e"
+    },
+    {
+      "id": "SRC088",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_failure_0.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_failure_0.pdf",
+      "bytes": 1159528,
+      "mtime": "2026-09-24T22:37:05",
+      "sha256": "a59227af7f06c10462d36851054cb52c38ecc4dd1d35a1142eda1f0194dbd9ba"
+    },
+    {
+      "id": "SRC089",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_clean_damage_8.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_clean_damage_8.png",
+      "bytes": 1197800,
+      "mtime": "2026-09-24T22:37:11",
+      "sha256": "0eb2b585abe5689abbfbccbafe546d86a9caa2ecc45008815005fefbec4d574e"
+    },
+    {
+      "id": "SRC090",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_clean_damage_8.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_clean_damage_8.pdf",
+      "bytes": 1148423,
+      "mtime": "2026-09-24T22:37:21",
+      "sha256": "81139d0e883f6acb48a4b6392dc6131fb1d26d720c42402b477f40cc9a986bbd"
+    },
+    {
+      "id": "SRC091",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_disagreement_3.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_disagreement_3.png",
+      "bytes": 1287550,
+      "mtime": "2026-09-24T22:37:27",
+      "sha256": "eaa92bf7be25ba96c53410239338bc5344bf41d4b870a2c3685393b9fab032ae"
+    },
+    {
+      "id": "SRC092",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_disagreement_3.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed45/seed45_disagreement_3.pdf",
+      "bytes": 1168105,
+      "mtime": "2026-09-24T22:37:36",
+      "sha256": "83f39b38bf0a5b78eb620a56d5a8f628fe7df7b5939dea3b2401bff0d9d37b8d"
+    },
+    {
+      "id": "SRC093",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_cases.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_cases.json",
+      "bytes": 588320,
+      "mtime": "2026-09-24T22:54:52",
+      "sha256": "09534794bdbd1693bc092ec241d154fa5ee5f67224f1dca8173abedfaa62dc93"
+    },
+    {
+      "id": "SRC094",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_success_11.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_success_11.png",
+      "bytes": 1236816,
+      "mtime": "2026-09-24T22:53:55",
+      "sha256": "504bc9e175a84fd0508b8c4437ea0def4294800cdaa1fad3916a999492bb175e"
+    },
+    {
+      "id": "SRC095",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_success_11.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_success_11.pdf",
+      "bytes": 1153980,
+      "mtime": "2026-09-24T22:54:04",
+      "sha256": "56c18ac03962bfd113edcea62f74b59d3a9b742b35f542af0c08b04f8043b93c"
+    },
+    {
+      "id": "SRC096",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_failure_0.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_failure_0.png",
+      "bytes": 1146474,
+      "mtime": "2026-09-24T22:54:11",
+      "sha256": "5c49fe956c928e5ae83b71c9d3730afa38f6fb1b5a4759743aa753ffdf2e4c71"
+    },
+    {
+      "id": "SRC097",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_failure_0.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_failure_0.pdf",
+      "bytes": 1155744,
+      "mtime": "2026-09-24T22:54:20",
+      "sha256": "3f45e42d124b96891aa1b7589809b73143bc630d469f0283da50929cc993cfb2"
+    },
+    {
+      "id": "SRC098",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_clean_damage_5.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_clean_damage_5.png",
+      "bytes": 1234415,
+      "mtime": "2026-09-24T22:54:27",
+      "sha256": "31926ccf1d91e464d704348bebed23fc5c5e85c66be78f8ebf426739f2680200"
+    },
+    {
+      "id": "SRC099",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_clean_damage_5.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_clean_damage_5.pdf",
+      "bytes": 1149679,
+      "mtime": "2026-09-24T22:54:36",
+      "sha256": "0ebd6f61a80ec19a82400eb494836b3f74072ad5ffa8d01658c6837ff4f622d0"
+    },
+    {
+      "id": "SRC100",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_disagreement_2.png",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_disagreement_2.png",
+      "bytes": 1151271,
+      "mtime": "2026-09-24T22:54:42",
+      "sha256": "27ea694b85c3a8f93748cb1167e2a719dd33ff1578fa5076bdc56ea01524752f"
+    },
+    {
+      "id": "SRC101",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_disagreement_2.pdf",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/figures/seed46/seed46_disagreement_2.pdf",
+      "bytes": 1163233,
+      "mtime": "2026-09-24T22:54:52",
+      "sha256": "9f5e24c49cec6f668612163e4585283fe55e8c54834c92b8242bb921b5056ae2"
+    },
+    {
+      "id": "SRC102",
+      "relative_path": "logs/exp031/exp031_full_20260729_174215/summary/conditions_long.csv",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp031/exp031_full_20260729_174215/summary/conditions_long.csv",
+      "bytes": 1044725,
+      "mtime": "2026-09-17T11:11:30",
+      "sha256": "04b03105c9453ac5d36044f9d7f2835ef53855a2392f381a9b116421ca0c961b"
+    },
+    {
+      "id": "SRC103",
+      "relative_path": "docs/EXP032_PLAN.md",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/EXP032_PLAN.md",
+      "bytes": 16237,
+      "mtime": "2026-09-22T11:21:51",
+      "sha256": "47e73f83ebe2ae670773acf7eba9849cdda15931aad69a37e3156f62805ca644"
+    },
+    {
+      "id": "SRC104",
+      "relative_path": "docs/EXPERIMENTS.md",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/EXPERIMENTS.md",
+      "bytes": 319087,
+      "mtime": "2026-09-24T13:21:13",
+      "sha256": "fa0afe4315635993d04c4d112aea3ce5e74ecebb49dab96f0334b7fd03a15a6c"
+    },
+    {
+      "id": "SRC105",
+      "relative_path": "docs/EXP032_BASELINES.md",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/EXP032_BASELINES.md",
+      "bytes": 6294,
+      "mtime": "2026-09-17T20:18:17",
+      "sha256": "fad5f7cf307a7f26271128beb6229424a7c45b0949abe892424beba2a99daa88"
+    },
+    {
+      "id": "SRC106",
+      "relative_path": "docs/EXP033_PLAN.md",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/EXP033_PLAN.md",
+      "bytes": 15005,
+      "mtime": "2026-09-24T13:19:25",
+      "sha256": "966d857feee25c576b6e06ece133972aedb656de0a5b6831589ad967a6b49e4b"
+    },
+    {
+      "id": "SRC107",
+      "relative_path": "rpcf/exp033_worker.py",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/rpcf/exp033_worker.py",
+      "bytes": 34787,
+      "mtime": "2026-09-23T16:27:04",
+      "sha256": "1a78ce305b37f4e4ac286a1cacca4e8ea0c0413c7e119c92e26b2b88fc588979"
+    },
+    {
+      "id": "SRC108",
+      "relative_path": "docs/EXP031_results_20260917_final/report.md",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/docs/EXP031_results_20260917_final/report.md",
+      "bytes": 9802,
+      "mtime": "2026-09-17T11:12:32",
+      "sha256": "59c6c5e48d6849feeae2906298d725e7e7a62c9f35f1e61a3b7fbb68d97f324f"
+    },
+    {
+      "id": "SRC109",
+      "relative_path": "logs/exp032/exp032_full_20260917_2020/execution_revisions/adaptive_pgd10_v1/summary/baseline_audit.csv",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp032/exp032_full_20260917_2020/execution_revisions/adaptive_pgd10_v1/summary/baseline_audit.csv",
+      "bytes": 212140,
+      "mtime": "2026-09-24T00:42:48",
+      "sha256": "6fef8af386939f37e751395b90f45ad890e190d2421f67d1c1d30d164e621214"
+    },
+    {
+      "id": "SRC110",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/summary/metrics_grouped.csv",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/summary/metrics_grouped.csv",
+      "bytes": 27402,
+      "mtime": "2026-09-26T09:14:32",
+      "sha256": "de9329d9b55e1bd99012262e4bcfbb751892902e06c20be168c80f6eb214996f"
+    },
+    {
+      "id": "SRC111",
+      "relative_path": "logs/exp031/exp031_full_20260729_174215/summary/completeness.json",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp031/exp031_full_20260729_174215/summary/completeness.json",
+      "bytes": 652,
+      "mtime": "2026-09-17T11:11:30",
+      "sha256": "49745b23ddc5a17b50543d4bcbce118c54e9cec912eb7a3d4b5e0e92ba16821a"
+    },
+    {
+      "id": "SRC112",
+      "relative_path": "logs/exp031/exp031_full_20260729_174215/summary_thu_eegnet/bpda_summary.csv",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp031/exp031_full_20260729_174215/summary_thu_eegnet/bpda_summary.csv",
+      "bytes": 397,
+      "mtime": "2026-08-26T09:38:00",
+      "sha256": "556ddb3eec9359de03d6a8f821a95562c5c306572671674672affac21a8d3963"
+    },
+    {
+      "id": "SRC113",
+      "relative_path": "logs/exp033/exp033_full_20260923_v6/summary/paired_grouped.csv",
+      "absolute_path": "/data2/yihangjie/pythonProjects/EEG_TNP/logs/exp033/exp033_full_20260923_v6/summary/paired_grouped.csv",
+      "bytes": 15554,
+      "mtime": "2026-09-26T09:14:32",
+      "sha256": "c3169126d0df697a85bbca7fe4f94d00048decee96da4900c96c7adf16912b34"
+    }
+  ]
+}
